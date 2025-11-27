@@ -77,13 +77,21 @@ export interface Tender {
   priority: 'Low' | 'Medium' | 'High' | 'Critical';
   estimatedValue?: number;
   currency: string;
+  emdAmount?: number; // Earnest Money Deposit
+  tenderFees?: number; // Tender Fees
   submissionDeadline?: string;
+  dueDate?: string; // Alias for submissionDeadline
   expectedAwardDate?: string;
   contractDurationMonths?: number;
   assignedTo?: number;
   assignedUser?: User;
   tags?: TenderTag[];
-  createdBy: number;
+  createdBy: number | string; // Can be user ID (number) or user name (string)
+  updatedBy?: string; // User name who last updated
+  client?: string; // Company name
+  deletedAt?: string; // Soft delete timestamp
+  deletedBy?: number; // User ID who deleted
+  deleterName?: string; // User name who deleted
   createdAt: string;
   updatedAt: string;
 }
@@ -103,6 +111,8 @@ export interface Document {
   categoryId?: number;
   fileName: string;
   originalName: string;
+  documentName?: string;
+  description?: string;
   filePath: string;
   fileSize: number;
   mimeType: string;
@@ -122,6 +132,49 @@ export interface TenderActivity {
   description?: string;
   oldValue?: string;
   newValue?: string;
+  createdAt: string;
+}
+
+export interface AIApiConfig {
+  id: number;
+  providerName: string;
+  modelName: string;
+  baseUrl?: string | null;
+  isActive: boolean;
+  isDefault: boolean;
+  maxTokens: number;
+  temperature: number;
+  description?: string | null;
+  createdBy?: number;
+  updatedBy?: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface WorkLogReminder {
+  id: number;
+  activityId: number;
+  tenderId: number;
+  actionRequired: string;
+  dueDate?: string;
+  isCompleted: boolean;
+  completedAt?: string;
+  completedBy?: number;
+  completedByUser?: User;
+  createdBy: number;
+  createdByUser?: User;
+  createdAt: string;
+  updatedAt?: string;
+  recipients?: WorkLogReminderRecipient[];
+}
+
+export interface WorkLogReminderRecipient {
+  id: number;
+  reminderId: number;
+  email?: string;
+  phoneNumber?: string;
+  userId?: number;
+  user?: User;
   createdAt: string;
 }
 
@@ -157,6 +210,8 @@ export interface DashboardStats {
   lostTenders: number;
   totalValue: number;
   wonValue: number;
+  totalEMD: number;
+  totalFees: number;
   avgWinRate: number;
   upcomingDeadlines: number;
   recentActivities: TenderActivity[];
@@ -175,6 +230,8 @@ export interface ApiResponse<T> {
   data?: T;
   error?: string;
   message?: string;
+  isConnectionWorking?: boolean;
+  errorType?: string;
 }
 
 export interface PaginatedResponse<T> {
@@ -197,4 +254,84 @@ export interface FilterOptions {
   pageSize?: number;
   sortBy?: string;
   sortOrder?: 'asc' | 'desc';
+  offset?: number;
+}
+
+// Tender Scout Types
+export interface TenderScoutSource {
+  id: number;
+  name: string;
+  sourceType: 'website' | 'api' | 'rss' | 'google_search';
+  url: string;
+  isActive: boolean;
+  scrapingConfig?: any;
+  lastScrapedAt?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface TenderScoutInterest {
+  id: number;
+  userId?: number;
+  name: string;
+  description?: string;
+  keywords: string[];
+  categories?: string[];
+  minValue?: number;
+  maxValue?: number;
+  regions?: string[];
+  isActive: boolean;
+  autoImportThreshold?: number;
+  minRelevance?: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface TenderScoutResult {
+  id: number;
+  sourceId: number;
+  interestId: number;
+  externalId?: string;
+  title: string;
+  description?: string;
+  url?: string;
+  organization?: string;
+  estimatedValue?: number;
+  currency?: string;
+  deadline?: string;
+  location?: string;
+  category?: string;
+  rawData?: any;
+  aiSummary?: string;
+  relevanceScore: number;
+  status: 'new' | 'reviewed' | 'imported' | 'ignored';
+  importedTenderId?: number;
+  discoveredAt: string;
+  reviewedAt?: string;
+  reviewedBy?: number;
+  sourceName?: string;
+  interestName?: string;
+  matchedKeywords?: string[];
+}
+
+export interface TenderScoutLog {
+  id: number;
+  sourceId: number;
+  startedAt: string;
+  completedAt?: string;
+  status: 'running' | 'completed' | 'failed';
+  tendersFound: number;
+  tendersNew: number;
+  errorMessage?: string;
+  executionTimeMs?: number;
+  sourceName?: string;
+}
+
+export interface AISearchResult {
+  title: string;
+  summary: string;
+  url?: string;
+  confidence?: number;
+  fileLinks?: string[];
+  matchedKeywords?: string[];
 }
