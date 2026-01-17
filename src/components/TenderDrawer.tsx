@@ -173,7 +173,7 @@ export function TenderDrawer({ tender, isOpen, onClose, onUpdate }: TenderDrawer
   useEffect(() => {
     if (tender && isOpen) {
       // Update editedTender immediately to avoid null reference errors
-      setEditedTender({ 
+      setEditedTender({
         ...tender,
         dueDate: tender.submissionDeadline || tender.dueDate,
       });
@@ -187,17 +187,17 @@ export function TenderDrawer({ tender, isOpen, onClose, onUpdate }: TenderDrawer
 
   const fetchDocuments = async () => {
     if (!tender?.id) return;
-    
+
     setLoadingDocuments(true);
     try {
       const response = await documentApi.getAll({ tenderId: tender.id });
       if (response.success && response.data) {
         const allDocs = response.data.data || [];
-        
+
         // Separate documents by category
         const techDocs: Document[] = [];
         const regularDocs: Document[] = [];
-        
+
         allDocs.forEach((doc: any) => {
           // Transform snake_case to camelCase
           const transformedDoc: Document = {
@@ -216,7 +216,7 @@ export function TenderDrawer({ tender, isOpen, onClose, onUpdate }: TenderDrawer
             uploadedAt: doc.uploaded_at,
             uploadedByName: doc.uploaded_by_name, // Store user name for display
           } as any;
-          
+
           // Check if this is a technical document
           if (technicalCategoryId && doc.category_id === technicalCategoryId) {
             techDocs.push(transformedDoc);
@@ -224,7 +224,7 @@ export function TenderDrawer({ tender, isOpen, onClose, onUpdate }: TenderDrawer
             regularDocs.push(transformedDoc);
           }
         });
-        
+
         setDocuments(regularDocs);
         setTechnicalDocuments(techDocs);
       }
@@ -251,7 +251,7 @@ export function TenderDrawer({ tender, isOpen, onClose, onUpdate }: TenderDrawer
 
   const fetchActivities = async () => {
     if (!tender?.id) return;
-    
+
     try {
       const response = await tenderApi.getActivities(tender.id);
       if (response.success && response.data) {
@@ -272,7 +272,7 @@ export function TenderDrawer({ tender, isOpen, onClose, onUpdate }: TenderDrawer
           createdAt: activity.created_at,
         }));
         setActivities(transformedActivities);
-        
+
         // Split into work logs (Commented) and audit logs (all others)
         const workLogsList = transformedActivities.filter(a => a.activityType === 'Commented');
         const auditLogsList = transformedActivities.filter(a => a.activityType !== 'Commented');
@@ -307,11 +307,11 @@ export function TenderDrawer({ tender, isOpen, onClose, onUpdate }: TenderDrawer
   if (!isOpen || !tender) {
     return null;
   }
-  
+
   // Use editedTender if available, otherwise fall back to tender for display
   // But ensure editedTender is set before rendering form fields
   const displayTender = editedTender || tender;
-  
+
   // If editedTender is not set yet, don't render the form (wait for useEffect to set it)
   if (!editedTender) {
     return null;
@@ -319,16 +319,16 @@ export function TenderDrawer({ tender, isOpen, onClose, onUpdate }: TenderDrawer
 
   const handleSave = async () => {
     if (!editedTender || !tender?.id) return;
-    
+
     // Clear previous messages
     setSaveSuccess(null);
     setSaveError(null);
     setSaving(true);
-    
+
     try {
       // Only send fields that the backend validation allows
       const updatePayload: any = {};
-      
+
       if (editedTender.title !== undefined) updatePayload.title = editedTender.title;
       if (editedTender.description !== undefined) updatePayload.description = editedTender.description || '';
       if (editedTender.companyId !== undefined) updatePayload.companyId = editedTender.companyId;
@@ -345,10 +345,10 @@ export function TenderDrawer({ tender, isOpen, onClose, onUpdate }: TenderDrawer
       if (editedTender.assignedTo !== undefined) updatePayload.assignedTo = editedTender.assignedTo;
       if (editedTender.emdAmount !== undefined) updatePayload.emdAmount = editedTender.emdAmount;
       if (editedTender.tenderFees !== undefined) updatePayload.tenderFees = editedTender.tenderFees;
-      
+
       // Call the API directly instead of using onUpdate to avoid sending invalid fields
       const response = await tenderApi.update(tender.id, updatePayload);
-      
+
       if (response.success && response.data) {
         // Update the local state with the response
         onUpdate(response.data);
@@ -367,7 +367,7 @@ export function TenderDrawer({ tender, isOpen, onClose, onUpdate }: TenderDrawer
 
   const handleAddWorkLog = async () => {
     if (!workLogForm.description.trim() || !tender?.id) return;
-    
+
     try {
       // Build description with work details
       let description = workLogForm.description;
@@ -386,7 +386,7 @@ export function TenderDrawer({ tender, isOpen, onClose, onUpdate }: TenderDrawer
         activityType: 'Commented',
         description: description,
       });
-      
+
       if (response.success && response.data) {
         // Refresh activities to get the latest with user info
         await fetchActivities();
@@ -471,7 +471,7 @@ export function TenderDrawer({ tender, isOpen, onClose, onUpdate }: TenderDrawer
 
   const handleUpdateWorkLog = async () => {
     if (!editingWorkLog || !tender?.id || !editWorkLogForm.description.trim()) return;
-    
+
     try {
       // Build description with work details (same format as add)
       let description = editWorkLogForm.description;
@@ -489,7 +489,7 @@ export function TenderDrawer({ tender, isOpen, onClose, onUpdate }: TenderDrawer
       const response = await tenderApi.updateActivity(tender.id, editingWorkLog.id, {
         description: description,
       });
-      
+
       if (response.success && response.data) {
         // Refresh activities
         await fetchActivities();
@@ -505,11 +505,11 @@ export function TenderDrawer({ tender, isOpen, onClose, onUpdate }: TenderDrawer
 
   const handleDeleteWorkLog = async (activityId: number) => {
     if (!tender?.id) return;
-    
+
     if (!confirm('Are you sure you want to delete this work log entry? This action cannot be undone.')) {
       return;
     }
-    
+
     try {
       const response = await tenderApi.deleteActivity(tender.id, activityId);
       if (response.success) {
@@ -647,9 +647,9 @@ export function TenderDrawer({ tender, isOpen, onClose, onUpdate }: TenderDrawer
 
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>, type: 'documents' | 'technicalDocuments') => {
     if (!e.target.files || !e.target.files.length || !tender?.id) return;
-    
+
     const file = e.target.files[0];
-    
+
     // For technical documents, ensure category is loaded
     if (type === 'technicalDocuments') {
       if (categoriesLoading) {
@@ -663,7 +663,7 @@ export function TenderDrawer({ tender, isOpen, onClose, onUpdate }: TenderDrawer
         return;
       }
     }
-    
+
     // Client-side validation (backend also validates)
     const maxSizeMB = 10;
     const maxSize = maxSizeMB * 1024 * 1024;
@@ -672,7 +672,7 @@ export function TenderDrawer({ tender, isOpen, onClose, onUpdate }: TenderDrawer
       e.target.value = '';
       return;
     }
-    
+
     const allowedTypes = [
       'application/pdf',
       'application/msword',
@@ -682,15 +682,15 @@ export function TenderDrawer({ tender, isOpen, onClose, onUpdate }: TenderDrawer
       'image/jpeg',
       'image/png',
     ];
-    
+
     if (!allowedTypes.includes(file.type)) {
       alert('File type not allowed. Only PDF, DOC, DOCX, XLS, XLSX, JPG, PNG are permitted.');
       e.target.value = '';
       return;
     }
-    
+
     setUploadingDocument(true);
-    
+
     try {
       // Determine category ID based on document type
       let categoryId: number | undefined = undefined;
@@ -700,12 +700,12 @@ export function TenderDrawer({ tender, isOpen, onClose, onUpdate }: TenderDrawer
         }
         categoryId = technicalCategoryId;
       }
-      
+
       const response = await documentApi.upload(file, {
         tenderId: tender.id,
         categoryId: categoryId,
       });
-      
+
       if (response.success) {
         // Refresh documents list
         await fetchDocuments();
@@ -727,7 +727,7 @@ export function TenderDrawer({ tender, isOpen, onClose, onUpdate }: TenderDrawer
 
   const handleDeleteDocument = async (docId: number) => {
     if (!confirm('Are you sure you want to delete this document?')) return;
-    
+
     try {
       const response = await documentApi.delete(docId);
       if (response.success) {
@@ -745,14 +745,14 @@ export function TenderDrawer({ tender, isOpen, onClose, onUpdate }: TenderDrawer
 
   const handleDownloadDocument = async (docId: number, fileName: string) => {
     try {
-      const API_BASE_URL = import.meta.env?.VITE_API_URL || 'http://localhost:5000/api/v1';
+      const API_BASE_URL = import.meta.env?.VITE_API_URL || '/api/v1';
       const token = localStorage.getItem('auth_token');
       const response = await fetch(`${API_BASE_URL}/documents/${docId}/download`, {
         headers: {
           'Authorization': `Bearer ${token}`,
         },
       });
-      
+
       if (response.ok) {
         const blob = await response.blob();
         const url = window.URL.createObjectURL(blob);
@@ -836,7 +836,7 @@ export function TenderDrawer({ tender, isOpen, onClose, onUpdate }: TenderDrawer
 
         {/* Success/Error Messages */}
         {saveSuccess && (
-          <div 
+          <div
             className="mx-6 mt-4 p-3 bg-green-50 border border-green-200 rounded-lg flex items-center gap-2"
             role="alert"
             aria-live="polite"
@@ -846,7 +846,7 @@ export function TenderDrawer({ tender, isOpen, onClose, onUpdate }: TenderDrawer
           </div>
         )}
         {saveError && (
-          <div 
+          <div
             className="mx-6 mt-4 p-3 bg-red-50 border border-red-200 rounded-lg flex items-center gap-2"
             role="alert"
             aria-live="assertive"
@@ -1146,8 +1146,8 @@ export function TenderDrawer({ tender, isOpen, onClose, onUpdate }: TenderDrawer
                           </div>
                         </div>
                         <div className="flex items-center gap-2 flex-shrink-0">
-                          <Button 
-                            variant="ghost" 
+                          <Button
+                            variant="ghost"
                             size="icon"
                             onClick={() => handleDownloadDocument(doc.id, doc.originalName)}
                             aria-label={`Download ${doc.originalName}`}
@@ -1240,8 +1240,8 @@ export function TenderDrawer({ tender, isOpen, onClose, onUpdate }: TenderDrawer
                           </div>
                         </div>
                         <div className="flex items-center gap-2 flex-shrink-0">
-                          <Button 
-                            variant="ghost" 
+                          <Button
+                            variant="ghost"
                             size="icon"
                             onClick={() => handleDownloadDocument(doc.id, doc.originalName)}
                             aria-label={`Download ${doc.originalName}`}
@@ -1385,18 +1385,18 @@ export function TenderDrawer({ tender, isOpen, onClose, onUpdate }: TenderDrawer
                     <div className="relative">
                       {/* Timeline line */}
                       <div className="absolute left-6 top-0 bottom-0 w-0.5 bg-gradient-to-b from-indigo-200 via-indigo-300 to-indigo-200" />
-                      
+
                       <div className="space-y-6">
                         {workLogs.map((entry, index) => {
                           const entryDate = new Date(entry.createdAt);
                           const isToday = entryDate.toDateString() === new Date().toDateString();
                           const isYesterday = entryDate.toDateString() === new Date(Date.now() - 86400000).toDateString();
-                          
+
                           return (
                             <div key={entry.id} className="relative pl-14">
                               {/* Timeline dot */}
                               <div className="absolute left-4 top-2 w-4 h-4 rounded-full bg-indigo-600 border-2 border-white shadow-md z-10" />
-                              
+
                               {/* Entry card */}
                               <div className="bg-white rounded-lg border border-gray-200 shadow-sm hover:shadow-md transition-shadow">
                                 <div className="p-4">
@@ -1424,12 +1424,12 @@ export function TenderDrawer({ tender, isOpen, onClose, onUpdate }: TenderDrawer
                                       <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
                                         <Calendar className="w-3 h-3" />
                                         <span className="font-medium">
-                                          {isToday 
-                                            ? 'Today' 
-                                            : isYesterday 
-                                            ? 'Yesterday' 
-                                            : entryDate.toLocaleDateString('en-US', { 
-                                                month: 'short', 
+                                          {isToday
+                                            ? 'Today'
+                                            : isYesterday
+                                              ? 'Yesterday'
+                                              : entryDate.toLocaleDateString('en-US', {
+                                                month: 'short',
                                                 day: 'numeric',
                                                 year: entryDate.getFullYear() !== new Date().getFullYear() ? 'numeric' : undefined
                                               })
@@ -1437,7 +1437,7 @@ export function TenderDrawer({ tender, isOpen, onClose, onUpdate }: TenderDrawer
                                         </span>
                                       </div>
                                       <div className="text-xs text-muted-foreground">
-                                        {entryDate.toLocaleTimeString('en-US', { 
+                                        {entryDate.toLocaleTimeString('en-US', {
                                           hour: '2-digit',
                                           minute: '2-digit',
                                           hour12: true
@@ -1445,7 +1445,7 @@ export function TenderDrawer({ tender, isOpen, onClose, onUpdate }: TenderDrawer
                                       </div>
                                     </div>
                                   </div>
-                                  
+
                                   {/* Description or Edit Form */}
                                   {editingWorkLog?.id === entry.id ? (
                                     <div className="mt-3 pt-3 border-t border-gray-100 space-y-4">
@@ -1551,11 +1551,10 @@ export function TenderDrawer({ tender, isOpen, onClose, onUpdate }: TenderDrawer
                                             {reminders[entry.id].map((reminder) => (
                                               <div
                                                 key={reminder.id}
-                                                className={`p-3 rounded-lg border ${
-                                                  reminder.isCompleted
+                                                className={`p-3 rounded-lg border ${reminder.isCompleted
                                                     ? 'bg-green-50 border-green-200'
                                                     : 'bg-amber-50 border-amber-200'
-                                                }`}
+                                                  }`}
                                               >
                                                 <div className="flex items-start justify-between">
                                                   <div className="flex-1">
@@ -1565,9 +1564,8 @@ export function TenderDrawer({ tender, isOpen, onClose, onUpdate }: TenderDrawer
                                                       ) : (
                                                         <AlertCircle className="w-4 h-4 text-amber-600" />
                                                       )}
-                                                      <span className={`text-sm font-medium ${
-                                                        reminder.isCompleted ? 'text-green-800 line-through' : 'text-amber-800'
-                                                      }`}>
+                                                      <span className={`text-sm font-medium ${reminder.isCompleted ? 'text-green-800 line-through' : 'text-amber-800'
+                                                        }`}>
                                                         {reminder.actionRequired}
                                                       </span>
                                                     </div>
@@ -1832,18 +1830,18 @@ export function TenderDrawer({ tender, isOpen, onClose, onUpdate }: TenderDrawer
                     <div className="relative">
                       {/* Timeline line */}
                       <div className="absolute left-6 top-0 bottom-0 w-0.5 bg-gradient-to-b from-blue-200 via-blue-300 to-blue-200" />
-                      
+
                       <div className="space-y-6">
                         {auditLogs.map((entry, index) => {
                           const entryDate = new Date(entry.createdAt);
                           const isToday = entryDate.toDateString() === new Date().toDateString();
                           const isYesterday = entryDate.toDateString() === new Date(Date.now() - 86400000).toDateString();
-                          
+
                           return (
                             <div key={entry.id} className="relative pl-14">
                               {/* Timeline dot */}
                               <div className="absolute left-4 top-2 w-4 h-4 rounded-full bg-blue-600 border-2 border-white shadow-md z-10" />
-                              
+
                               {/* Entry card */}
                               <div className="bg-white rounded-lg border border-gray-200 shadow-sm hover:shadow-md transition-shadow">
                                 <div className="p-4">
@@ -1871,12 +1869,12 @@ export function TenderDrawer({ tender, isOpen, onClose, onUpdate }: TenderDrawer
                                       <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
                                         <Calendar className="w-3 h-3" />
                                         <span className="font-medium">
-                                          {isToday 
-                                            ? 'Today' 
-                                            : isYesterday 
-                                            ? 'Yesterday' 
-                                            : entryDate.toLocaleDateString('en-US', { 
-                                                month: 'short', 
+                                          {isToday
+                                            ? 'Today'
+                                            : isYesterday
+                                              ? 'Yesterday'
+                                              : entryDate.toLocaleDateString('en-US', {
+                                                month: 'short',
                                                 day: 'numeric',
                                                 year: entryDate.getFullYear() !== new Date().getFullYear() ? 'numeric' : undefined
                                               })
@@ -1884,7 +1882,7 @@ export function TenderDrawer({ tender, isOpen, onClose, onUpdate }: TenderDrawer
                                         </span>
                                       </div>
                                       <div className="text-xs text-muted-foreground">
-                                        {entryDate.toLocaleTimeString('en-US', { 
+                                        {entryDate.toLocaleTimeString('en-US', {
                                           hour: '2-digit',
                                           minute: '2-digit',
                                           hour12: true
@@ -1892,7 +1890,7 @@ export function TenderDrawer({ tender, isOpen, onClose, onUpdate }: TenderDrawer
                                       </div>
                                     </div>
                                   </div>
-                                  
+
                                   {/* Description */}
                                   {entry.description && (
                                     <div className="mt-3 pt-3 border-t border-gray-100">
@@ -1901,7 +1899,7 @@ export function TenderDrawer({ tender, isOpen, onClose, onUpdate }: TenderDrawer
                                       </p>
                                     </div>
                                   )}
-                                  
+
                                   {/* Value Changes - Always show for audit logs */}
                                   {(entry.oldValue || entry.newValue) && (
                                     <div className="mt-3 pt-3 border-t border-gray-100">

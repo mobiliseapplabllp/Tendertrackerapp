@@ -808,7 +808,7 @@ export function TenderDetailsPage({ tenderId, onBack, onUpdate }: TenderDetailsP
 
   const handleDownloadDocument = async (docId: number, fileName: string) => {
     try {
-      const API_BASE_URL = import.meta.env?.VITE_API_URL || 'http://localhost:5000/api/v1';
+      const API_BASE_URL = import.meta.env?.VITE_API_URL || '/api/v1';
       const token = localStorage.getItem('auth_token');
       const response = await fetch(`${API_BASE_URL}/documents/${docId}/download`, {
         headers: {

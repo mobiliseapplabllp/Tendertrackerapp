@@ -32,7 +32,7 @@ import type {
   DropdownOption,
 } from './types';
 
-const API_BASE_URL = import.meta.env?.VITE_API_URL || 'http://localhost:5000/api/v1';
+const API_BASE_URL = import.meta.env?.VITE_API_URL || '/api/v1';
 
 // Helper function to get auth token
 function getAuthToken(): string | null {
@@ -787,7 +787,7 @@ export const documentApi = {
 
   view: async (docId: number) => {
     const token = getAuthToken();
-    const API_BASE_URL = import.meta.env?.VITE_API_URL || 'http://localhost:5000/api/v1';
+    const API_BASE_URL = import.meta.env?.VITE_API_URL || '/api/v1';
 
     if (token) {
       // Fetch the document as a blob and open it in a new window
