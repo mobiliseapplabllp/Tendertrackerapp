@@ -161,7 +161,7 @@ class ConfigurationService {
                 stringValue = String(value);
         }
 
-        const [updateResult] = await pool.query<any>(
+        const [_updateResult] = await pool.query<any>(
             `UPDATE system_settings 
              SET setting_value = ?, updated_at = CURRENT_TIMESTAMP
              WHERE setting_key = ?`,

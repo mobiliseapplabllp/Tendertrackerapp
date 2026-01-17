@@ -3,7 +3,7 @@ import { configurationService } from '../services/configurationService';
 
 export class ConfigurationController {
     // Get all system settings
-    async getAllSettings(req: Request, res: Response): Promise<void> {
+    async getAllSettings(_req: Request, res: Response): Promise<void> {
         try {
             const settings = await configurationService.getAllSettings();
             res.json({ success: true, data: settings });
@@ -107,7 +107,7 @@ export class ConfigurationController {
     }
 
     // Clear cache (admin only)
-    async clearCache(req: Request, res: Response): Promise<void> {
+    async clearCache(_req: Request, res: Response): Promise<void> {
         try {
             configurationService.clearCache();
             res.json({ success: true, message: 'Cache cleared successfully' });
