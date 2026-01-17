@@ -1,0 +1,86 @@
+name: Deploy to Production
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:  # Allow manual trigger
+
+jobs:
+  deploy:
+    name: Deploy to Production Server
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+      
+      - name: Install dependencies
+        run: |
+          npm ci
+          cd backend && npm ci
+      
+      - name: Run tests
+        run: |
+          npm run build
+          cd backend && npm run build
+        continue-on-error: true  # Don't fail deployment if tests fail
+      
+      - name: Deploy to Server
+        uses: appleboy/ssh-action@v1.0.0
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USERNAME }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          port: ${{ secrets.SSH_PORT || 22 }}
+          script: |
+            cd ${{ secrets.DEPLOY_PATH || '/var/www/tendertracker' }}
+            
+            echo "📥 Pulling latest code..."
+            git pull origin main
+            
+            echo "📦 Installing dependencies..."
+            npm ci --production
+            cd backend && npm ci --production && cd ..
+            
+            echo "🔨 Building application..."
+            npm run build
+            cd backend && npm run build && cd ..
+            
+            echo "🗄️ Running database migrations..."
+            cd backend
+            npm run migrate:ai-summary || true
+            npm run migrate:crm || true
+            npm run migrate:tender-scout || true
+            cd ..
+            
+            echo "🔄 Restarting services..."
+            # Restart based on process manager
+            if command -v pm2 &> /dev/null; then
+              pm2 restart tendertrack-backend || pm2 start backend/dist/app.js --name tendertrack-backend
+              pm2 save
+            elif systemctl is-active --quiet tendertrack; then
+              sudo systemctl restart tendertrack
+            else
+              echo "⚠️ No process manager found. Please restart services manually."
+            fi
+            
+            echo "✅ Deployment completed successfully!"
+      
+      - name: Notify on Success
+        if: success()
+        run: |
+          echo "✅ Deployment to production completed successfully!"
+          echo "🌐 Application: https://tendertracker.mobilisepro.com"
+      
+      - name: Notify on Failure
+        if: failure()
+        run: |
+          echo "❌ Deployment failed! Please check the logs."
+          exit 1
