@@ -5,13 +5,15 @@ import { Label } from './ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/card';
 import { FileText, Eye, EyeOff, AlertCircle, Shield } from 'lucide-react';
 import { OTPVerification } from './OTPVerification';
+import { ForgotPassword } from './ForgotPassword';
+import { ResetPassword } from './ResetPassword';
 import { 
   sanitizeInput, 
   isValidEmail, 
   validatePassword, 
-  rateLimiter, 
-  generateOTP 
+  rateLimiter
 } from '../lib/security';
+import { authApi, tokenManager } from '../lib/api';
 
 interface LoginPageProps {
   onLogin: () => void;
@@ -24,8 +26,12 @@ export function LoginPage({ onLogin }: LoginPageProps) {
   const [errors, setErrors] = useState<{ email?: string; password?: string; general?: string }>({});
   const [isLoading, setIsLoading] = useState(false);
   const [showOTP, setShowOTP] = useState(false);
-  const [generatedOTP, setGeneratedOTP] = useState('');
+  const [userId, setUserId] = useState<number | null>(null);
   const [attempts, setAttempts] = useState(0);
+  const [showForgotPassword, setShowForgotPassword] = useState(false);
+  const [showResetPassword, setShowResetPassword] = useState(false);
+  const [resetEmail, setResetEmail] = useState('');
+  const [resetUserId, setResetUserId] = useState<number | null>(null);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -41,7 +47,7 @@ export function LoginPage({ onLogin }: LoginPageProps) {
 
     // Sanitize inputs
     const sanitizedEmail = sanitizeInput(email.toLowerCase());
-    const sanitizedPassword = password; // Don't sanitize password to preserve special chars
+    const sanitizedPassword = password.trim(); // Trim whitespace but don't sanitize to preserve special chars
 
     // Validate email
     if (!isValidEmail(sanitizedEmail)) {
@@ -49,63 +55,155 @@ export function LoginPage({ onLogin }: LoginPageProps) {
       return;
     }
 
-    // Validate password strength
-    const passwordValidation = validatePassword(sanitizedPassword);
-    if (!passwordValidation.isValid) {
-      setErrors({ password: passwordValidation.errors[0] });
+    // Don't validate password strength on login - just check it's not empty
+    // Password strength validation is only for creating/updating passwords
+    if (!sanitizedPassword || sanitizedPassword.length === 0) {
+      setErrors({ password: 'Password is required' });
       return;
     }
 
     setIsLoading(true);
 
-    // Simulate API call with delay
-    setTimeout(() => {
-      // Mock authentication - in production, verify against database
-      // For demo purposes, accept valid format credentials
+    try {
+      // Call real API
+      const response = await authApi.login(sanitizedEmail, sanitizedPassword);
       
-      // Generate and "send" OTP
-      const otp = generateOTP();
-      setGeneratedOTP(otp);
-      
-      // In production, send OTP via email/SMS API
-      console.log(`[DEMO] OTP sent to ${sanitizedEmail}: ${otp}`);
-      
+      if (response.success) {
+        // Check if OTP is required (2FA enabled)
+        if (response.data?.requiresOTP) {
+          setUserId(response.data.userId);
+          setIsLoading(false);
+          setShowOTP(true);
+          setAttempts(prev => prev + 1);
+        } 
+        // Check if login was successful with token (2FA disabled)
+        else if (response.data?.token) {
+          // Store token using tokenManager
+          tokenManager.setToken(response.data.token);
+          if (response.data.user) {
+            localStorage.setItem('user', JSON.stringify(response.data.user));
+          }
+          // Reset rate limiter on successful login
+          rateLimiter.reset('login');
+          setIsLoading(false);
+          // Call onLogin callback to redirect to dashboard
+          onLogin();
+        } 
+        // No token and no OTP requirement - error
+        else {
+          setIsLoading(false);
+          setErrors({ 
+            general: response.error || 'Login failed. Please check your credentials.' 
+          });
+        }
+      } else {
+        setIsLoading(false);
+        setErrors({ 
+          general: response.error || 'Login failed. Please check your credentials.' 
+        });
+      }
+    } catch (error: any) {
       setIsLoading(false);
-      setShowOTP(true);
-    }, 1000);
-
-    setAttempts(prev => prev + 1);
-  };
-
-  const handleOTPVerify = (otp: string) => {
-    // Verify OTP
-    if (otp === generatedOTP) {
-      // Reset rate limiter on successful login
-      rateLimiter.reset('login');
-      onLogin();
-    } else {
-      setShowOTP(false);
       setErrors({ 
-        general: 'Invalid verification code. Please try logging in again.' 
+        general: error.message || 'Network error. Please try again.' 
       });
     }
   };
 
-  const handleResendOTP = () => {
-    const newOTP = generateOTP();
-    setGeneratedOTP(newOTP);
-    console.log(`[DEMO] New OTP sent: ${newOTP}`);
+  const handleOTPVerify = async (otp: string) => {
+    if (!userId || !email) {
+      setShowOTP(false);
+      setErrors({ general: 'Session expired. Please login again.' });
+      return;
+    }
+
+    try {
+      const response = await authApi.verifyOTP(email.toLowerCase(), otp, userId);
+      
+      if (response.success && response.data?.token) {
+        // Store token
+        tokenManager.setToken(response.data.token);
+        
+        // Reset rate limiter on successful login
+        rateLimiter.reset('login');
+        onLogin();
+      } else {
+        setShowOTP(false);
+        setErrors({ 
+          general: response.error || 'Invalid verification code. Please try again.' 
+        });
+      }
+    } catch (error: any) {
+      setShowOTP(false);
+      setErrors({ 
+        general: error.message || 'Verification failed. Please try again.' 
+      });
+    }
+  };
+
+  const handleResendOTP = async () => {
+    if (!userId || !email) return;
+
+    try {
+      const response = await authApi.resendOTP(email.toLowerCase(), userId);
+      if (response.success) {
+        // OTP resent successfully
+      } else {
+        setErrors({ general: response.error || 'Failed to resend OTP.' });
+      }
+    } catch (error: any) {
+      setErrors({ general: error.message || 'Failed to resend OTP.' });
+    }
   };
 
   const handleBack = () => {
     setShowOTP(false);
-    setGeneratedOTP('');
+    setUserId(null);
   };
+
+  if (showResetPassword && resetEmail && resetUserId) {
+    return (
+      <ResetPassword
+        email={resetEmail}
+        userId={resetUserId}
+        onBack={() => {
+          setShowResetPassword(false);
+          setShowForgotPassword(true);
+        }}
+        onSuccess={() => {
+          setShowResetPassword(false);
+          setShowForgotPassword(false);
+          setResetEmail('');
+          setResetUserId(null);
+          setErrors({ general: 'Password reset successfully! Please login with your new password.' });
+        }}
+      />
+    );
+  }
+
+  if (showForgotPassword) {
+    return (
+      <ForgotPassword
+        onBack={() => {
+          setShowForgotPassword(false);
+          setResetEmail('');
+          setResetUserId(null);
+        }}
+        onOTPSent={(email, userId) => {
+          setResetEmail(email);
+          setResetUserId(userId);
+          setShowForgotPassword(false);
+          setShowResetPassword(true);
+        }}
+      />
+    );
+  }
 
   if (showOTP) {
     return (
       <OTPVerification
         email={email}
+        userId={userId!}
         onVerify={handleOTPVerify}
         onBack={handleBack}
         onResend={handleResendOTP}
@@ -120,11 +218,11 @@ export function LoginPage({ onLogin }: LoginPageProps) {
           <div 
             className="w-12 h-12 bg-indigo-600 rounded-lg flex items-center justify-center mb-2"
             role="img"
-            aria-label="TenderTrack Pro Logo"
+            aria-label="LeadTrack Pro Logo"
           >
             <FileText className="w-6 h-6 text-white" aria-hidden="true" />
           </div>
-          <CardTitle className="text-2xl">TenderTrack Pro</CardTitle>
+          <CardTitle className="text-2xl">LeadTrack Pro</CardTitle>
           <CardDescription>
             Secure login with two-factor authentication
           </CardDescription>
@@ -151,7 +249,7 @@ export function LoginPage({ onLogin }: LoginPageProps) {
               <Input
                 id="email"
                 name="email"
-                type="email"
+                type="text"
                 placeholder="user@company.com"
                 value={email}
                 onChange={(e) => {
@@ -251,13 +349,19 @@ export function LoginPage({ onLogin }: LoginPageProps) {
               )}
             </Button>
 
-            {/* Demo Notice */}
-            <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg">
-              <p className="text-xs text-blue-800">
-                <strong>Demo Mode:</strong> Use email format with password containing 
-                uppercase, lowercase, number, and special character. OTP will be shown in console.
-              </p>
+            {/* Forgot Password Link */}
+            <div className="text-center">
+              <Button
+                type="button"
+                variant="link"
+                onClick={() => setShowForgotPassword(true)}
+                className="text-sm text-muted-foreground hover:text-primary"
+                disabled={isLoading}
+              >
+                Forgot your password?
+              </Button>
             </div>
+
           </form>
 
           {/* Security Notice */}

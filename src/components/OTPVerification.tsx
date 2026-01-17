@@ -6,16 +6,19 @@ import { Shield, ArrowLeft, RefreshCw } from 'lucide-react';
 
 interface OTPVerificationProps {
   email: string;
-  onVerify: (otp: string) => void;
+  userId: number;
+  onVerify: (otp: string) => Promise<void>;
   onBack: () => void;
-  onResend: () => void;
+  onResend: () => Promise<void>;
 }
 
-export function OTPVerification({ email, onVerify, onBack, onResend }: OTPVerificationProps) {
+export function OTPVerification({ email, userId, onVerify, onBack, onResend }: OTPVerificationProps) {
   const [otp, setOtp] = useState(['', '', '', '', '', '']);
   const [error, setError] = useState('');
   const [countdown, setCountdown] = useState(60);
   const [canResend, setCanResend] = useState(false);
+  const [isVerifying, setIsVerifying] = useState(false);
+  const [isResending, setIsResending] = useState(false);
   const inputRefs = useRef<(HTMLInputElement | null)[]>([]);
 
   useEffect(() => {
@@ -87,23 +90,41 @@ export function OTPVerification({ email, onVerify, onBack, onResend }: OTPVerifi
     }
   };
 
-  const handleVerify = (otpString: string) => {
+  const handleVerify = async (otpString: string) => {
     if (otpString.length !== 6) {
       setError('Please enter all 6 digits');
       return;
     }
-    onVerify(otpString);
+    
+    setIsVerifying(true);
+    setError('');
+    
+    try {
+      await onVerify(otpString);
+    } catch (err: any) {
+      setError(err.message || 'Verification failed');
+    } finally {
+      setIsVerifying(false);
+    }
   };
 
-  const handleResend = () => {
-    if (!canResend) return;
+  const handleResend = async () => {
+    if (!canResend || isResending) return;
     
+    setIsResending(true);
     setOtp(['', '', '', '', '', '']);
     setError('');
     setCountdown(60);
     setCanResend(false);
-    onResend();
-    inputRefs.current[0]?.focus();
+    
+    try {
+      await onResend();
+      inputRefs.current[0]?.focus();
+    } catch (err: any) {
+      setError(err.message || 'Failed to resend OTP');
+    } finally {
+      setIsResending(false);
+    }
   };
 
   return (
@@ -162,10 +183,11 @@ export function OTPVerification({ email, onVerify, onBack, onResend }: OTPVerifi
           <Button
             onClick={() => handleVerify(otp.join(''))}
             className="w-full"
-            disabled={otp.join('').length !== 6}
+            disabled={otp.join('').length !== 6 || isVerifying}
             aria-label="Verify OTP code"
+            aria-busy={isVerifying}
           >
-            Verify Code
+            {isVerifying ? 'Verifying...' : 'Verify Code'}
           </Button>
 
           {/* Resend Section */}
@@ -176,9 +198,10 @@ export function OTPVerification({ email, onVerify, onBack, onResend }: OTPVerifi
                 onClick={handleResend}
                 className="text-sm"
                 aria-label="Resend verification code"
+                disabled={isResending}
               >
-                <RefreshCw className="w-4 h-4 mr-2" />
-                Resend Code
+                <RefreshCw className={`w-4 h-4 mr-2 ${isResending ? 'animate-spin' : ''}`} />
+                {isResending ? 'Sending...' : 'Resend Code'}
               </Button>
             ) : (
               <p className="text-sm text-muted-foreground" aria-live="polite">

@@ -1,7 +1,26 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+
+// ESC key handler component
+function EscKeyHandler({ isOpen, onClose }: { isOpen: boolean; onClose: () => void }) {
+  useEffect(() => {
+    const handleEsc = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && isOpen) {
+        onClose();
+      }
+    };
+
+    if (isOpen) {
+      window.addEventListener('keydown', handleEsc);
+      return () => window.removeEventListener('keydown', handleEsc);
+    }
+  }, [isOpen, onClose]);
+
+  return null;
+}
 import { Button } from './ui/button';
 import { Input } from './ui/input';
 import { Label } from './ui/label';
+import { Textarea } from './ui/textarea';
 import { Card } from './ui/card';
 import { Badge } from './ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs';
@@ -33,182 +52,256 @@ import {
   StarOff,
   Eye,
   Calendar,
-  User,
   HardDrive,
   Filter,
   Plus,
   X,
+  Save,
+  Heart,
+  Clock,
+  Pencil,
+  ChevronLeft,
+  ChevronRight,
 } from 'lucide-react';
-import { Separator } from './ui/separator';
-
-interface Document {
-  id: string;
-  name: string;
-  category: string;
-  type: string;
-  size: string;
-  uploadedBy: string;
-  uploadedDate: string;
-  isFavorite: boolean;
-  description: string;
-  tags: string[];
-  validUntil?: string;
-}
-
-const documentCategories = [
-  { id: 'tax', name: 'Tax Documents', icon: FileText, color: 'bg-blue-500' },
-  { id: 'certificates', name: 'Certifications', icon: File, color: 'bg-green-500' },
-  { id: 'company', name: 'Company Documents', icon: FolderOpen, color: 'bg-purple-500' },
-  { id: 'legal', name: 'Legal Documents', icon: FileText, color: 'bg-red-500' },
-  { id: 'templates', name: 'Templates', icon: File, color: 'bg-orange-500' },
-  { id: 'other', name: 'Other', icon: FolderOpen, color: 'bg-gray-500' },
-];
+import { documentApi } from '../lib/api';
+import type { Document } from '../lib/types';
 
 export function DocumentManagement() {
-  const [documents, setDocuments] = useState<Document[]>([
-    {
-      id: '1',
-      name: 'GST_Certificate_2024.pdf',
-      category: 'tax',
-      type: 'PDF',
-      size: '2.3 MB',
-      uploadedBy: 'John Smith',
-      uploadedDate: '2024-11-15',
-      isFavorite: true,
-      description: 'GST Registration Certificate',
-      tags: ['GSTIN', 'Tax', 'Registration'],
-      validUntil: '2025-11-15',
-    },
-    {
-      id: '2',
-      name: 'PAN_Card_Company.pdf',
-      category: 'tax',
-      type: 'PDF',
-      size: '856 KB',
-      uploadedBy: 'Sarah Johnson',
-      uploadedDate: '2024-10-20',
-      isFavorite: true,
-      description: 'Company PAN Card',
-      tags: ['PAN', 'Tax', 'Identity'],
-    },
-    {
-      id: '3',
-      name: 'ISO_9001_Certificate.pdf',
-      category: 'certificates',
-      type: 'PDF',
-      size: '1.8 MB',
-      uploadedBy: 'Mike Davis',
-      uploadedDate: '2024-09-10',
-      isFavorite: true,
-      description: 'ISO 9001:2015 Quality Management Certificate',
-      tags: ['ISO', 'Quality', 'Certification'],
-      validUntil: '2026-09-10',
-    },
-    {
-      id: '4',
-      name: 'Company_Registration_Certificate.pdf',
-      category: 'company',
-      type: 'PDF',
-      size: '1.2 MB',
-      uploadedBy: 'John Smith',
-      uploadedDate: '2024-08-05',
-      isFavorite: false,
-      description: 'Certificate of Incorporation',
-      tags: ['Registration', 'Legal', 'Company'],
-    },
-    {
-      id: '5',
-      name: 'Bank_Details.pdf',
-      category: 'company',
-      type: 'PDF',
-      size: '450 KB',
-      uploadedBy: 'Emily Brown',
-      uploadedDate: '2024-11-01',
-      isFavorite: true,
-      description: 'Company Bank Account Details',
-      tags: ['Banking', 'Finance'],
-    },
-    {
-      id: '6',
-      name: 'Technical_Proposal_Template.docx',
-      category: 'templates',
-      type: 'DOCX',
-      size: '125 KB',
-      uploadedBy: 'Sarah Johnson',
-      uploadedDate: '2024-10-15',
-      isFavorite: false,
-      description: 'Standard Technical Proposal Template',
-      tags: ['Template', 'Proposal', 'Technical'],
-    },
-  ]);
-
+  const [documents, setDocuments] = useState<Document[]>([]);
+  const [categories, setCategories] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('all');
   const [isUploadOpen, setIsUploadOpen] = useState(false);
-  const [selectedCategory, setSelectedCategory] = useState('all');
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [editingDocument, setEditingDocument] = useState<Document | null>(null);
+  const [editForm, setEditForm] = useState({
+    name: '',
+    categoryId: '',
+    description: '',
+    validUntil: '',
+  });
 
   const [uploadForm, setUploadForm] = useState({
     name: '',
-    category: 'tax',
+    categoryId: '',
     description: '',
     tags: '',
     validUntil: '',
   });
 
-  const handleUpload = () => {
-    // In a real app, this would handle file upload to server
-    const newDoc: Document = {
-      id: `doc_${Date.now()}`,
-      name: uploadForm.name,
-      category: uploadForm.category,
-      type: 'PDF',
-      size: '1.5 MB',
-      uploadedBy: 'Current User',
-      uploadedDate: new Date().toISOString().split('T')[0],
-      isFavorite: false,
-      description: uploadForm.description,
-      tags: uploadForm.tags.split(',').map((t) => t.trim()),
-      validUntil: uploadForm.validUntil || undefined,
-    };
-    setDocuments([newDoc, ...documents]);
-    setIsUploadOpen(false);
-    setUploadForm({
-      name: '',
-      category: 'tax',
-      description: '',
-      tags: '',
-      validUntil: '',
-    });
-  };
+  // Pagination state
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
+  const [totalPages, setTotalPages] = useState(1);
+  const [total, setTotal] = useState(0);
 
-  const handleToggleFavorite = (docId: string) => {
-    setDocuments(
-      documents.map((doc) =>
-        doc.id === docId ? { ...doc, isFavorite: !doc.isFavorite } : doc
-      )
-    );
-  };
+  // Fetch documents and categories from API
+  useEffect(() => {
+    fetchCategories();
+  }, []);
 
-  const handleDelete = (docId: string) => {
-    if (confirm('Are you sure you want to delete this document?')) {
-      setDocuments(documents.filter((doc) => doc.id !== docId));
+  // Fetch documents when filters or pagination change
+  useEffect(() => {
+    fetchDocuments();
+  }, [page, pageSize, searchQuery, categoryFilter]);
+
+  // Note: Categories are loaded and checked in fetchCategories
+
+  const fetchDocuments = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      
+      // Build filters for API call
+      const filters: any = {
+        page,
+        pageSize,
+        excludeTenderDocuments: true,
+      };
+
+      // Add search filter if provided
+      if (searchQuery.trim()) {
+        filters.search = searchQuery.trim();
+      }
+
+      // Add category filter if not 'all'
+      if (categoryFilter !== 'all') {
+        filters.categoryId = categoryFilter;
+      }
+
+      const response = await documentApi.getAll(filters);
+      if (response.success && response.data) {
+        // Transform snake_case to camelCase
+        const transformedDocs = (response.data.data || []).map((doc: any) => ({
+            id: doc.id,
+            tenderId: doc.tender_id,
+            categoryId: doc.category_id,
+            fileName: doc.file_name,
+            originalName: doc.original_name,
+            documentName: doc.document_name || doc.original_name, // Use document_name if available, fallback to original_name
+            description: doc.description,
+            filePath: doc.file_path,
+            fileSize: doc.file_size,
+            mimeType: doc.mime_type,
+            fileHash: doc.file_hash,
+            expirationDate: doc.expiration_date,
+            isFavorite: doc.is_favorite === 1 || doc.is_favorite === true,
+            uploadedBy: doc.uploaded_by,
+            uploadedAt: doc.uploaded_at,
+            uploadedByName: doc.uploaded_by_name,
+          }));
+        setDocuments(transformedDocs);
+        setTotalPages(response.data.totalPages || 1);
+        setTotal(response.data.total || 0);
+      } else {
+        setError(response.error || 'Failed to load documents');
+      }
+    } catch (err: any) {
+      setError(err.message || 'Failed to load documents');
+    } finally {
+      setLoading(false);
     }
   };
 
-  const filteredDocuments = documents.filter((doc) => {
-    const matchesSearch =
-      doc.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      doc.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      doc.tags.some((tag) => tag.toLowerCase().includes(searchQuery.toLowerCase()));
-    const matchesCategory =
-      categoryFilter === 'all' || doc.category === categoryFilter;
-    return matchesSearch && matchesCategory;
-  });
+  const fetchCategories = async () => {
+    try {
+      const response = await documentApi.getCategories();
+      if (response.success && response.data) {
+        const categoriesData = response.data || [];
+        setCategories(categoriesData);
+        if (categoriesData.length === 0) {
+          setError('No document categories available. Please contact administrator to add categories.');
+        }
+      } else {
+        setError(`Failed to load categories: ${response.error || 'Unknown error'}`);
+      }
+    } catch (err: any) {
+      setError(`Failed to load categories: ${err.message || 'Unknown error'}`);
+    }
+  };
+
+  const handleUpload = async () => {
+    if (!selectedFile || !uploadForm.name || !uploadForm.categoryId) {
+      setError('Please select a file and fill in required fields');
+      return;
+    }
+
+    try {
+      const response = await documentApi.upload(selectedFile, {
+        name: uploadForm.name,
+        categoryId: parseInt(uploadForm.categoryId),
+        description: uploadForm.description || null,
+        tags: uploadForm.tags ? uploadForm.tags.split(',').map(t => t.trim()) : [],
+        validUntil: uploadForm.validUntil || null,
+      });
+
+      if (response.success) {
+        await fetchDocuments();
+        setIsUploadOpen(false);
+        setSelectedFile(null);
+        setUploadForm({
+          name: '',
+          categoryId: '',
+          description: '',
+          tags: '',
+          validUntil: '',
+        });
+        setError(null);
+      } else {
+        setError(response.error || 'Failed to upload document');
+      }
+    } catch (err: any) {
+      setError(err.message || 'Failed to upload document');
+    }
+  };
+
+  const handleToggleFavorite = async (docId: number) => {
+    try {
+      const response = await documentApi.toggleFavorite(docId);
+      if (response.success) {
+        await fetchDocuments();
+      }
+    } catch (err: any) {
+      setError(err.message || 'Failed to update favorite status');
+    }
+  };
+
+  const handleViewDocument = async (docId: number) => {
+    try {
+      await documentApi.view(docId);
+    } catch (err: any) {
+      setError(err.message || 'Failed to view document');
+    }
+  };
+
+  const handleDelete = async (docId: number) => {
+    if (!confirm('Are you sure you want to delete this document?')) {
+      return;
+    }
+
+    try {
+      const response = await documentApi.delete(docId);
+      if (response.success) {
+        await fetchDocuments();
+      } else {
+        setError(response.error || 'Failed to delete document');
+      }
+    } catch (err: any) {
+      setError(err.message || 'Failed to delete document');
+    }
+  };
+
+  const handleEditDocument = (doc: Document) => {
+    setEditingDocument(doc);
+    setEditForm({
+      name: doc.documentName || doc.originalName || '',
+      categoryId: doc.categoryId?.toString() || '',
+      description: doc.description || '',
+      validUntil: doc.expirationDate ? new Date(doc.expirationDate).toISOString().split('T')[0] : '',
+    });
+    setError(null);
+  };
+
+  const handleUpdateDocument = async () => {
+    if (!editingDocument) return;
+
+    try {
+      const response = await documentApi.update(editingDocument.id, {
+        name: editForm.name || null,
+        description: editForm.description || null,
+        categoryId: editForm.categoryId ? parseInt(editForm.categoryId) : null,
+        expirationDate: editForm.validUntil || null,
+      });
+
+      if (response.success) {
+        await fetchDocuments();
+        setEditingDocument(null);
+        setEditForm({
+          name: '',
+          categoryId: '',
+          description: '',
+          validUntil: '',
+        });
+        setError(null);
+      } else {
+        setError(response.error || 'Failed to update document');
+      }
+    } catch (err: any) {
+      setError(err.message || 'Failed to update document');
+    }
+  };
+
+  // Documents are already filtered by the API, so we use them directly
+  // Only apply client-side filtering for favorites and expiring tabs
+  const filteredDocuments = documents;
 
   const favoriteDocuments = documents.filter((doc) => doc.isFavorite);
 
-  const getCategoryInfo = (categoryId: string) => {
-    return documentCategories.find((cat) => cat.id === categoryId);
+  const getCategoryInfo = (categoryId?: number) => {
+    if (!categoryId) return null;
+    return categories.find((cat) => cat.id === categoryId);
   };
 
   const getDocumentIcon = (type: string) => {
@@ -231,9 +324,35 @@ export function DocumentManagement() {
     return expiryDate < today;
   };
 
-  const getDocumentsByCategory = (categoryId: string) => {
-    return documents.filter((doc) => doc.category === categoryId);
+  const getDocumentsByCategory = (categoryId: number) => {
+    return documents.filter((doc) => doc.categoryId === categoryId);
   };
+
+  const formatFileSize = (bytes?: number) => {
+    if (!bytes) return 'N/A';
+    if (bytes < 1024) return bytes + ' B';
+    if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(2) + ' KB';
+    return (bytes / (1024 * 1024)).toFixed(2) + ' MB';
+  };
+
+  if (loading) {
+    return (
+      <div className="h-full flex flex-col bg-gray-50">
+        <div className="bg-white border-b px-6 py-4">
+          <h1 className="text-2xl flex items-center gap-2">
+            <FolderOpen className="w-6 h-6" />
+            Document Management
+          </h1>
+        </div>
+        <div className="flex-1 flex items-center justify-center">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600 mx-auto"></div>
+            <p className="mt-4 text-muted-foreground">Loading documents...</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="h-full flex flex-col bg-gray-50">
@@ -258,187 +377,60 @@ export function DocumentManagement() {
 
       <ScrollArea className="flex-1">
         <div className="p-6 space-y-6">
-          {/* Upload Form */}
-          {isUploadOpen && (
-            <Card className="p-6">
-              <div className="flex items-center justify-between mb-4">
-                <h3 className="flex items-center gap-2">
-                  <Upload className="w-5 h-5" />
-                  Upload New Document
-                </h3>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  onClick={() => setIsUploadOpen(false)}
-                >
-                  <X className="w-4 h-4" />
-                </Button>
-              </div>
-              <div className="space-y-4">
-                <div className="space-y-2">
-                  <Label>Document File *</Label>
-                  <div className="border-2 border-dashed rounded-lg p-8 text-center hover:border-indigo-600 transition-colors cursor-pointer">
-                    <Upload className="w-12 h-12 mx-auto mb-3 text-muted-foreground" />
-                    <p className="text-sm mb-2">
-                      Click to upload or drag and drop
-                    </p>
-                    <p className="text-xs text-muted-foreground">
-                      PDF, DOC, DOCX, XLS, XLSX (Max 10MB)
-                    </p>
-                    <input
-                      type="file"
-                      className="hidden"
-                      accept=".pdf,.doc,.docx,.xls,.xlsx"
-                    />
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label>Document Name *</Label>
-                    <Input
-                      placeholder="e.g., GST Certificate 2024"
-                      value={uploadForm.name}
-                      onChange={(e) =>
-                        setUploadForm({ ...uploadForm, name: e.target.value })
-                      }
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label>Category *</Label>
-                    <Select
-                      value={uploadForm.category}
-                      onValueChange={(value) =>
-                        setUploadForm({ ...uploadForm, category: value })
-                      }
-                    >
-                      <SelectTrigger>
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {documentCategories.map((cat) => (
-                          <SelectItem key={cat.id} value={cat.id}>
-                            {cat.name}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                </div>
-
-                <div className="space-y-2">
-                  <Label>Description</Label>
-                  <Input
-                    placeholder="Brief description of the document"
-                    value={uploadForm.description}
-                    onChange={(e) =>
-                      setUploadForm({ ...uploadForm, description: e.target.value })
-                    }
-                  />
-                </div>
-
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label>Tags (comma separated)</Label>
-                    <Input
-                      placeholder="e.g., GSTIN, Tax, Registration"
-                      value={uploadForm.tags}
-                      onChange={(e) =>
-                        setUploadForm({ ...uploadForm, tags: e.target.value })
-                      }
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label>Valid Until (Optional)</Label>
-                    <Input
-                      type="date"
-                      value={uploadForm.validUntil}
-                      onChange={(e) =>
-                        setUploadForm({ ...uploadForm, validUntil: e.target.value })
-                      }
-                    />
-                  </div>
-                </div>
-
-                <div className="flex gap-2">
-                  <Button onClick={handleUpload}>
-                    <Upload className="w-4 h-4 mr-2" />
-                    Upload Document
-                  </Button>
-                  <Button
-                    variant="outline"
-                    onClick={() => setIsUploadOpen(false)}
-                  >
-                    Cancel
-                  </Button>
-                </div>
-              </div>
+          {/* Error Message */}
+          {error && (
+            <Card className="p-4 bg-red-50 border-red-200">
+              <p className="text-red-800 text-sm">{error}</p>
             </Card>
           )}
 
-          {/* Storage Info */}
-          <Card className="p-4">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <HardDrive className="w-5 h-5 text-indigo-600" />
-                <div>
-                  <p className="text-sm">Storage Used</p>
-                  <p className="text-xs text-muted-foreground">
-                    {documents.length} documents
-                  </p>
-                </div>
-              </div>
-              <div className="text-right">
-                <p className="text-lg">24.8 MB</p>
-                <p className="text-xs text-muted-foreground">of 1 GB</p>
-              </div>
-            </div>
-            <div className="mt-3 h-2 bg-gray-200 rounded-full overflow-hidden">
-              <div
-                className="h-full bg-indigo-600"
-                style={{ width: '2.48%' }}
-              />
-            </div>
-          </Card>
+          {/* Upload Form - removed inline, now in drawer */}
+
 
           {/* Category Overview */}
-          <div className="grid grid-cols-3 gap-4">
-            {documentCategories.map((category) => {
-              const Icon = category.icon;
-              const count = getDocumentsByCategory(category.id).length;
-              return (
-                <Card
-                  key={category.id}
-                  className="p-4 cursor-pointer hover:shadow-md transition-shadow"
-                  onClick={() => setCategoryFilter(category.id)}
-                >
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                      <div
-                        className={`w-10 h-10 ${category.color} rounded-lg flex items-center justify-center`}
-                      >
-                        <Icon className="w-5 h-5 text-white" />
-                      </div>
-                      <div>
-                        <p className="text-sm">{category.name}</p>
-                        <p className="text-xs text-muted-foreground">
-                          {count} documents
-                        </p>
+          {categories.length > 0 && (
+            <div className="grid grid-cols-3 gap-4">
+              {categories.map((category) => {
+                const count = getDocumentsByCategory(category.id).length;
+                return (
+                  <Card
+                    key={category.id}
+                    className="p-4 cursor-pointer hover:shadow-md transition-shadow"
+                    onClick={() => setCategoryFilter(category.id.toString())}
+                  >
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 bg-indigo-600 rounded-lg flex items-center justify-center">
+                          <FileText className="w-5 h-5 text-white" />
+                        </div>
+                        <div>
+                          <p className="text-sm">{category.name}</p>
+                          <p className="text-xs text-muted-foreground">
+                            {count} documents
+                          </p>
+                        </div>
                       </div>
                     </div>
-                  </div>
-                </Card>
-              );
-            })}
-          </div>
+                  </Card>
+                );
+              })}
+            </div>
+          )}
 
           <Tabs defaultValue="all" className="w-full">
             <TabsList>
-              <TabsTrigger value="all">All Documents</TabsTrigger>
+              <TabsTrigger value="all">
+                <FileText className="w-4 h-4" />
+                All Documents
+              </TabsTrigger>
               <TabsTrigger value="favorites">
+                <Heart className="w-4 h-4" />
                 Favorites ({favoriteDocuments.length})
               </TabsTrigger>
-              <TabsTrigger value="expiring">Expiring Soon</TabsTrigger>
+              <TabsTrigger value="expiring">
+                <Clock className="w-4 h-4" />
+                Expiring Soon
+              </TabsTrigger>
             </TabsList>
 
             {/* All Documents Tab */}
@@ -449,7 +441,7 @@ export function DocumentManagement() {
                   <div className="flex-1 relative">
                     <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
                     <Input
-                      placeholder="Search documents by name, description, or tags..."
+                      placeholder="Search documents by name or description..."
                       value={searchQuery}
                       onChange={(e) => setSearchQuery(e.target.value)}
                       className="pl-10"
@@ -465,8 +457,8 @@ export function DocumentManagement() {
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="all">All Categories</SelectItem>
-                      {documentCategories.map((cat) => (
-                        <SelectItem key={cat.id} value={cat.id}>
+                      {categories.map((cat) => (
+                        <SelectItem key={cat.id} value={cat.id.toString()}>
                           {cat.name}
                         </SelectItem>
                       ))}
@@ -477,12 +469,13 @@ export function DocumentManagement() {
 
               {/* Documents Table */}
               <Card>
-                <Table>
+                <div className="overflow-x-auto">
+                  <Table>
                   <TableHeader>
                     <TableRow>
-                      <TableHead>Document</TableHead>
+                      <TableHead>Document Name</TableHead>
+                      <TableHead>Description</TableHead>
                       <TableHead>Category</TableHead>
-                      <TableHead>Tags</TableHead>
                       <TableHead>Size</TableHead>
                       <TableHead>Uploaded</TableHead>
                       <TableHead>Valid Until</TableHead>
@@ -490,82 +483,64 @@ export function DocumentManagement() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {filteredDocuments.length === 0 ? (
+                    {loading ? (
                       <TableRow>
                         <TableCell
                           colSpan={7}
                           className="text-center py-8 text-muted-foreground"
                         >
+                          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600 mx-auto"></div>
+                          <p className="mt-2">Loading documents...</p>
+                        </TableCell>
+                      </TableRow>
+                    ) : filteredDocuments.length === 0 ? (
+                          <TableRow>
+                            <TableCell
+                              colSpan={7}
+                              className="text-center py-8 text-muted-foreground"
+                            >
                           <FolderOpen className="w-12 h-12 mx-auto mb-2 opacity-50" />
                           <p>No documents found</p>
+                          {searchQuery && (
+                            <p className="text-sm mt-1">Try adjusting your search or filters</p>
+                          )}
                         </TableCell>
                       </TableRow>
                     ) : (
                       filteredDocuments.map((doc) => {
-                        const categoryInfo = getCategoryInfo(doc.category);
+                        const categoryInfo = getCategoryInfo(doc.categoryId);
                         return (
                           <TableRow key={doc.id}>
                             <TableCell>
-                              <div className="flex items-center gap-3">
-                                {getDocumentIcon(doc.type)}
-                                <div>
-                                  <p className="flex items-center gap-2">
-                                    {doc.name}
-                                    {doc.isFavorite && (
-                                      <Star className="w-3 h-3 fill-yellow-400 text-yellow-400" />
-                                    )}
-                                  </p>
-                                  <p className="text-xs text-muted-foreground">
-                                    {doc.description}
-                                  </p>
-                                </div>
-                              </div>
+                              <p className="flex items-center gap-2 font-medium">
+                                {doc.documentName || doc.originalName || doc.fileName || 'Untitled Document'}
+                                {doc.isFavorite && (
+                                  <Star className="w-3 h-3 fill-yellow-400 text-yellow-400" />
+                                )}
+                              </p>
                             </TableCell>
                             <TableCell>
-                              {categoryInfo && (
-                                <Badge
-                                  className="text-white"
-                                  style={{
-                                    backgroundColor: categoryInfo.color.replace(
-                                      'bg-',
-                                      ''
-                                    ),
-                                  }}
-                                >
+                              <p className="text-sm text-muted-foreground">
+                                {doc.description || '-'}
+                              </p>
+                            </TableCell>
+                            <TableCell>
+                              {categoryInfo ? (
+                                <Badge className="bg-indigo-100 text-indigo-800">
                                   {categoryInfo.name}
                                 </Badge>
+                              ) : (
+                                <span className="text-sm text-muted-foreground">N/A</span>
                               )}
                             </TableCell>
+                            <TableCell>{formatFileSize(doc.fileSize)}</TableCell>
                             <TableCell>
-                              <div className="flex flex-wrap gap-1">
-                                {doc.tags.slice(0, 2).map((tag, idx) => (
-                                  <Badge
-                                    key={idx}
-                                    className="bg-gray-100 text-gray-800 text-xs"
-                                  >
-                                    {tag}
-                                  </Badge>
-                                ))}
-                                {doc.tags.length > 2 && (
-                                  <Badge className="bg-gray-100 text-gray-800 text-xs">
-                                    +{doc.tags.length - 2}
-                                  </Badge>
-                                )}
-                              </div>
-                            </TableCell>
-                            <TableCell>{doc.size}</TableCell>
-                            <TableCell>
-                              <div>
-                                <p className="text-sm">{doc.uploadedDate}</p>
-                                <p className="text-xs text-muted-foreground">
-                                  by {doc.uploadedBy}
-                                </p>
-                              </div>
+                              {doc.uploadedAt ? new Date(doc.uploadedAt).toLocaleDateString() : 'N/A'}
                             </TableCell>
                             <TableCell>
                               {doc.validUntil ? (
                                 <div>
-                                  <p className="text-sm">{doc.validUntil}</p>
+                                  <p className="text-sm">{new Date(doc.validUntil).toLocaleDateString()}</p>
                                   {isExpired(doc.validUntil) && (
                                     <Badge className="bg-red-100 text-red-800 text-xs mt-1">
                                       Expired
@@ -579,13 +554,20 @@ export function DocumentManagement() {
                                     )}
                                 </div>
                               ) : (
-                                <span className="text-sm text-muted-foreground">
-                                  N/A
-                                </span>
+                                <span className="text-sm text-muted-foreground">N/A</span>
                               )}
                             </TableCell>
                             <TableCell className="text-right">
                               <div className="flex justify-end gap-1">
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  onClick={() => handleEditDocument(doc)}
+                                  title="Edit Document"
+                                  className="text-indigo-600 hover:text-indigo-700 hover:bg-indigo-50"
+                                >
+                                  <Pencil className="w-4 h-4" />
+                                </Button>
                                 <Button
                                   variant="ghost"
                                   size="icon"
@@ -602,15 +584,23 @@ export function DocumentManagement() {
                                     <StarOff className="w-4 h-4" />
                                   )}
                                 </Button>
-                                <Button variant="ghost" size="icon" title="View">
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  onClick={() => handleViewDocument(doc.id)}
+                                  title="View Document"
+                                  className="text-green-600 hover:text-green-700 hover:bg-green-50"
+                                >
                                   <Eye className="w-4 h-4" />
                                 </Button>
                                 <Button
                                   variant="ghost"
                                   size="icon"
-                                  title="Download"
+                                  onClick={() => handleDownloadDocument(doc.id, doc.originalName)}
+                                  title="Download Document"
+                                  className="text-blue-600 hover:text-blue-700 hover:bg-blue-50"
                                 >
-                                  <Download className="w-4 h-4 text-blue-600" />
+                                  <Download className="w-4 h-4" />
                                 </Button>
                                 <Button
                                   variant="ghost"
@@ -628,6 +618,92 @@ export function DocumentManagement() {
                     )}
                   </TableBody>
                 </Table>
+                </div>
+                
+                {/* Pagination Controls */}
+                {!loading && total > 0 && (
+                  <div className="border-t px-4 py-3 flex items-center justify-between">
+                    <div className="flex items-center gap-4">
+                      <div className="text-sm text-muted-foreground">
+                        Showing {((page - 1) * pageSize) + 1} to {Math.min(page * pageSize, total)} of {total} documents
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <Label htmlFor="page-size" className="text-sm">Per page:</Label>
+                        <Select
+                          value={pageSize.toString()}
+                          onValueChange={(value) => {
+                            setPageSize(parseInt(value));
+                            setPage(1); // Reset to first page when changing page size
+                          }}
+                        >
+                          <SelectTrigger id="page-size" className="w-20 h-8">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="10">10</SelectItem>
+                            <SelectItem value="25">25</SelectItem>
+                            <SelectItem value="50">50</SelectItem>
+                            <SelectItem value="100">100</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    </div>
+                    
+                    <div className="flex items-center gap-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setPage(prev => Math.max(1, prev - 1))}
+                        disabled={page === 1 || loading}
+                      >
+                        <ChevronLeft className="w-4 h-4" />
+                        Previous
+                      </Button>
+                      
+                      <div className="flex items-center gap-1">
+                        {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+                          let pageNum: number;
+                          if (totalPages <= 5) {
+                            pageNum = i + 1;
+                          } else if (page <= 3) {
+                            pageNum = i + 1;
+                          } else if (page >= totalPages - 2) {
+                            pageNum = totalPages - 4 + i;
+                          } else {
+                            pageNum = page - 2 + i;
+                          }
+                          
+                          return (
+                            <Button
+                              key={pageNum}
+                              variant={page === pageNum ? "default" : "outline"}
+                              size="sm"
+                              className="w-10"
+                              onClick={() => setPage(pageNum)}
+                              disabled={loading}
+                            >
+                              {pageNum}
+                            </Button>
+                          );
+                        })}
+                      </div>
+                      
+                      {totalPages > 5 && (
+                        <span className="px-2 text-sm text-muted-foreground">...</span>
+                      )}
+                      
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setPage(prev => Math.min(totalPages, prev + 1))}
+                        disabled={page === totalPages || loading}
+                      >
+                        Next
+                        <ChevronRight className="w-4 h-4" />
+                      </Button>
+                    </div>
+                  </div>
+                )}
               </Card>
             </TabsContent>
 
@@ -649,24 +725,26 @@ export function DocumentManagement() {
                 ) : (
                   <div className="grid grid-cols-2 gap-4">
                     {favoriteDocuments.map((doc) => {
-                      const categoryInfo = getCategoryInfo(doc.category);
+                      const categoryInfo = getCategoryInfo(doc.categoryId);
                       return (
                         <Card key={doc.id} className="p-4 hover:shadow-md">
                           <div className="flex items-start justify-between mb-3">
                             <div className="flex items-center gap-3">
-                              {getDocumentIcon(doc.type)}
+                              {getDocumentIcon(doc.fileType || 'PDF')}
                               <div>
                                 <p className="text-sm">{doc.name}</p>
                                 <p className="text-xs text-muted-foreground">
-                                  {doc.size}
+                                  {formatFileSize(doc.fileSize)}
                                 </p>
                               </div>
                             </div>
                             <Star className="w-4 h-4 fill-yellow-400 text-yellow-400" />
                           </div>
-                          <p className="text-xs text-muted-foreground mb-3">
-                            {doc.description}
-                          </p>
+                          {doc.description && (
+                            <p className="text-xs text-muted-foreground mb-3">
+                              {doc.description}
+                            </p>
+                          )}
                           <div className="flex items-center justify-between">
                             {categoryInfo && (
                               <Badge className="text-xs bg-gray-100 text-gray-800">
@@ -674,9 +752,6 @@ export function DocumentManagement() {
                               </Badge>
                             )}
                             <div className="flex gap-1">
-                              <Button variant="ghost" size="icon" className="h-7 w-7">
-                                <Eye className="w-3 h-3" />
-                              </Button>
                               <Button variant="ghost" size="icon" className="h-7 w-7">
                                 <Download className="w-3 h-3 text-blue-600" />
                               </Button>
@@ -699,7 +774,7 @@ export function DocumentManagement() {
                 </h3>
                 {documents.filter(
                   (doc) =>
-                    isExpiringSoon(doc.validUntil) || isExpired(doc.validUntil)
+                    doc.validUntil && (isExpiringSoon(doc.validUntil) || isExpired(doc.validUntil))
                 ).length === 0 ? (
                   <div className="text-center py-8 text-muted-foreground">
                     <Calendar className="w-12 h-12 mx-auto mb-2 opacity-50" />
@@ -710,18 +785,17 @@ export function DocumentManagement() {
                     {documents
                       .filter(
                         (doc) =>
-                          isExpiringSoon(doc.validUntil) ||
-                          isExpired(doc.validUntil)
+                          doc.validUntil && (isExpiringSoon(doc.validUntil) || isExpired(doc.validUntil))
                       )
                       .map((doc) => {
-                        const categoryInfo = getCategoryInfo(doc.category);
+                        const categoryInfo = getCategoryInfo(doc.categoryId);
                         return (
                           <div
                             key={doc.id}
                             className="flex items-center justify-between p-4 border rounded-lg"
                           >
                             <div className="flex items-center gap-3">
-                              {getDocumentIcon(doc.type)}
+                              {getDocumentIcon(doc.fileType || 'PDF')}
                               <div>
                                 <p className="flex items-center gap-2">
                                   {doc.name}
@@ -730,16 +804,18 @@ export function DocumentManagement() {
                                       Expired
                                     </Badge>
                                   )}
-                                  {isExpiringSoon(doc.validUntil) &&
+                                  {doc.validUntil && isExpiringSoon(doc.validUntil) &&
                                     !isExpired(doc.validUntil) && (
                                       <Badge className="bg-orange-100 text-orange-800">
                                         Expiring Soon
                                       </Badge>
                                     )}
                                 </p>
-                                <p className="text-xs text-muted-foreground">
-                                  Valid until: {doc.validUntil}
-                                </p>
+                                {doc.validUntil && (
+                                  <p className="text-xs text-muted-foreground">
+                                    Valid until: {new Date(doc.validUntil).toLocaleDateString()}
+                                  </p>
+                                )}
                               </div>
                             </div>
                             <div className="flex gap-2">
@@ -760,6 +836,313 @@ export function DocumentManagement() {
           </Tabs>
         </div>
       </ScrollArea>
+
+      {/* Upload Document Drawer */}
+      {isUploadOpen && (
+        <>
+          {/* Overlay */}
+          <div
+            className="fixed inset-0 bg-black/50 z-40 transition-opacity"
+            onClick={() => setIsUploadOpen(false)}
+          />
+          <EscKeyHandler isOpen={isUploadOpen} onClose={() => setIsUploadOpen(false)} />
+
+          {/* Drawer */}
+          <div className="fixed inset-y-0 right-0 w-[80%] bg-white z-50 shadow-2xl flex flex-col animate-in slide-in-from-right duration-300">
+            {/* Header */}
+            <div className="px-6 py-4 border-b border-gray-200 flex items-center justify-between bg-gray-50">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 bg-indigo-600 rounded-lg flex items-center justify-center">
+                  <Upload className="w-5 h-5 text-white" />
+                </div>
+                <div>
+                  <h2 className="text-lg">Upload New Document</h2>
+                  <p className="text-sm text-muted-foreground">Upload a document to the system</p>
+                </div>
+              </div>
+              <div className="flex items-center gap-2">
+                <Button onClick={handleUpload}>
+                  <Save className="w-4 h-4 mr-2" />
+                  Upload Document
+                </Button>
+                <Button variant="ghost" size="icon" onClick={() => setIsUploadOpen(false)}>
+                  <X className="w-5 h-5" />
+                </Button>
+              </div>
+            </div>
+
+            {/* Content */}
+            <ScrollArea className="flex-1">
+              <div className="p-6">
+                {error && (
+                  <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg">
+                    <p className="text-red-800 text-sm">{error}</p>
+                  </div>
+                )}
+                <div className="space-y-6">
+                  <div className="space-y-2">
+                    <Label>Document File *</Label>
+                    <label htmlFor="file-upload" className="cursor-pointer">
+                      <div className="border-2 border-dashed rounded-lg p-8 text-center hover:border-indigo-600 transition-colors">
+                        <Upload className="w-12 h-12 mx-auto mb-3 text-muted-foreground" />
+                        <p className="text-sm mb-2">
+                          Click to upload or drag and drop
+                        </p>
+                        <p className="text-xs text-muted-foreground">
+                          PDF, DOC, DOCX, XLS, XLSX (Max 10MB)
+                        </p>
+                        {selectedFile && (
+                          <p className="text-sm mt-2 text-indigo-600 font-medium">{selectedFile.name}</p>
+                        )}
+                      </div>
+                    </label>
+                    <input
+                      type="file"
+                      id="file-upload"
+                      className="hidden"
+                      accept=".pdf,.doc,.docx,.xls,.xlsx"
+                      onChange={(e) => setSelectedFile(e.target.files?.[0] || null)}
+                    />
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-6">
+                    <div className="space-y-2">
+                      <Label>Document Name *</Label>
+                      <Input
+                        placeholder="e.g., GST Certificate 2024"
+                        value={uploadForm.name}
+                        onChange={(e) =>
+                          setUploadForm({ ...uploadForm, name: e.target.value })
+                        }
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Category *</Label>
+                      <Select
+                        value={uploadForm.categoryId}
+                        onValueChange={(value) =>
+                          setUploadForm({ ...uploadForm, categoryId: value })
+                        }
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select Category" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {categories.length > 0 ? (
+                            categories.map((cat) => (
+                              <SelectItem key={cat.id} value={cat.id.toString()}>
+                                {cat.name}
+                              </SelectItem>
+                            ))
+                          ) : (
+                            <div className="px-2 py-1.5 text-sm text-muted-foreground">
+                              No categories available. Please ensure categories are seeded in the database.
+                            </div>
+                          )}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label>Description</Label>
+                    <Input
+                      placeholder="Brief description of the document"
+                      value={uploadForm.description}
+                      onChange={(e) =>
+                        setUploadForm({ ...uploadForm, description: e.target.value })
+                      }
+                    />
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-6">
+                    <div className="space-y-2">
+                      <Label>Tags (comma separated)</Label>
+                      <Input
+                        placeholder="e.g., GSTIN, Tax, Registration"
+                        value={uploadForm.tags}
+                        onChange={(e) =>
+                          setUploadForm({ ...uploadForm, tags: e.target.value })
+                        }
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Valid Until (Optional)</Label>
+                      <Input
+                        type="date"
+                        value={uploadForm.validUntil}
+                        onChange={(e) =>
+                          setUploadForm({ ...uploadForm, validUntil: e.target.value })
+                        }
+                      />
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </ScrollArea>
+          </div>
+        </>
+      )}
+
+      {/* Edit Document Drawer */}
+      {editingDocument && (
+        <>
+          {/* Overlay */}
+          <div
+            className="fixed inset-0 bg-black/50 z-40 transition-opacity"
+            onClick={() => {
+              setEditingDocument(null);
+              setEditForm({
+                name: '',
+                categoryId: '',
+                description: '',
+                validUntil: '',
+              });
+              setError(null);
+            }}
+          />
+          <EscKeyHandler
+            isOpen={!!editingDocument}
+            onClose={() => {
+              setEditingDocument(null);
+              setEditForm({
+                name: '',
+                categoryId: '',
+                description: '',
+                validUntil: '',
+              });
+              setError(null);
+            }}
+          />
+
+          {/* Drawer */}
+          <div className="fixed inset-y-0 right-0 w-[80%] bg-white z-50 shadow-2xl flex flex-col animate-in slide-in-from-right duration-300">
+            {/* Header */}
+            <div className="px-6 py-4 border-b border-gray-200 flex items-center justify-between bg-gray-50">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 bg-indigo-600 rounded-lg flex items-center justify-center">
+                  <Pencil className="w-5 h-5 text-white" />
+                </div>
+                <div>
+                  <h2 className="text-lg font-semibold">Edit Document</h2>
+                  <p className="text-sm text-muted-foreground">
+                    {editingDocument.documentName || editingDocument.originalName}
+                  </p>
+                </div>
+              </div>
+              <div className="flex items-center gap-2">
+                <Button onClick={handleUpdateDocument}>
+                  <Save className="w-4 h-4 mr-2" />
+                  Save Changes
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={() => {
+                    setEditingDocument(null);
+                    setEditForm({
+                      name: '',
+                      categoryId: '',
+                      description: '',
+                      validUntil: '',
+                    });
+                    setError(null);
+                  }}
+                >
+                  <X className="w-5 h-5" />
+                </Button>
+              </div>
+            </div>
+
+            {/* Content */}
+            <ScrollArea className="flex-1">
+              <div className="p-6">
+                {error && (
+                  <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg">
+                    <p className="text-red-800 text-sm">{error}</p>
+                  </div>
+                )}
+
+                <div className="space-y-4 max-w-2xl">
+                  <div className="space-y-2">
+                    <Label htmlFor="edit-name">Document Name *</Label>
+                    <Input
+                      id="edit-name"
+                      placeholder="e.g., GST Certificate 2024"
+                      value={editForm.name}
+                      onChange={(e) =>
+                        setEditForm({ ...editForm, name: e.target.value })
+                      }
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="edit-category">Category *</Label>
+                    <Select
+                      value={editForm.categoryId}
+                      onValueChange={(value) =>
+                        setEditForm({ ...editForm, categoryId: value })
+                      }
+                    >
+                      <SelectTrigger id="edit-category">
+                        <SelectValue placeholder="Select category" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {categories.map((cat) => (
+                          <SelectItem key={cat.id} value={cat.id.toString()}>
+                            {cat.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="edit-description">Description</Label>
+                    <Textarea
+                      id="edit-description"
+                      placeholder="Brief description of the document"
+                      value={editForm.description}
+                      onChange={(e) =>
+                        setEditForm({ ...editForm, description: e.target.value })
+                      }
+                      rows={3}
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="edit-validUntil">Valid Until</Label>
+                    <Input
+                      id="edit-validUntil"
+                      type="date"
+                      value={editForm.validUntil}
+                      onChange={(e) =>
+                        setEditForm({ ...editForm, validUntil: e.target.value })
+                      }
+                    />
+                  </div>
+
+                  <div className="p-4 bg-gray-50 rounded-lg border border-gray-200">
+                    <p className="text-sm text-muted-foreground">
+                      <strong>File:</strong> {editingDocument.originalName || editingDocument.fileName}
+                    </p>
+                    <p className="text-sm text-muted-foreground mt-1">
+                      <strong>Size:</strong> {formatFileSize(editingDocument.fileSize)}
+                    </p>
+                    <p className="text-sm text-muted-foreground mt-1">
+                      <strong>Uploaded:</strong>{' '}
+                      {editingDocument.uploadedAt
+                        ? new Date(editingDocument.uploadedAt).toLocaleDateString()
+                        : 'N/A'}
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </ScrollArea>
+          </div>
+        </>
+      )}
     </div>
   );
 }
+

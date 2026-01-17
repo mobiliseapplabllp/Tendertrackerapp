@@ -1,4 +1,4 @@
-// API Client for TenderTrack Pro
+// API Client for LeadTrack Pro
 // This file will be used to connect to the MySQL backend
 
 import type {
@@ -6,8 +6,10 @@ import type {
   Company,
   Contact,
   Tender,
+  Lead,
   Document,
   TenderActivity,
+  LeadActivity,
   DashboardStats,
   ApiResponse,
   PaginatedResponse,
@@ -15,6 +17,10 @@ import type {
   SystemConfig,
   TenderCategory,
   TenderTag,
+  LeadCategory,
+  LeadTag,
+  LeadType,
+  SalesStage,
   WorkLogReminder,
   AIApiConfig,
   TenderScoutSource,
@@ -22,6 +28,8 @@ import type {
   TenderScoutResult,
   TenderScoutLog,
   AISearchResult,
+  SystemSetting,
+  DropdownOption,
 } from './types';
 
 const API_BASE_URL = import.meta.env?.VITE_API_URL || 'http://localhost:5000/api/v1';
@@ -194,7 +202,21 @@ export const authApi = {
 
 export const tenderApi = {
   getAll: async (filters?: FilterOptions) => {
-    const params = new URLSearchParams(filters as any);
+    const params = new URLSearchParams();
+
+    if (filters) {
+      Object.entries(filters).forEach(([key, value]) => {
+        if (value !== undefined && value !== null) {
+          if (Array.isArray(value)) {
+            // Handle array values (e.g., status array)
+            value.forEach(item => params.append(key, String(item)));
+          } else {
+            params.append(key, String(value));
+          }
+        }
+      });
+    }
+
     return apiCall<PaginatedResponse<Tender>>(`/tenders?${params}`);
   },
 
@@ -270,6 +292,359 @@ export const tenderApi = {
       method: 'POST',
       body: JSON.stringify({ question, chatHistory }),
     });
+  },
+};
+
+// ============================================
+// Lead APIs (CRM)
+// ============================================
+
+export const leadApi = {
+  getAll: async (filters?: FilterOptions) => {
+    const params = new URLSearchParams(filters as any);
+    return apiCall<PaginatedResponse<Lead>>(`/leads?${params}`);
+  },
+
+  getById: async (id: number) => {
+    return apiCall<Lead>(`/leads/${id}`);
+  },
+
+  create: async (data: Partial<Lead>) => {
+    return apiCall<Lead>('/leads', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  },
+
+  update: async (id: number, data: Partial<Lead>) => {
+    return apiCall<Lead>(`/leads/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    });
+  },
+
+  delete: async (id: number) => {
+    return apiCall(`/leads/${id}`, { method: 'DELETE' });
+  },
+
+  restore: async (id: number) => {
+    return apiCall(`/leads/${id}/restore`, { method: 'POST' });
+  },
+
+  permanentDelete: async (id: number) => {
+    return apiCall(`/leads/${id}/permanent`, { method: 'DELETE' });
+  },
+
+  getActivities: async (id: number) => {
+    return apiCall<LeadActivity[]>(`/leads/${id}/activities`);
+  },
+
+  addActivity: async (id: number, data: Partial<LeadActivity>) => {
+    return apiCall<LeadActivity>(`/leads/${id}/activities`, {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  },
+
+  updateActivity: async (id: number, activityId: number, data: { description: string }) => {
+    return apiCall<LeadActivity>(`/leads/${id}/activities/${activityId}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    });
+  },
+
+  deleteActivity: async (id: number, activityId: number) => {
+    return apiCall(`/leads/${id}/activities/${activityId}`, {
+      method: 'DELETE',
+    });
+  },
+
+  generateSummary: async (id: number) => {
+    return apiCall<{ summary: string }>(`/leads/${id}/summary`, {
+      method: 'POST',
+    });
+  },
+
+  sendSummaryEmail: async (id: number, email: string) => {
+    return apiCall<{ message: string }>(`/leads/${id}/summary/email`, {
+      method: 'POST',
+      body: JSON.stringify({ email }),
+    });
+  },
+
+  chat: async (id: number, question: string, chatHistory: Array<{ role: 'user' | 'assistant'; content: string }> = []) => {
+    return apiCall<{ answer: string }>(`/leads/${id}/chat`, {
+      method: 'POST',
+      body: JSON.stringify({ question, chatHistory }),
+    });
+  },
+
+  convertToDeal: async (id: number, dealData: { dealName: string; dealValue: number; expectedCloseDate?: string; probability?: number }) => {
+    return apiCall<{ dealId: number; message: string }>(`/leads/${id}/convert`, {
+      method: 'POST',
+      body: JSON.stringify(dealData),
+    });
+  },
+
+  updateStage: async (id: number, salesStageId: number) => {
+    return apiCall<{ message: string }>(`/leads/${id}/stage`, {
+      method: 'PUT',
+      body: JSON.stringify({ salesStageId }),
+    });
+  },
+
+  getPipeline: async (leadTypeId?: number) => {
+    const params = leadTypeId ? `?leadTypeId=${leadTypeId}` : '';
+    return apiCall<any>(`/leads/pipeline${params}`);
+  },
+};
+
+// ============================================
+// Lead Types API
+// ============================================
+
+export const leadTypeApi = {
+  getAll: async () => {
+    return apiCall<LeadType[]>('/lead-types');
+  },
+
+  getById: async (id: number) => {
+    return apiCall<LeadType>(`/lead-types/${id}`);
+  },
+
+  create: async (data: Partial<LeadType>) => {
+    return apiCall<LeadType>('/lead-types', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  },
+
+  update: async (id: number, data: Partial<LeadType>) => {
+    return apiCall<LeadType>(`/lead-types/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    });
+  },
+
+  delete: async (id: number) => {
+    return apiCall(`/lead-types/${id}`, { method: 'DELETE' });
+  },
+};
+
+// ============================================
+// Sales Stages API
+// ============================================
+
+export const salesStageApi = {
+  getAll: async () => {
+    return apiCall<SalesStage[]>('/sales-stages');
+  },
+
+  getById: async (id: number) => {
+    return apiCall<SalesStage>(`/sales-stages/${id}`);
+  },
+
+  create: async (data: Partial<SalesStage>) => {
+    return apiCall<SalesStage>('/sales-stages', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  },
+
+  update: async (id: number, data: Partial<SalesStage>) => {
+    return apiCall<SalesStage>(`/sales-stages/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    });
+  },
+
+  delete: async (id: number) => {
+    return apiCall(`/sales-stages/${id}`, { method: 'DELETE' });
+  },
+};
+
+// ============================================
+// Pipeline API
+// ============================================
+
+export const pipelineApi = {
+  getPipeline: async (leadTypeId?: number) => {
+    const params = leadTypeId ? `?leadTypeId=${leadTypeId}` : '';
+    return apiCall<any>(`/pipeline${params}`);
+  },
+
+  getAnalytics: async (filters?: { leadTypeId?: number; dateFrom?: string; dateTo?: string }) => {
+    const params = new URLSearchParams();
+    if (filters?.leadTypeId) params.append('leadTypeId', filters.leadTypeId.toString());
+    if (filters?.dateFrom) params.append('dateFrom', filters.dateFrom);
+    if (filters?.dateTo) params.append('dateTo', filters.dateTo);
+    return apiCall<any>(`/pipeline/analytics?${params}`);
+  },
+
+  updateStageOrder: async (stages: Array<{ id: number; stageOrder: number }>) => {
+    return apiCall<any>('/pipeline/stages/order', {
+      method: 'PUT',
+      body: JSON.stringify({ stages }),
+    });
+  },
+};
+
+// ============================================
+// Activities API
+// ============================================
+
+export const activityApi = {
+  getByLead: async (leadId: number, type?: 'call' | 'meeting' | 'email' | 'task') => {
+    const params = type ? `?type=${type}` : '';
+    return apiCall<any[]>(`/activities/leads/${leadId}${params}`);
+  },
+
+  createCall: async (leadId: number, data: {
+    subject: string;
+    callType?: 'Outbound' | 'Inbound';
+    durationMinutes?: number;
+    callDate: string;
+    notes?: string;
+  }) => {
+    return apiCall<any>(`/activities/leads/${leadId}/calls`, {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  },
+
+  updateCall: async (leadId: number, callId: number, data: any) => {
+    return apiCall<any>(`/activities/leads/${leadId}/calls/${callId}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    });
+  },
+
+  deleteCall: async (leadId: number, callId: number) => {
+    return apiCall(`/activities/leads/${leadId}/calls/${callId}`, { method: 'DELETE' });
+  },
+
+  createMeeting: async (leadId: number, data: {
+    subject: string;
+    meetingDate: string;
+    location?: string;
+    notes?: string;
+  }) => {
+    return apiCall<any>(`/activities/leads/${leadId}/meetings`, {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  },
+
+  updateMeeting: async (leadId: number, meetingId: number, data: any) => {
+    return apiCall<any>(`/activities/leads/${leadId}/meetings/${meetingId}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    });
+  },
+
+  deleteMeeting: async (leadId: number, meetingId: number) => {
+    return apiCall(`/activities/leads/${leadId}/meetings/${meetingId}`, { method: 'DELETE' });
+  },
+
+  createEmail: async (leadId: number, data: {
+    subject: string;
+    sender: string;
+    recipients: string | string[];
+    body?: string;
+  }) => {
+    return apiCall<any>(`/activities/leads/${leadId}/emails`, {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  },
+
+  createTask: async (leadId: number, data: {
+    title: string;
+    description?: string;
+    dueDate?: string;
+    priority?: 'Low' | 'Medium' | 'High';
+    status?: 'Pending' | 'In Progress' | 'Completed' | 'Deferred';
+  }) => {
+    return apiCall<any>(`/activities/leads/${leadId}/tasks`, {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  },
+
+  updateTask: async (leadId: number, taskId: number, data: any) => {
+    return apiCall<any>(`/activities/leads/${leadId}/tasks/${taskId}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    });
+  },
+
+  deleteTask: async (leadId: number, taskId: number) => {
+    return apiCall(`/activities/leads/${leadId}/tasks/${taskId}`, { method: 'DELETE' });
+  },
+};
+
+// ============================================
+// Deals API
+// ============================================
+
+export const dealApi = {
+  getAll: async (filters?: {
+    page?: number;
+    pageSize?: number;
+    search?: string;
+    salesStageId?: number;
+    assignedTo?: number;
+    dateFrom?: string;
+    dateTo?: string;
+  }) => {
+    const params = new URLSearchParams();
+    if (filters) {
+      Object.entries(filters).forEach(([key, value]) => {
+        if (value !== undefined && value !== null) {
+          params.append(key, String(value));
+        }
+      });
+    }
+    return apiCall<PaginatedResponse<any>>(`/deals?${params}`);
+  },
+
+  getById: async (id: number) => {
+    return apiCall<any>(`/deals/${id}`);
+  },
+
+  create: async (data: {
+    leadId: number;
+    dealName: string;
+    dealValue: number;
+    currency?: string;
+    salesStageId: number;
+    probability?: number;
+    expectedCloseDate?: string;
+    assignedTo?: number;
+  }) => {
+    return apiCall<any>('/deals', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  },
+
+  update: async (id: number, data: any) => {
+    return apiCall<any>(`/deals/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    });
+  },
+
+  delete: async (id: number) => {
+    return apiCall(`/deals/${id}`, { method: 'DELETE' });
+  },
+
+  getForecast: async (period?: 'month' | 'quarter' | 'year', dateFrom?: string, dateTo?: string) => {
+    const params = new URLSearchParams();
+    if (period) params.append('period', period);
+    if (dateFrom) params.append('dateFrom', dateFrom);
+    if (dateTo) params.append('dateTo', dateTo);
+    return apiCall<any>(`/deals/forecast?${params}`);
   },
 };
 
@@ -900,3 +1275,57 @@ export const tokenManager = {
     localStorage.removeItem('auth_token');
   },
 };
+
+
+// ============================================
+// Configuration APIs
+// ============================================
+
+export const configurationApi = {
+  getAllSettings: async () => {
+    return apiCall<SystemSetting[]>('/configuration/settings');
+  },
+
+  getSetting: async (key: string) => {
+    return apiCall<{ key: string; value: any }>(`/configuration/settings/${key}`);
+  },
+
+  updateSetting: async (key: string, value: any) => {
+    return apiCall<SystemSetting>(`/configuration/settings/${key}`, {
+      method: 'PUT',
+      body: JSON.stringify({ value }),
+    });
+  },
+
+  getDropdownOptions: async (type: string, activeOnly: boolean = true) => {
+    const params = activeOnly ? '' : '?activeOnly=false';
+    return apiCall<DropdownOption[]>(`/configuration/dropdown/${type}${params}`);
+  },
+
+  createDropdownOption: async (data: Partial<DropdownOption>) => {
+    return apiCall<DropdownOption>('/configuration/dropdown', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  },
+
+  updateDropdownOption: async (id: number, data: Partial<DropdownOption>) => {
+    return apiCall<DropdownOption>(`/configuration/dropdown/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    });
+  },
+
+  deleteDropdownOption: async (id: number) => {
+    return apiCall(`/configuration/dropdown/${id}`, {
+      method: 'DELETE',
+    });
+  },
+
+  clearCache: async () => {
+    return apiCall('/configuration/cache/clear', {
+      method: 'POST',
+    });
+  },
+};
+

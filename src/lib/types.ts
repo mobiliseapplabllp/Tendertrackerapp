@@ -1,4 +1,4 @@
-// TypeScript Types and Interfaces for TenderTrack Pro
+// TypeScript Types and Interfaces for LeadTrack Pro
 
 export interface User {
   id: number;
@@ -47,6 +47,7 @@ export interface Contact {
   updatedAt: string;
 }
 
+// Legacy types (for backward compatibility)
 export interface TenderCategory {
   id: number;
   name: string;
@@ -64,28 +65,80 @@ export interface TenderTag {
   createdAt: string;
 }
 
-export interface Tender {
+// New CRM types
+export interface LeadCategory {
   id: number;
-  tenderNumber: string;
+  name: string;
+  description?: string;
+  color?: string;
+  icon?: string;
+  isActive: boolean;
+  createdAt: string;
+}
+
+export interface LeadTag {
+  id: number;
+  name: string;
+  color?: string;
+  createdAt: string;
+}
+
+export interface LeadType {
+  id: number;
+  name: string;
+  description?: string;
+  icon?: string;
+  color?: string;
+  displayOrder?: number;
+  isActive: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface SalesStage {
+  id: number;
+  name: string;
+  description?: string;
+  probability: number;
+  isActive: boolean;
+  stageOrder: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+// Lead interface (replaces Tender)
+export interface Lead {
+  id: number;
+  leadNumber: string;
+  tenderNumber?: string; // Legacy alias
   title: string;
   description?: string;
   companyId?: number;
   company?: Company;
   categoryId?: number;
-  category?: TenderCategory;
+  category?: LeadCategory | TenderCategory; // Support both
+  leadTypeId?: number;
+  leadType?: LeadType;
+  salesStageId?: number;
+  salesStage?: SalesStage;
   status: 'Draft' | 'Submitted' | 'Under Review' | 'Shortlisted' | 'Won' | 'Lost' | 'Cancelled';
   priority: 'Low' | 'Medium' | 'High' | 'Critical';
   estimatedValue?: number;
+  dealValue?: number;
+  probability?: number;
   currency: string;
   emdAmount?: number; // Earnest Money Deposit
   tenderFees?: number; // Tender Fees
   submissionDeadline?: string;
   dueDate?: string; // Alias for submissionDeadline
   expectedAwardDate?: string;
+  expectedCloseDate?: string;
   contractDurationMonths?: number;
   assignedTo?: number;
   assignedUser?: User;
-  tags?: TenderTag[];
+  tags?: LeadTag[] | TenderTag[]; // Support both
+  source?: string;
+  convertedFrom?: number;
   createdBy: number | string; // Can be user ID (number) or user name (string)
   updatedBy?: string; // User name who last updated
   client?: string; // Company name
@@ -94,6 +147,14 @@ export interface Tender {
   deleterName?: string; // User name who deleted
   createdAt: string;
   updatedAt: string;
+  // Computed fields
+  formattedValue?: string;
+  formattedDealValue?: string;
+}
+
+// Legacy Tender interface (alias for Lead for backward compatibility)
+export interface Tender extends Lead {
+  tenderNumber: string;
 }
 
 export interface DocumentCategory {
@@ -123,9 +184,11 @@ export interface Document {
   uploadedAt: string;
 }
 
-export interface TenderActivity {
+// Activity interfaces
+export interface LeadActivity {
   id: number;
-  tenderId: number;
+  leadId: number;
+  tenderId?: number; // Legacy alias
   userId: number;
   user?: User;
   activityType: 'Created' | 'Updated' | 'Commented' | 'Status Changed' | 'Document Added' | 'Assigned' | 'Deadline Changed';
@@ -133,6 +196,11 @@ export interface TenderActivity {
   oldValue?: string;
   newValue?: string;
   createdAt: string;
+}
+
+// Legacy alias
+export interface TenderActivity extends LeadActivity {
+  tenderId: number;
 }
 
 export interface AIApiConfig {
@@ -334,4 +402,34 @@ export interface AISearchResult {
   confidence?: number;
   fileLinks?: string[];
   matchedKeywords?: string[];
+}
+
+// ============================================
+// Configuration System Types
+// ============================================
+
+export interface SystemSetting {
+  id: number;
+  settingKey: string;
+  settingValue: string;
+  settingType: 'string' | 'number' | 'boolean' | 'json';
+  description?: string;
+  category?: string;
+  isEditable: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface DropdownOption {
+  id: number;
+  optionType: string;
+  optionValue: string;
+  optionLabel: string;
+  displayOrder: number;
+  colorClass?: string;
+  icon?: string;
+  isActive: boolean;
+  isSystem: boolean;
+  createdAt: string;
+  updatedAt: string;
 }

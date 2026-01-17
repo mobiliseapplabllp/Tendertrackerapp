@@ -2,24 +2,49 @@
 
 /**
  * Input Sanitization - Prevents XSS attacks
+ * Enhanced to handle more XSS vectors
  */
 export function sanitizeInput(input: string): string {
   if (!input) return '';
   
   // Remove HTML tags and dangerous characters
-  return input
+  let sanitized = input
     .replace(/[<>]/g, '') // Remove < and >
     .replace(/javascript:/gi, '') // Remove javascript: protocol
-    .replace(/on\w+\s*=/gi, '') // Remove event handlers
+    .replace(/data:/gi, '') // Remove data: protocol (can be used for XSS)
+    .replace(/vbscript:/gi, '') // Remove vbscript: protocol
+    .replace(/on\w+\s*=/gi, '') // Remove event handlers (onclick, onerror, etc.)
+    .replace(/&#x?[0-9a-f]+;/gi, '') // Remove HTML entities
+    .replace(/&[a-z]+;/gi, '') // Remove named HTML entities
+    .replace(/<script[^>]*>.*?<\/script>/gi, '') // Remove script tags
+    .replace(/<iframe[^>]*>.*?<\/iframe>/gi, '') // Remove iframe tags
+    .replace(/<object[^>]*>.*?<\/object>/gi, '') // Remove object tags
+    .replace(/<embed[^>]*>/gi, '') // Remove embed tags
+    .replace(/expression\s*\(/gi, '') // Remove CSS expressions
     .trim();
+  
+  // Additional check for encoded attacks
+  try {
+    // Decode common encoding attempts
+    sanitized = decodeURIComponent(sanitized);
+  } catch (e) {
+    // If decoding fails, keep original (may be intentional)
+  }
+  
+  return sanitized;
 }
 
 /**
  * Email validation - Prevents injection attacks
  */
 export function isValidEmail(email: string): boolean {
+  if (!email || typeof email !== 'string') return false;
   const emailRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
-  return emailRegex.test(email) && email.length <= 254;
+  const isValid = emailRegex.test(email) && email.length <= 254;
+  if (!isValid && import.meta.env.DEV) {
+    console.log('Email validation failed:', { email, length: email.length, regexMatch: emailRegex.test(email) });
+  }
+  return isValid;
 }
 
 /**

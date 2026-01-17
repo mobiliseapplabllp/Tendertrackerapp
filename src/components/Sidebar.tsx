@@ -14,6 +14,7 @@ import {
   ShieldCheck,
   Search,
   Globe,
+  TrendingUp,
 } from 'lucide-react';
 import { Button } from './ui/button';
 import { Separator } from './ui/separator';
@@ -28,43 +29,95 @@ interface SidebarProps {
 export function Sidebar({ currentView, onNavigate, onLogout }: SidebarProps) {
   const [isCollapsed, setIsCollapsed] = useState(false);
 
-  const menuItems = [
-    { id: 'dashboard', icon: Home, label: 'Dashboard', badge: null },
-    { id: 'tenders', icon: FileText, label: 'Tenders', badge: null },
-    { id: 'tender-scout', icon: Search, label: 'Tender Scout', badge: null },
-    { id: 'ai-search', icon: Globe, label: 'AI Search', badge: null },
-    { id: 'documents', icon: FolderOpen, label: 'Document Management', badge: null },
-    { id: 'users', icon: Users, label: 'User Management', badge: null },
-    { id: 'companies', icon: Building2, label: 'Companies & Contacts', badge: null },
-    { id: 'reports', icon: BarChart3, label: 'Reports & Analytics', badge: null },
-    { id: 'categories', icon: Tag, label: 'Categories & Tags', badge: null },
+  const menuSections = [
+    {
+      label: 'Overview',
+      items: [
+        { id: 'dashboard', icon: Home, label: 'Dashboard', badge: null },
+      ]
+    },
+    {
+      label: 'Tender Management',
+      items: [
+        { id: 'tenders', icon: FileText, label: 'Tender Master', badge: null },
+        { id: 'tender-scout', icon: Search, label: 'Tender Scout', badge: null },
+        { id: 'ai-search', icon: Globe, label: 'AI Search', badge: null },
+      ]
+    },
+    {
+      label: 'CRM & Sales',
+      items: [
+        { id: 'leads', icon: FileText, label: 'Leads', badge: null },
+        { id: 'pipeline', icon: BarChart3, label: 'Pipeline', badge: null },
+        { id: 'sales-dashboard', icon: BarChart3, label: 'Sales Dashboard', badge: null },
+      ]
+    },
+    {
+      label: 'Organization',
+      items: [
+        { id: 'documents', icon: FolderOpen, label: 'Document Management', badge: null },
+        { id: 'companies', icon: Building2, label: 'Companies & Contacts', badge: null },
+        { id: 'users', icon: Users, label: 'User Management', badge: null },
+        { id: 'reports', icon: BarChart3, label: 'Reports & Analytics', badge: null },
+        { id: 'categories', icon: Tag, label: 'Categories & Tags', badge: null },
+      ]
+    }
   ];
 
-  const bottomMenuItems = [
-    { id: 'email-settings', icon: Bell, label: 'Email Alerts', badge: null },
-    { id: 'administration', icon: ShieldCheck, label: 'Administration', badge: null },
-    { id: 'scout-config', icon: Settings, label: 'Scout Configuration', badge: null },
-    { id: 'settings', icon: Settings, label: 'Settings', badge: null },
+  const bottomSections = [
+    {
+      label: 'System Settings',
+      items: [
+        { id: 'email-settings', icon: Bell, label: 'Email Alerts', badge: null },
+        { id: 'administration', icon: ShieldCheck, label: 'Administration', badge: null },
+        { id: 'scout-config', icon: Settings, label: 'Scout Configuration', badge: null },
+        { id: 'settings', icon: Settings, label: 'Settings', badge: null },
+      ]
+    }
   ];
 
   return (
     <div
       className={`${isCollapsed ? 'w-16' : 'w-64'
-        } bg-gray-900 text-white flex flex-col transition-all duration-300 relative sticky top-0 h-screen`}
+        } bg-white border-r border-gray-200 text-gray-900 flex flex-col transition-all duration-300 relative sticky top-0 h-screen flex-shrink-0 min-w-0 max-w-full`}
+      style={{
+        minWidth: isCollapsed ? '64px' : '256px',
+        maxWidth: isCollapsed ? '64px' : '256px',
+        width: isCollapsed ? '64px' : '256px'
+      }}
     >
       {/* Header */}
-      <div className="p-4 flex items-center justify-between">
+      <div className="p-3 flex items-center justify-between flex-shrink-0" style={{ minWidth: 0 }}>
         {!isCollapsed && (
-          <div>
-            <h1 className="text-xl">TenderTrack Pro</h1>
-            <p className="text-xs text-gray-400">Tender Management System</p>
+          <div className="min-w-0 flex-1" style={{ minWidth: 0, overflow: 'hidden' }}>
+            <h1
+              className="text-sm font-semibold tracking-tight"
+              style={{
+                overflow: 'hidden',
+                textOverflow: 'ellipsis',
+                whiteSpace: 'nowrap'
+              }}
+            >
+              LeadTrack Pro
+            </h1>
+            <p
+              className="text-xs text-gray-500"
+              style={{
+                overflow: 'hidden',
+                textOverflow: 'ellipsis',
+                whiteSpace: 'nowrap'
+              }}
+            >
+              Lead Management System
+            </p>
           </div>
         )}
         <Button
           variant="ghost"
           size="icon"
           onClick={() => setIsCollapsed(!isCollapsed)}
-          className="text-white hover:bg-gray-800 ml-auto"
+          className="text-gray-500 hover:bg-gray-100 hover:text-gray-900 flex-shrink-0 w-6 h-6"
+          style={{ flexShrink: 0 }}
         >
           {isCollapsed ? (
             <ChevronRight className="w-4 h-4" />
@@ -74,70 +127,145 @@ export function Sidebar({ currentView, onNavigate, onLogout }: SidebarProps) {
         </Button>
       </div>
 
-      <Separator className="bg-gray-700" />
+      <Separator className="bg-gray-200" />
 
       {/* Main Navigation */}
-      <nav className="flex-1 p-2 overflow-y-auto">
-        <div className="space-y-1">
-          {menuItems.map((item) => (
-            <button
-              key={item.id}
-              onClick={() => onNavigate(item.id)}
-              className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg transition-colors ${currentView === item.id
-                ? 'bg-indigo-600 text-white'
-                : 'text-gray-300 hover:bg-gray-800 hover:text-white'
-                }`}
-              title={isCollapsed ? item.label : ''}
-            >
-              <item.icon className="w-5 h-5 flex-shrink-0" />
-              {!isCollapsed && <span>{item.label}</span>}
-              {!isCollapsed && item.badge && (
-                <span className="ml-auto bg-red-500 text-white text-xs px-2 py-0.5 rounded-full">
-                  {item.badge}
-                </span>
-              )}
-            </button>
-          ))}
-        </div>
+      <nav className="flex-1 p-2 overflow-y-auto overflow-x-hidden min-w-0">
+        {menuSections.map((section, idx) => (
+          <div key={section.label} className={idx > 0 ? 'mt-4' : ''}>
+            {!isCollapsed && (
+              <h2 className="px-2.5 mb-1 text-[10px] font-semibold text-gray-400 uppercase tracking-wider">
+                {section.label}
+              </h2>
+            )}
+            <div className="space-y-0.5">
+              {section.items.map((item) => (
+                <button
+                  key={item.id}
+                  onClick={() => onNavigate(item.id)}
+                  className={`w-full flex items-center gap-2 px-2.5 py-1.5 rounded-md transition-colors text-sm ${currentView === item.id
+                    ? 'bg-gray-100 text-gray-900 font-medium'
+                    : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
+                    }`}
+                  title={item.label}
+                  style={{ minWidth: 0 }}
+                >
+                  <item.icon className={`w-4 h-4 flex-shrink-0 ${currentView === item.id ? 'text-gray-900' : 'text-gray-500'}`} style={{ flexShrink: 0 }} />
+                  {!isCollapsed && (
+                    <span
+                      className="truncate text-left flex-1"
+                      style={{
+                        minWidth: 0,
+                        overflow: 'hidden',
+                        textOverflow: 'ellipsis',
+                        whiteSpace: 'nowrap'
+                      }}
+                    >
+                      {item.label}
+                    </span>
+                  )}
+                  {!isCollapsed && item.badge && (
+                    <span className="ml-auto bg-gray-900 text-white text-[10px] px-1.5 py-0.5 rounded-full flex-shrink-0">
+                      {item.badge}
+                    </span>
+                  )}
+                </button>
+              ))}
+            </div>
+          </div>
+        ))}
 
-        <Separator className="bg-gray-700 my-4" />
+        <Separator className="bg-gray-200 my-4" />
 
-        <div className="space-y-1">
-          {bottomMenuItems.map((item) => (
-            <button
-              key={item.id}
-              onClick={() => onNavigate(item.id)}
-              className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg transition-colors ${currentView === item.id
-                ? 'bg-indigo-600 text-white'
-                : 'text-gray-300 hover:bg-gray-800 hover:text-white'
-                }`}
-              title={isCollapsed ? item.label : ''}
-            >
-              <item.icon className="w-5 h-5 flex-shrink-0" />
-              {!isCollapsed && <span>{item.label}</span>}
-            </button>
-          ))}
-        </div>
+        {bottomSections.map((section) => (
+          <div key={section.label}>
+            {!isCollapsed && (
+              <h2 className="px-2.5 mb-1 text-[10px] font-semibold text-gray-400 uppercase tracking-wider">
+                {section.label}
+              </h2>
+            )}
+            <div className="space-y-0.5">
+              {section.items.map((item) => (
+                <button
+                  key={item.id}
+                  onClick={() => onNavigate(item.id)}
+                  className={`w-full flex items-center gap-2 px-2.5 py-1.5 rounded-md transition-colors text-sm ${currentView === item.id
+                    ? 'bg-gray-100 text-gray-900 font-medium'
+                    : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
+                    }`}
+                  title={item.label}
+                  style={{ minWidth: 0 }}
+                >
+                  <item.icon className={`w-4 h-4 flex-shrink-0 ${currentView === item.id ? 'text-gray-900' : 'text-gray-500'}`} style={{ flexShrink: 0 }} />
+                  {!isCollapsed && (
+                    <span
+                      className="truncate text-left flex-1"
+                      style={{
+                        minWidth: 0,
+                        overflow: 'hidden',
+                        textOverflow: 'ellipsis',
+                        whiteSpace: 'nowrap'
+                      }}
+                    >
+                      {item.label}
+                    </span>
+                  )}
+                </button>
+              ))}
+            </div>
+          </div>
+        ))}
       </nav>
 
       {/* User Section */}
-      <div className="p-2">
-        <Separator className="bg-gray-700 mb-2" />
+      <div className="p-2 flex-shrink-0" style={{ minWidth: 0 }}>
+        <Separator className="bg-gray-200 mb-2" />
         {!isCollapsed && (
-          <div className="px-3 py-2 mb-2">
-            <p className="text-sm">Current User</p>
-            <p className="text-xs text-gray-400">admin@company.com</p>
+          <div className="px-2.5 py-1.5 mb-1" style={{ minWidth: 0, overflow: 'hidden' }}>
+            <p
+              className="text-sm font-medium"
+              style={{
+                overflow: 'hidden',
+                textOverflow: 'ellipsis',
+                whiteSpace: 'nowrap'
+              }}
+            >
+              Current User
+            </p>
+            <p
+              className="text-xs text-gray-500"
+              style={{
+                overflow: 'hidden',
+                textOverflow: 'ellipsis',
+                whiteSpace: 'nowrap'
+              }}
+            >
+              admin@company.com
+            </p>
           </div>
         )}
         <Button
           variant="ghost"
           onClick={onLogout}
-          className={`w-full ${isCollapsed ? 'px-2' : 'justify-start'
-            } text-gray-300 hover:bg-red-600 hover:text-white`}
-          title={isCollapsed ? 'Logout' : ''}
+          className={`w-full ${isCollapsed ? 'px-2' : 'justify-start px-2.5'
+            } text-gray-600 hover:bg-gray-100 hover:text-red-600 h-8 text-sm`}
+          title="Logout"
+          style={{ minWidth: 0 }}
         >
-          <LogOut className="w-5 h-5" />
-          {!isCollapsed && <span className="ml-3">Logout</span>}
+          <LogOut className="w-4 h-4 flex-shrink-0" style={{ flexShrink: 0 }} />
+          {!isCollapsed && (
+            <span
+              className="ml-2 flex-1 text-left"
+              style={{
+                minWidth: 0,
+                overflow: 'hidden',
+                textOverflow: 'ellipsis',
+                whiteSpace: 'nowrap'
+              }}
+            >
+              Logout
+            </span>
+          )}
         </Button>
       </div>
     </div>

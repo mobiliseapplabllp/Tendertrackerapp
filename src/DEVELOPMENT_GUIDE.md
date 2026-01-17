@@ -1,4 +1,4 @@
-# TenderTrack Pro - Bottom-Up Development Guide for Cursor AI
+# LeadTrack Pro - Bottom-Up Development Guide for Cursor AI
 
 ## Project Overview
 
@@ -286,7 +286,7 @@ CREATE TABLE audit_logs (
 -- Insert default admin user (password: Admin@123)
 -- Hash generated using bcrypt
 INSERT INTO users (email, password_hash, full_name, role, status) VALUES
-('admin@tendertrack.com', '$2b$10$X7Xm3Q9KJp8qYZZWJ2xjYe3xGxGxGxGxGxGxGxGxGxGxGxGxGx', 'System Administrator', 'Admin', 'Active');
+('admin@leadtrack.com', '$2b$10$X7Xm3Q9KJp8qYZZWJ2xjYe3xGxGxGxGxGxGxGxGxGxGxGxGxGx', 'System Administrator', 'Admin', 'Active');
 
 -- Insert system document categories
 INSERT INTO document_categories (name, description, icon, is_system) VALUES
@@ -429,8 +429,8 @@ SMTP_HOST=smtp.gmail.com
 SMTP_PORT=587
 SMTP_USER=your-email@gmail.com
 SMTP_PASSWORD=your-app-password
-EMAIL_FROM=noreply@tendertrack.com
-EMAIL_FROM_NAME=TenderTrack Pro
+EMAIL_FROM=noreply@leadtrack.com
+EMAIL_FROM_NAME=LeadTrack Pro
 
 # SMS (Twilio)
 TWILIO_ACCOUNT_SID=your_twilio_sid
@@ -445,7 +445,6 @@ LOGIN_RATE_LIMIT_MAX=5
 # Logging
 LOG_LEVEL=info
 LOG_FILE=./logs/app.log
-```
 
 ### 2.4 Database Connection (database.ts)
 
@@ -706,9 +705,42 @@ export function useTenders() {
 
 ```bash
 VITE_API_URL=http://localhost:5000/api/v1
-VITE_APP_NAME=TenderTrack Pro
+VITE_APP_NAME=LeadTrack Pro
 VITE_APP_VERSION=1.0.0
 ```
+
+---
+
+## Phase 3.4: AI-Driven Summary & Conversational Chat
+
+### 3.4.1 Backend Flow
+
+- `DocumentExtractor` (backend/services/documentExtractor.ts) reads PDFs/DOCX and returns cleaned text so the AI prompts can incorporate document insights.
+- `AIService` handles decryption (AES-GCM), provider routing (Gemini/OpenAI/Ollama/HuggingFace), and specialized prompts for both `generateTenderSummary` and `chatAboutTender`.
+- `TenderController.generateSummary` collects documents, invokes `AIService.generateTenderSummary`, and stores results in `tenders.ai_summary`, `ai_summary_generated_at`, and `ai_summary_generated_by` (run `cd backend && npm run migrate:ai-summary` to add those columns).
+- The chat endpoint (`POST /api/v1/tenders/:id/chat`) validates optional history, loads documents, and passes the context into `AIService.chatAboutTender`, which replies in a friendly tone and proposes follow-up questions.
+- `TenderController.sendSummaryEmail` uses SendGrid to deliver the saved summary with a styled HTML template via `POST /api/v1/tenders/:id/summary/email`.
+
+### 3.4.2 Frontend Experience
+
+- `TenderDetailsPage` now renders a dedicated AI Summary tab, download/email controls, and the chat panel (side drawer triggered by the MessageCircle icon) with properly wrapped message bubbles.
+- API helpers in `src/lib/api.ts` (`tenderApi.generateSummary`, `tenderApi.sendSummaryEmail`, `tenderApi.chat`) should be used when wiring additional UI or tests for the AI surface.
+- Document uploads feed both the summary and chat flows, so process files before invoking `POST /tenders/:id/summary`.
+
+## Phase 3.5: Tender Scout Pipeline
+
+### 3.5.1 Database & Backend
+
+- `backend/database/migrations/add_tender_scout.sql` adds `tender_scout_sources`, `tender_scout_interests`, `tender_scout_results`, `tender_scout_logs`, and system config values (`scout_enabled`, `scout_frequency`, `scout_notification_enabled`).
+- `TenderScoutService` orchestrates Google/RSS/website scraping, relevance scoring (keywords, values, regions, deadlines), result persistence, auto-generation of AI summaries for high-scoring leads, and execution logging.
+- `TenderScoutController` exposes CRUD for sources/interests, result browsing/stats/logs, `POST /api/v1/tender-scout/run`, and `POST /api/v1/tender-scout/results/:id/import` to convert discoveries into drafts (`SCOUT-<timestamp>` tender numbers).
+
+### 3.5.2 Frontend Adoption
+
+- `ScoutConfig` (sidebar entry `scout-config`) manages interest profiles, keywords, thresholds, and source visibility via `tenderScoutApi`.
+- `TenderScout` (sidebar entry `tender-scout`) lists discoveries, lets reviewers update statuses, import leads, and see logs/statistics (`new`, `imported`, `avg relevance`).
+- `tenderScoutApi` centralizes the endpoints so other components or scheduled jobs can run scouts, fetch logs, and gather stats.
+- Importing a result sinks its `ai_summary` into the main tender record, so keep the AI summary columns synchronized when data is promoted.
 
 ---
 

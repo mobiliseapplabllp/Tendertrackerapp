@@ -3,7 +3,11 @@ import { LoginPage } from './components/LoginPage';
 import { Sidebar } from './components/Sidebar';
 import { Dashboard } from './components/Dashboard';
 import { TenderDashboard } from './components/TenderDashboard';
+import { LeadDashboard } from './components/LeadDashboard';
 import { TenderDetailsPage } from './components/TenderDetailsPage';
+import { LeadDetailsPage } from './components/LeadDetailsPage';
+import { PipelineView } from './components/PipelineView';
+import { SalesDashboard } from './components/SalesDashboard';
 import { DocumentManagement } from './components/DocumentManagement';
 import { UserManagement } from './components/UserManagement';
 import { CompanyManagement } from './components/CompanyManagement';
@@ -24,6 +28,18 @@ export default function App() {
   const [currentView, setCurrentView] = useState('dashboard');
   const [tenderDetailsId, setTenderDetailsId] = useState<number | null>(null);
   const sessionManagerRef = useState(() => new SessionManager(30))[0];
+
+  const handleLogout = async () => {
+    try {
+      await authApi.logout();
+    } catch (error) {
+      // Continue with logout even if API call fails
+    }
+    tokenManager.removeToken();
+    sessionManagerRef.clearTimer();
+    setIsAuthenticated(false);
+    setCurrentView('dashboard');
+  };
 
   // Check authentication on mount
   useEffect(() => {
@@ -87,23 +103,18 @@ export default function App() {
       const tenderId = parseInt(view.split(':')[1]);
       setTenderDetailsId(tenderId);
       setCurrentView('tender-details');
+    } else if (view.startsWith('lead-details:')) {
+      // Handle lead details navigation
+      const leadId = parseInt(view.split(':')[1]);
+      setTenderDetailsId(leadId);
+      setCurrentView('lead-details');
     } else {
       setTenderDetailsId(null);
       setCurrentView(view);
     }
   };
 
-  const handleLogout = async () => {
-    try {
-      await authApi.logout();
-    } catch (error) {
-      // Continue with logout even if API call fails
-    }
-    tokenManager.removeToken();
-    sessionManagerRef.clearTimer();
-    setIsAuthenticated(false);
-    setCurrentView('dashboard');
-  };
+
 
   const handleLogin = () => {
     setIsAuthenticated(true);
@@ -133,6 +144,12 @@ export default function App() {
         return <Dashboard />;
       case 'tenders':
         return <TenderDashboard onLogout={handleLogout} onNavigate={handleNavigate} />;
+      case 'leads':
+        return <LeadDashboard onLogout={handleLogout} onNavigate={handleNavigate} />;
+      case 'pipeline':
+        return <PipelineView />;
+      case 'sales-dashboard':
+        return <SalesDashboard />;
       case 'documents':
         return <DocumentManagement />;
       case 'users':
@@ -170,20 +187,35 @@ export default function App() {
         ) : (
           <Dashboard />
         );
+      case 'lead-details':
+        return tenderDetailsId ? (
+          <LeadDetailsPage
+            leadId={tenderDetailsId}
+            onBack={() => {
+              setCurrentView('leads');
+              setTenderDetailsId(null);
+            }}
+            onUpdate={(lead) => {
+              // Handle lead update if needed
+            }}
+          />
+        ) : (
+          <Dashboard />
+        );
       default:
         return <Dashboard />;
     }
   };
 
   return (
-    <div className="flex min-h-screen bg-gray-50">
+    <div className="flex min-h-screen bg-gray-50 overflow-hidden">
       <Sidebar
         currentView={currentView}
         onNavigate={handleNavigate}
         onLogout={handleLogout}
       />
-      <div className="flex-1 flex flex-col">
-        <div className="flex-1">
+      <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
+        <div className="flex-1 overflow-auto">
           {renderContent()}
         </div>
       </div>

@@ -1,4 +1,4 @@
-# TenderTrack Pro - Documentation Index
+# LeadTrack Pro - Documentation Index
 
 **Quick navigation to all project documentation**
 
@@ -276,7 +276,7 @@
 
 ```
 ┌─────────────────────────────────────────┐
-│     TENDERTRACK PRO - QUICK LINKS       │
+│     LEADTRACK PRO - QUICK LINKS       │
 ├─────────────────────────────────────────┤
 │ Start Here:                             │
 │   → CURSOR_AI_START_HERE.md             │

@@ -1,4 +1,4 @@
-# Security Implementation - TenderTrack Pro
+# Security Implementation - LeadTrack Pro
 
 **For complete development workflow, see `/DEVELOPMENT_GUIDE.md`**
 

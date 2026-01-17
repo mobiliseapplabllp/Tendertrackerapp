@@ -19,7 +19,7 @@ const parseJsonField = (field: any): any => {
 export const tenderScoutController = {
     // ==================== SOURCES ====================
 
-    async getSources(req: Request, res: Response, next: NextFunction) {
+    async getSources(_req: Request, res: Response, next: NextFunction) {
         try {
             const [sources] = await db.query(
                 'SELECT * FROM tender_scout_sources ORDER BY created_at DESC'
@@ -429,7 +429,7 @@ export const tenderScoutController = {
         }
     },
 
-    async getStats(req: Request, res: Response, next: NextFunction) {
+    async getStats(_req: Request, res: Response, next: NextFunction) {
         try {
             // Get statistics
             const [newCount] = await db.query(
