@@ -1,8 +1,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
-import { Card } from './ui/card';
-import { Shield, ArrowLeft, RefreshCw } from 'lucide-react';
+import { Shield, ArrowLeft, RefreshCw, AlertCircle } from 'lucide-react';
 
 interface OTPVerificationProps {
   email: string;
@@ -71,7 +70,7 @@ export function OTPVerification({ email, userId, onVerify, onBack, onResend }: O
   const handlePaste = (e: React.ClipboardEvent) => {
     e.preventDefault();
     const pastedData = e.clipboardData.getData('text').slice(0, 6);
-    
+
     if (!/^\d+$/.test(pastedData)) {
       setError('Please paste only numbers');
       return;
@@ -95,10 +94,10 @@ export function OTPVerification({ email, userId, onVerify, onBack, onResend }: O
       setError('Please enter all 6 digits');
       return;
     }
-    
+
     setIsVerifying(true);
     setError('');
-    
+
     try {
       await onVerify(otpString);
     } catch (err: any) {
@@ -110,13 +109,13 @@ export function OTPVerification({ email, userId, onVerify, onBack, onResend }: O
 
   const handleResend = async () => {
     if (!canResend || isResending) return;
-    
+
     setIsResending(true);
     setOtp(['', '', '', '', '', '']);
     setError('');
     setCountdown(60);
     setCanResend(false);
-    
+
     try {
       await onResend();
       inputRefs.current[0]?.focus();
@@ -128,108 +127,102 @@ export function OTPVerification({ email, userId, onVerify, onBack, onResend }: O
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-indigo-100 via-white to-purple-100 p-4">
-      <Card className="w-full max-w-md p-8">
-        <div className="text-center mb-8">
-          <div className="w-16 h-16 bg-indigo-600 rounded-full flex items-center justify-center mx-auto mb-4">
-            <Shield className="w-8 h-8 text-white" />
-          </div>
-          <h1 className="text-2xl mb-2">Verify Your Identity</h1>
-          <p className="text-sm text-muted-foreground">
-            We've sent a 6-digit code to
-          </p>
-          <p className="text-sm" aria-live="polite">
-            <strong>{email}</strong>
-          </p>
-        </div>
+    <div className="w-full space-y-5 animate-in fade-in slide-in-from-bottom-8 duration-1000 ease-out">
+      <div className="space-y-1">
+        <h1 className="text-2xl font-black tracking-tight text-slate-900 lg:text-3xl">Verify access</h1>
+        <p className="text-slate-500 font-medium text-sm">
+          Please enter the code sent to <span className="text-slate-900 font-bold">{email}</span>
+        </p>
+      </div>
 
-        <div className="space-y-6">
-          {/* OTP Input */}
-          <div>
-            <label className="text-sm mb-2 block" id="otp-label">
-              Enter Verification Code
-            </label>
-            <div 
-              className="flex gap-2 justify-center"
-              role="group"
-              aria-labelledby="otp-label"
-            >
-              {otp.map((digit, index) => (
-                <Input
-                  key={index}
-                  ref={(el) => (inputRefs.current[index] = el)}
-                  type="text"
-                  inputMode="numeric"
-                  maxLength={1}
-                  value={digit}
-                  onChange={(e) => handleChange(index, e.target.value)}
-                  onKeyDown={(e) => handleKeyDown(index, e)}
-                  onPaste={index === 0 ? handlePaste : undefined}
-                  className="w-12 h-12 text-center text-lg"
-                  aria-label={`Digit ${index + 1}`}
-                  aria-invalid={error ? 'true' : 'false'}
-                  autoComplete="off"
-                />
-              ))}
-            </div>
-            {error && (
-              <p className="text-sm text-red-600 mt-2" role="alert" aria-live="assertive">
+      <div className="space-y-5">
+        <div className="space-y-4">
+          <div
+            className="flex gap-2 justify-center md:justify-start"
+            role="group"
+            aria-labelledby="otp-label"
+          >
+            {otp.map((digit, index) => (
+              <Input
+                key={index}
+                ref={(el) => (inputRefs.current[index] = el)}
+                type="text"
+                inputMode="numeric"
+                maxLength={1}
+                value={digit}
+                onChange={(e) => handleChange(index, e.target.value)}
+                onKeyDown={(index === 0) ? handlePaste : (e) => handleKeyDown(index, e)}
+                onPaste={index === 0 ? handlePaste : undefined}
+                className={`w-11 h-14 text-center text-xl font-bold bg-slate-100/50 border-none focus:bg-white focus:ring-2 focus:ring-slate-200 transition-all rounded-xl ${error ? 'ring-2 ring-red-500/20' : ''}`}
+                aria-label={`Digit ${index + 1}`}
+                aria-invalid={error ? 'true' : 'false'}
+                autoComplete="one-time-code"
+              />
+            ))}
+          </div>
+          {error && (
+            <div className="p-4 bg-red-50/50 border border-red-100 rounded-2xl flex items-center gap-3 animate-in shake duration-500">
+              <AlertCircle className="w-5 h-5 text-red-600" />
+              <p className="text-sm font-bold text-red-900" role="alert" aria-live="assertive">
                 {error}
               </p>
-            )}
-          </div>
+            </div>
+          )}
+        </div>
 
-          {/* Verify Button */}
+        <div className="space-y-2">
           <Button
             onClick={() => handleVerify(otp.join(''))}
-            className="w-full"
+            className="w-full h-12 bg-[#2a2d53] hover:bg-[#1e2042] text-white text-base font-bold rounded-xl shadow-lg transition-all active:scale-[0.98] disabled:opacity-70"
             disabled={otp.join('').length !== 6 || isVerifying}
-            aria-label="Verify OTP code"
-            aria-busy={isVerifying}
           >
-            {isVerifying ? 'Verifying...' : 'Verify Code'}
+            {isVerifying ? (
+              <div className="flex items-center gap-2">
+                <div className="w-4 h-4 border-[2px] border-white/30 border-t-white rounded-full animate-spin" />
+                <span className="tracking-tight">Verifying...</span>
+              </div>
+            ) : 'Verify Code'}
           </Button>
 
-          {/* Resend Section */}
-          <div className="text-center">
-            {canResend ? (
-              <Button
-                variant="link"
-                onClick={handleResend}
-                className="text-sm"
-                aria-label="Resend verification code"
-                disabled={isResending}
-              >
-                <RefreshCw className={`w-4 h-4 mr-2 ${isResending ? 'animate-spin' : ''}`} />
-                {isResending ? 'Sending...' : 'Resend Code'}
-              </Button>
-            ) : (
-              <p className="text-sm text-muted-foreground" aria-live="polite">
-                Resend code in <span className="font-medium">{countdown}s</span>
-              </p>
-            )}
-          </div>
-
-          {/* Back Button */}
           <Button
-            variant="outline"
+            variant="ghost"
             onClick={onBack}
-            className="w-full"
-            aria-label="Go back to login"
+            className="w-full h-10 text-slate-500 hover:text-slate-900 font-semibold rounded-xl transition-colors text-xs"
           >
             <ArrowLeft className="w-4 h-4 mr-2" />
-            Back to Login
+            Back to sign in
           </Button>
         </div>
 
-        {/* Security Notice */}
-        <div className="mt-6 p-4 bg-blue-50 rounded-lg border border-blue-200">
-          <p className="text-xs text-blue-800">
-            <strong>Security Tip:</strong> Never share your verification code with anyone. 
-            Our team will never ask for this code.
-          </p>
+        <div className="text-center md:text-left pt-4 border-t border-slate-50">
+          {canResend ? (
+            <button
+              onClick={handleResend}
+              className="text-[10px] font-black text-indigo-600 hover:text-indigo-800 transition-colors flex items-center gap-2 uppercase tracking-widest"
+              disabled={isResending}
+            >
+              <RefreshCw className={`w-3.5 h-3.5 ${isResending ? 'animate-spin' : ''}`} />
+              {isResending ? 'Transmitting...' : 'Request Replacement code'}
+            </button>
+          ) : (
+            <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">
+              Synchronization link active for <span className="text-indigo-600">{countdown}s</span>
+            </p>
+          )}
         </div>
-      </Card>
+      </div>
+
+      <div className="p-3 bg-slate-50 rounded-xl border border-slate-100 relative overflow-hidden">
+        <div className="flex items-center gap-2 mb-1">
+          <div className="w-6 h-6 rounded-lg bg-white shadow-sm flex items-center justify-center">
+            <Shield className="w-3 h-3 text-emerald-500" />
+          </div>
+          <span className="text-[8px] font-black text-slate-900 uppercase tracking-widest">Notice</span>
+        </div>
+        <p className="text-[10px] text-slate-500 leading-tight font-medium">
+          Confidentiality is paramount. Never broadcast this sequence.
+        </p>
+      </div>
     </div>
   );
 }

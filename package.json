@@ -26,6 +26,7 @@
             "tailwind-merge": "*"
       },
       "devDependencies": {
+            "@tailwindcss/vite": "^4.1.18",
             "@testing-library/jest-dom": "^6.9.1",
             "@testing-library/react": "^16.3.0",
             "@testing-library/user-event": "^14.6.1",
@@ -33,11 +34,14 @@
             "@typescript-eslint/eslint-plugin": "^8.53.0",
             "@typescript-eslint/parser": "^8.53.0",
             "@vitejs/plugin-react-swc": "^3.10.2",
+            "autoprefixer": "^10.4.23",
             "eslint": "^8.57.0",
             "eslint-plugin-react": "^7.37.5",
             "eslint-plugin-react-hooks": "^7.0.1",
             "eslint-plugin-react-refresh": "^0.4.26",
             "jsdom": "^27.2.0",
+            "postcss": "^8.5.6",
+            "tailwindcss": "^4.1.18",
             "vite": "6.3.5",
             "vitest": "^4.0.13"
       },

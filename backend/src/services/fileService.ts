@@ -158,7 +158,7 @@ export function validateFileUpload(file: Express.Multer.File): { isValid: boolea
   }
 
   // Check file size
-  if (file.size > MAX_FILE_SIZE) {
+  if (file.size && file.size > MAX_FILE_SIZE) {
     return {
       isValid: false,
       error: `File size exceeds ${MAX_FILE_SIZE / 1024 / 1024}MB limit.`,
@@ -166,7 +166,7 @@ export function validateFileUpload(file: Express.Multer.File): { isValid: boolea
   }
 
   // Validate file content (magic bytes)
-  if (!validateFileContent(file.path, expectedMimeType)) {
+  if (file.path && !validateFileContent(file.path, expectedMimeType)) {
     return {
       isValid: false,
       error: 'File content does not match declared file type. File may be corrupted or malicious.',
