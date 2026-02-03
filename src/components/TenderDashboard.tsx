@@ -655,6 +655,7 @@ export function TenderDashboard({ onLogout }: TenderDashboardProps) {
                   <TableHead className="text-xs font-semibold uppercase tracking-wider text-gray-500">Tender ID</TableHead>
                   <TableHead className="text-xs font-semibold uppercase tracking-wider text-gray-500 w-[30%]">Title / Client</TableHead>
                   <TableHead className="text-xs font-semibold uppercase tracking-wider text-gray-500">Status</TableHead>
+                  <TableHead className="text-xs font-semibold uppercase tracking-wider text-gray-500">Created By</TableHead>
                   <TableHead className="text-xs font-semibold uppercase tracking-wider text-gray-500">Deadline</TableHead>
                   <TableHead className="text-xs font-semibold uppercase tracking-wider text-gray-500 text-right">Value</TableHead>
                   <TableHead className="w-[50px]"></TableHead>
@@ -663,15 +664,17 @@ export function TenderDashboard({ onLogout }: TenderDashboardProps) {
               <TableBody>
                 {loading ? (
                   <TableRow>
-                    <TableCell colSpan={7} className="h-32 text-center">
+                    <TableCell colSpan={8} className="h-32 text-center">
                       <Loader2 className="w-6 h-6 animate-spin mx-auto text-indigo-600" />
                     </TableCell>
                   </TableRow>
                 ) : filteredTenders.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={7} className="h-32 text-center text-muted-foreground text-sm">
-                      No tenders found.
-                    </TableCell>
+                    <TableRow>
+                      <TableCell colSpan={8} className="h-32 text-center text-muted-foreground text-sm">
+                        No tenders found.
+                      </TableCell>
+                    </TableRow>
                   </TableRow>
                 ) : (
                   filteredTenders.map((tender, index) => (
@@ -694,6 +697,10 @@ export function TenderDashboard({ onLogout }: TenderDashboardProps) {
                       </TableCell>
                       <TableCell className="py-3">
                         {getStatusBadge(tender.status)}
+                      </TableCell>
+
+                      <TableCell className="py-3 text-sm text-gray-600">
+                        {tender.createdByUser?.fullName || tender.createdBy || '-'}
                       </TableCell>
                       <TableCell className="py-3">
                         <div className="flex items-center gap-2">

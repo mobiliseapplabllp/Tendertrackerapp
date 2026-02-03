@@ -254,6 +254,10 @@ export const tenderApi = {
     return apiCall<TenderActivity[]>(`/tenders/${id}/activities`);
   },
 
+  getReminders: async (id: number) => {
+    return apiCall<WorkLogReminder[]>(`/tenders/${id}/reminders`);
+  },
+
   addActivity: async (id: number, data: Partial<TenderActivity>) => {
     return apiCall<TenderActivity>(`/tenders/${id}/activities`, {
       method: 'POST',
@@ -657,6 +661,8 @@ export const reminderApi = {
     actionRequired: string;
     dueDate?: string;
     recipients: Array<{ email?: string; phoneNumber?: string; userId?: number }>;
+    sendEmail?: boolean;
+    sendSMS?: boolean;
   }) => {
     return apiCall<WorkLogReminder>(`/reminders/activities/${activityId}/reminders`, {
       method: 'POST',
@@ -677,6 +683,13 @@ export const reminderApi = {
   delete: async (reminderId: number) => {
     return apiCall(`/reminders/reminders/${reminderId}`, {
       method: 'DELETE',
+    });
+  },
+
+  sendNotification: async (reminderId: number, type: 'email' | 'sms') => {
+    return apiCall<{ message: string }>(`/reminders/${reminderId}/notify`, {
+      method: 'POST',
+      body: JSON.stringify({ type }),
     });
   },
 };

@@ -19,11 +19,13 @@ import { Settings } from './components/Settings';
 import { TenderScout } from './components/TenderScout';
 import { ScoutConfig } from './components/ScoutConfig';
 import { AISearch } from './components/AISearch';
+import { ApiPlaygroundPage } from './components/ApiPlaygroundPage';
 import { tokenManager, authApi } from './lib/api';
 import { SessionManager } from './lib/security';
 
 export default function App() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [currentUser, setCurrentUser] = useState<any>(null);
   const [isCheckingAuth, setIsCheckingAuth] = useState(true);
   const [currentView, setCurrentView] = useState('dashboard');
   const [tenderDetailsId, setTenderDetailsId] = useState<number | null>(null);
@@ -50,6 +52,7 @@ export default function App() {
           const response = await authApi.getCurrentUser();
           if (response.success) {
             setIsAuthenticated(true);
+            setCurrentUser(response.data);
             // Reset session timer
             sessionManagerRef.resetTimer(() => {
               handleLogout();
@@ -58,6 +61,7 @@ export default function App() {
             // Invalid token, clear it
             tokenManager.removeToken();
             setIsAuthenticated(false);
+            setCurrentUser(null);
           }
         } catch (error) {
           tokenManager.removeToken();
@@ -116,8 +120,13 @@ export default function App() {
 
 
 
-  const handleLogin = () => {
+  const handleLogin = async () => {
     setIsAuthenticated(true);
+    try {
+      const response = await authApi.getCurrentUser();
+      if (response.success) setCurrentUser(response.data);
+    } catch (e) { }
+
     sessionManagerRef.resetTimer(() => {
       handleLogout();
     });
@@ -172,6 +181,8 @@ export default function App() {
         return <Settings />;
       case 'email-settings':
         return <EmailAlerts />;
+      case 'api-playground':
+        return <ApiPlaygroundPage />;
       case 'tender-details':
         return tenderDetailsId ? (
           <TenderDetailsPage
@@ -213,6 +224,7 @@ export default function App() {
         currentView={currentView}
         onNavigate={handleNavigate}
         onLogout={handleLogout}
+        user={currentUser}
       />
       <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
         <div className="flex-1 overflow-auto">

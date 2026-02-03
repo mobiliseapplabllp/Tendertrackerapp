@@ -38,9 +38,7 @@ npm run migrate:otp-purpose      # OTP purpose column for password reset
 **Description:** Adds a purpose column to distinguish between login OTPs and password reset OTPs.
 
 **Columns Added:**
-- `otp_verifications.purpose` - ENUM('login', 'password_reset') - Purpose of the OTP
-
-**Run Migration:**
+- `otp_verifications.purpose` - ENUM('login', 'password_reset') - Purpose of the OTP**Run Migration:**
 ```bash
 npm run migrate:otp-purpose
 ```

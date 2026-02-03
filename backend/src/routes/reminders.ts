@@ -24,7 +24,9 @@ router.post(
           phoneNumber: Joi.string().allow(null, ''),
           userId: Joi.number().integer().positive().allow(null),
         }).or('email', 'phoneNumber', 'userId')
-      ).min(1).required(),
+      ).optional().default([]),
+      sendEmail: Joi.boolean().optional().default(true),
+      sendSMS: Joi.boolean().optional().default(false),
     }),
   }),
   ReminderController.create
@@ -64,6 +66,21 @@ router.delete(
     }),
   }),
   ReminderController.delete
+);
+
+// Manually send notification
+router.post(
+  '/:id/notify',
+  authenticate,
+  validate({
+    params: Joi.object({
+      id: schemas.id,
+    }),
+    body: Joi.object({
+      type: Joi.string().valid('email', 'sms').required(),
+    }),
+  }),
+  ReminderController.notify
 );
 
 export default router;

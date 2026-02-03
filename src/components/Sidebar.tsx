@@ -15,6 +15,7 @@ import {
   Search,
   Globe,
   TrendingUp,
+  Terminal,
 } from 'lucide-react';
 import { Button } from './ui/button';
 import { Separator } from './ui/separator';
@@ -24,10 +25,18 @@ interface SidebarProps {
   currentView: string;
   onNavigate: (view: string) => void;
   onLogout: () => void;
+  user?: any;
 }
 
-export function Sidebar({ currentView, onNavigate, onLogout }: SidebarProps) {
+export function Sidebar({ currentView, onNavigate, onLogout, user }: SidebarProps) {
   const [isCollapsed, setIsCollapsed] = useState(false);
+
+  // Helper to check if user has access to API Playground
+  // DEBUG LOGGING
+  console.log('Sidebar User:', user, 'Role:', user?.role);
+
+  const canAccessPlayground = user &&
+    ['admin', 'developer', 'senior qa', 'manager', 'superadmin'].includes((user.role || '').toLowerCase());
 
   const menuSections = [
     {
@@ -71,6 +80,7 @@ export function Sidebar({ currentView, onNavigate, onLogout }: SidebarProps) {
         { id: 'email-settings', icon: Bell, label: 'Email Alerts', badge: null },
         { id: 'administration', icon: ShieldCheck, label: 'Administration', badge: null },
         { id: 'scout-config', icon: Settings, label: 'Scout Configuration', badge: null },
+        { id: 'api-playground', icon: Terminal, label: 'API Playground', badge: null },
         { id: 'settings', icon: Settings, label: 'Settings', badge: null },
       ]
     }
@@ -185,33 +195,43 @@ export function Sidebar({ currentView, onNavigate, onLogout }: SidebarProps) {
               </h2>
             )}
             <div className="space-y-0.5">
-              {section.items.map((item) => (
-                <button
-                  key={item.id}
-                  onClick={() => onNavigate(item.id)}
-                  className={`w-full flex items-center gap-2 px-2.5 py-1.5 rounded-md transition-colors text-sm ${currentView === item.id
-                    ? 'bg-gray-100 text-gray-900 font-medium'
-                    : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
-                    }`}
-                  title={item.label}
-                  style={{ minWidth: 0 }}
-                >
-                  <item.icon className={`w-4 h-4 flex-shrink-0 ${currentView === item.id ? 'text-gray-900' : 'text-gray-500'}`} style={{ flexShrink: 0 }} />
-                  {!isCollapsed && (
-                    <span
-                      className="truncate text-left flex-1"
-                      style={{
-                        minWidth: 0,
-                        overflow: 'hidden',
-                        textOverflow: 'ellipsis',
-                        whiteSpace: 'nowrap'
-                      }}
-                    >
-                      {item.label}
-                    </span>
-                  )}
-                </button>
-              ))}
+              {section.items.map((item) => {
+                // RBAC Filter
+                // if (item.id === 'api-playground' && !canAccessPlayground) return null;
+
+                return (
+                  <button
+                    key={item.id}
+                    onClick={() => onNavigate(item.id)}
+                    className={`w-full flex items-center gap-2 px-2.5 py-1.5 rounded-md transition-colors text-sm ${currentView === item.id
+                      ? 'bg-gray-100 text-gray-900 font-medium'
+                      : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
+                      }`}
+                    title={item.label}
+                    style={{ minWidth: 0 }}
+                  >
+                    <item.icon className={`w-4 h-4 flex-shrink-0 ${currentView === item.id ? 'text-gray-900' : 'text-gray-500'}`} style={{ flexShrink: 0 }} />
+                    {!isCollapsed && (
+                      <span
+                        className="truncate text-left flex-1"
+                        style={{
+                          minWidth: 0,
+                          overflow: 'hidden',
+                          textOverflow: 'ellipsis',
+                          whiteSpace: 'nowrap'
+                        }}
+                      >
+                        {item.label}
+                      </span>
+                    )}
+                    {!isCollapsed && item.badge && (
+                      <span className="ml-auto bg-gray-900 text-white text-[10px] px-1.5 py-0.5 rounded-full flex-shrink-0">
+                        {item.badge}
+                      </span>
+                    )}
+                  </button>
+                );
+              })}
             </div>
           </div>
         ))}
@@ -240,7 +260,6 @@ export function Sidebar({ currentView, onNavigate, onLogout }: SidebarProps) {
                 whiteSpace: 'nowrap'
               }}
             >
-              admin@company.com
             </p>
           </div>
         )}

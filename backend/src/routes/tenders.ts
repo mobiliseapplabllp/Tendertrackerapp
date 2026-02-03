@@ -128,6 +128,17 @@ router.get(
   TenderController.getActivities
 );
 
+// Get tender reminders
+router.get(
+  '/:id/reminders',
+  validate({
+    params: Joi.object({
+      id: schemas.id,
+    }),
+  }),
+  TenderController.getReminders
+);
+
 // Generate AI Summary
 router.post(
   '/:id/summary',
@@ -190,10 +201,12 @@ router.post(
       id: schemas.id,
     }),
     body: Joi.object({
-      activityType: Joi.string().valid('Created', 'Updated', 'Commented', 'Status Changed', 'Document Added', 'Assigned', 'Deadline Changed').required(),
+      activityType: Joi.string().valid('Created', 'Updated', 'Commented', 'Status Changed', 'Document Added', 'Assigned', 'Deadline Changed', 'Task').required(),
       description: Joi.string().required(),
       oldValue: Joi.string().allow(null, ''),
       newValue: Joi.string().allow(null, ''),
+      hoursSpent: Joi.number().min(0).allow(null),
+      workDate: Joi.date().allow(null),
     }),
   }),
   TenderController.addActivity

@@ -6,6 +6,7 @@ import { Textarea } from './ui/textarea';
 import { Badge } from './ui/badge';
 import { ScrollArea } from './ui/scroll-area';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs';
+import { Separator } from './ui/separator';
 import {
     Sheet,
     SheetContent,
@@ -32,10 +33,22 @@ import {
     Send,
     Loader2,
     DollarSign,
-    BadgeCheck
+    BadgeCheck,
+    List,
+    ListTodo,
+    CheckSquare,
+    LayoutDashboard,
+    CreditCard,
+    Calendar,
+    User,
+    Clock,
+    AlertCircle,
+    Plus,
+    Bell
 } from 'lucide-react';
-import type { Tender, TenderActivity, Document, Company, User as UserType } from '../lib/types';
-import { tenderApi, documentApi, companyApi, userApi, leadTypeApi } from '../lib/api';
+import type { Tender, TenderActivity, Document, Company, User as UserType, WorkLogReminder } from '../lib/types';
+import { tenderApi, documentApi, companyApi, userApi, leadTypeApi, reminderApi } from '../lib/api';
+import EnhancedTasksTab from './EnhancedTasksTab';
 import { useSettings } from '../hooks/useSettings';
 
 interface TenderDetailDrawerProps {
@@ -48,28 +61,55 @@ interface TenderDetailDrawerProps {
 export function TenderDetailDrawer({ tenderId, isOpen, onClose, onUpdate }: TenderDetailDrawerProps) {
     const [tender, setTender] = useState<Tender | null>(null);
     const [loading, setLoading] = useState(false);
-    const [activeTab, setActiveTab] = useState('overview');
-    const [tenderLeadTypeId, setTenderLeadTypeId] = useState<number | null>(null);
+    const [activeTab, setActiveTab] = useState('details');
+    const [leadTypes, setLeadTypes] = useState<any[]>([]); // Store all lead types
 
     // Edit State
     const [editedTender, setEditedTender] = useState<Tender | null>(null);
     const [saving, setSaving] = useState(false);
     const [saveSuccess, setSaveSuccess] = useState<string | null>(null);
+    const [saveError, setSaveError] = useState<string | null>(null);
 
     // Data State
     const [documents, setDocuments] = useState<Document[]>([]);
+    const [technicalDocuments, setTechnicalDocuments] = useState<Document[]>([]);
     const [loadingDocuments, setLoadingDocuments] = useState(false);
     const [uploading, setUploading] = useState(false);
 
+    // Categories
+    const [tenderDocCategoryId, setTenderDocCategoryId] = useState<number | null>(null);
+    const [bidDocCategoryId, setBidDocCategoryId] = useState<number | null>(null);
+    const [categoriesLoading, setCategoriesLoading] = useState(false);
+
     const [activities, setActivities] = useState<TenderActivity[]>([]);
+    const [workLogs, setWorkLogs] = useState<TenderActivity[]>([]);
+    const [auditLogs, setAuditLogs] = useState<TenderActivity[]>([]);
     const [loadingActivities, setLoadingActivities] = useState(false);
-    // Activity State
+
+    // Work Log State
     const [newWorkLog, setNewWorkLog] = useState('');
+    const [workLogForm, setWorkLogForm] = useState({
+        description: '',
+        workType: 'General' as 'General' | 'Research' | 'Documentation' | 'Communication' | 'Analysis' | 'Preparation' | 'Review' | 'Other',
+        hoursSpent: '',
+        workDate: new Date().toISOString().split('T')[0],
+    });
     const [isAddingLog, setIsAddingLog] = useState(false);
+
+    // Tasks State - Enhanced
+    const [newTaskForm, setNewTaskForm] = useState({
+        title: '',
+        description: '',
+        priority: 'Medium' as 'Low' | 'Medium' | 'High' | 'Urgent',
+        status: 'Pending' as 'Pending' | 'In Progress' | 'Completed',
+        dueDate: '',
+        assignedTo: undefined as number | undefined,
+        estimatedHours: '',
+    });
+    const [reminders, setReminders] = useState<WorkLogReminder[]>([]);
 
     const [companies, setCompanies] = useState<Company[]>([]);
     const [users, setUsers] = useState<UserType[]>([]);
-    const [currentUser, setCurrentUser] = useState<UserType | null>(null);
 
     // AI State
     const [aiSummary, setAiSummary] = useState<string | null>(null);
@@ -80,41 +120,90 @@ export function TenderDetailDrawer({ tenderId, isOpen, onClose, onUpdate }: Tend
     const [chatLoading, setChatLoading] = useState(false);
 
     const fileInputRef = useRef<HTMLInputElement>(null);
+    const technicalFileInputRef = useRef<HTMLInputElement>(null);
     const chatScrollRef = useRef<HTMLDivElement>(null);
     const { formatCurrency, formatDate } = useSettings();
 
-    // Fetch initial metadata on mount
+    // Helper: Safe Date
+    const safeDate = (dateStr: string | undefined | null) => {
+        if (!dateStr) return 'N/A';
+        const d = new Date(dateStr);
+        return isNaN(d.getTime()) ? 'N/A' : d.toLocaleDateString();
+    };
+
+    // Helper: Format File Size
+    const formatFileSize = (bytes: number) => {
+        if (bytes === undefined || bytes === null || isNaN(bytes)) return 'Unknown size';
+        if (bytes === 0) return '0 Bytes';
+        const k = 1024;
+        const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+        const i = Math.floor(Math.log(bytes) / Math.log(k));
+        return Math.round(bytes / Math.pow(k, i) * 100) / 100 + ' ' + sizes[i];
+    };
+
+    // Helper: Status Color
+    const getStatusColor = (status: string) => {
+        const colors: Record<string, string> = {
+            'Draft': 'bg-gray-100 text-gray-800',
+            'Submitted': 'bg-blue-100 text-blue-800',
+            'Under Review': 'bg-purple-100 text-purple-800',
+            'Shortlisted': 'bg-yellow-100 text-yellow-800',
+            'Won': 'bg-emerald-100 text-emerald-800',
+            'Lost': 'bg-red-100 text-red-800',
+            'Cancelled': 'bg-gray-100 text-gray-800',
+        };
+        return colors[status] || 'bg-gray-100 text-gray-800';
+    };
+
+    // Initial Fetches
     useEffect(() => {
         fetchCompanies();
         fetchUsers();
         fetchTenderLeadType();
+        fetchCategories();
     }, []);
 
-    // Fetch Tender Data when ID changes or Drawer opens
+    // Load Tender Data
     useEffect(() => {
         if (isOpen && tenderId) {
             fetchTender(tenderId);
             fetchDocuments(tenderId);
             fetchActivities(tenderId);
+            fetchAllReminders(tenderId);
         } else {
             setTender(null);
             setEditedTender(null);
             setDocuments([]);
+            setTechnicalDocuments([]);
             setActivities([]);
             setSaveSuccess(null);
+            setSaveError(null);
         }
     }, [isOpen, tenderId]);
+
+    // Categories
+    const fetchCategories = async () => {
+        setCategoriesLoading(true);
+        try {
+            const response = await documentApi.getCategories();
+            if (response.success && response.data) {
+                const tenderCat = response.data.find((c: any) => c.name === 'Tender Documents');
+                const bidCat = response.data.find((c: any) => c.name === 'Bid Documents') || response.data.find((c: any) => c.name === 'Technical Documents');
+
+                if (tenderCat) setTenderDocCategoryId(tenderCat.id);
+                if (bidCat) setBidDocCategoryId(bidCat.id);
+            }
+        } catch (e) { console.error(e); }
+        finally { setCategoriesLoading(false); }
+    };
 
     const fetchTenderLeadType = async () => {
         try {
             const response = await leadTypeApi.getAll();
             if (response.success && response.data) {
-                const tenderType = response.data.find(lt => lt.name === 'Tender');
-                if (tenderType) setTenderLeadTypeId(tenderType.id);
+                setLeadTypes(response.data);
             }
-        } catch (e) {
-            console.error('Error fetching lead types', e);
-        }
+        } catch (e) { console.error(e); }
     };
 
     const fetchCompanies = async () => {
@@ -136,9 +225,10 @@ export function TenderDetailDrawer({ tenderId, isOpen, onClose, onUpdate }: Tend
         try {
             const response = await tenderApi.getById(id);
             if (response.success && response.data) {
-                setTender(response.data);
-                setEditedTender(response.data);
-                if (response.data.aiSummary) setAiSummary(response.data.aiSummary);
+                const t = response.data;
+                setTender(t);
+                setEditedTender({ ...t, dueDate: t.submissionDeadline || t.dueDate }); // Sync dueDate
+                if (t.aiSummary) setAiSummary(t.aiSummary);
             }
         } catch (error) {
             console.error('Error loading tender:', error);
@@ -151,7 +241,40 @@ export function TenderDetailDrawer({ tenderId, isOpen, onClose, onUpdate }: Tend
         setLoadingDocuments(true);
         try {
             const response = await documentApi.getAll({ tenderId: id });
-            if (response.success && response.data) setDocuments(response.data.data || []);
+            if (response.success && response.data) {
+                const allDocs = response.data.data || [];
+                // Separate
+                const tenderDocsList: Document[] = [];
+                const bidDocsList: Document[] = [];
+                allDocs.forEach((doc: any) => {
+                    const d: Document = {
+                        ...doc,
+                        fileName: doc.file_name || doc.fileName,
+                        originalName: doc.original_name || doc.originalName,
+                        filePath: doc.file_path || doc.filePath,
+                        fileSize: doc.file_size || doc.fileSize,
+                        uploadedByName: doc.uploaded_by_name || doc.uploadedByName,
+                        uploadedAt: doc.uploaded_at || doc.uploadedAt,
+                        categoryId: doc.category_id || doc.categoryId
+                    } as any;
+
+                    if (bidDocCategoryId && d.categoryId === bidDocCategoryId) {
+                        bidDocsList.push(d);
+                    } else if (tenderDocCategoryId && d.categoryId === tenderDocCategoryId) {
+                        tenderDocsList.push(d);
+                    } else {
+                        // Default fallback logic: if we have categories, default to Tender, else keep logic loose
+                        if (tenderDocCategoryId) {
+                            tenderDocsList.push(d);
+                        } else {
+                            // If no categories loaded yet (edge case), maybe show in Tender? 
+                            tenderDocsList.push(d);
+                        }
+                    }
+                });
+                setDocuments(tenderDocsList);
+                setTechnicalDocuments(bidDocsList);
+            }
         } catch (error) {
             console.error('Error loading documents:', error);
         } finally {
@@ -159,11 +282,41 @@ export function TenderDetailDrawer({ tenderId, isOpen, onClose, onUpdate }: Tend
         }
     };
 
+    const fetchAllReminders = async (id: number) => {
+        try {
+            const response = await tenderApi.getReminders(id);
+            if (response.success && response.data) {
+                setReminders(response.data || []);
+            }
+        } catch (error) {
+            console.error('Error loading reminders:', error);
+        }
+    };
+
     const fetchActivities = async (id: number) => {
+        if (!id) return;
         setLoadingActivities(true);
         try {
             const response = await tenderApi.getActivities(id);
-            if (response.success && response.data) setActivities(response.data || []);
+            if (response.success && response.data) {
+                const acts = (response.data || []).map((a: any) => ({
+                    id: a.id,
+                    tenderId: a.tender_id,
+                    userId: a.user_id,
+                    user: a.user_name ? { id: a.user_id, fullName: a.user_name, email: a.user_email } : undefined,
+                    activityType: a.activity_type,
+                    description: a.description,
+                    createdAt: a.created_at,
+                }));
+                setActivities(acts);
+
+                // Split
+                const wLogs = acts.filter((a: any) => a.activityType === 'Commented');
+                const aLogs = acts.filter((a: any) => a.activityType !== 'Commented');
+                setWorkLogs(wLogs);
+                setAuditLogs(aLogs);
+
+            }
         } catch (error) {
             console.error('Error loading activities:', error);
         } finally {
@@ -174,60 +327,145 @@ export function TenderDetailDrawer({ tenderId, isOpen, onClose, onUpdate }: Tend
     const handleSave = async () => {
         if (!editedTender || !tender?.id) return;
         setSaving(true);
+        setSaveError(null);
+        setSaveSuccess(null);
         try {
-            // Construct payload with only changeable fields
-            const payload: Partial<Tender> = {
+            // Filter payload to only include fields expected by the API
+            const payload = {
                 title: editedTender.title,
                 description: editedTender.description,
                 status: editedTender.status,
-                client: editedTender.client,
+                priority: editedTender.priority,
                 companyId: editedTender.companyId,
+                categoryId: editedTender.categoryId,
+                leadTypeId: editedTender.leadTypeId,
                 estimatedValue: editedTender.estimatedValue,
-                currency: editedTender.currency,
-                submissionDeadline: editedTender.submissionDeadline,
                 emdAmount: editedTender.emdAmount,
                 tenderFees: editedTender.tenderFees,
+                submissionDeadline: editedTender.dueDate, // Map dueDate to submissionDeadline
+                currency: editedTender.currency,
                 assignedTo: editedTender.assignedTo,
-                priority: editedTender.priority,
-                contractDurationMonths: editedTender.contractDurationMonths,
                 expectedAwardDate: editedTender.expectedAwardDate,
+                contractDurationMonths: editedTender.contractDurationMonths,
+                // Only include tagIds if we were editing them (which we aren't in this drawer yet, but good practice)
+                // tagIds: editedTender.tags?.map(t => t.id) 
             };
+
+            // Remove undefined/null keys if needed, but Joi allows null for most optional fields
+            // However, we should be careful not to send 'undefined' string or NaN
 
             const response = await tenderApi.update(tender.id, payload);
             if (response.success && response.data) {
                 setTender(response.data);
-                // Also update local edited state to match server response
-                setEditedTender(response.data);
+                setEditedTender({ ...response.data, dueDate: response.data.submissionDeadline || response.data.dueDate });
                 onUpdate(response.data);
                 setSaveSuccess('Changes saved successfully');
                 setTimeout(() => setSaveSuccess(null), 3000);
+            } else {
+                setSaveError(response.error || 'Failed to update');
             }
-        } catch (error) {
-            console.error('Error updating tender:', error);
+        } catch (error: any) {
+            setSaveError(error.message || 'Error updating tender');
         } finally {
             setSaving(false);
         }
     };
 
-    const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-        if (!e.target.files || !tender?.id) return;
-        setUploading(true);
-
-        const files = Array.from(e.target.files);
+    const handleCreateTask = async () => {
+        if (!tender || !newTaskForm.title || !newTaskForm.description) return;
         try {
-            for (const file of files) {
-                await documentApi.upload(file, { tenderId: tender.id });
+            // Create task description with metadata
+            const taskDesc = `[${newTaskForm.priority}] ${newTaskForm.title}: ${newTaskForm.description}`;
+
+            const activityRes = await tenderApi.addActivity(tender.id, {
+                activityType: 'Task',
+                description: taskDesc,
+                hoursSpent: parseFloat(newTaskForm.estimatedHours) || 0,
+                workDate: new Date().toISOString()
+            } as any);
+
+            if (activityRes.success && activityRes.data) {
+                const activityId = activityRes.data.id;
+                await reminderApi.create(activityId, {
+                    actionRequired: newTaskForm.title,
+                    dueDate: newTaskForm.dueDate,
+                    recipients: newTaskForm.assignedTo ? [{ userId: newTaskForm.assignedTo }] : [],
+                    sendEmail: true,  // Send email notification by default
+                    sendSMS: false,   // SMS optional, can be enabled later
+                });
+                setNewTaskForm({
+                    title: '',
+                    description: '',
+                    priority: 'Medium',
+                    status: 'Pending',
+                    dueDate: '',
+                    assignedTo: undefined,
+                    estimatedHours: ''
+                });
+                fetchActivities(tender.id);
+                fetchAllReminders(tender.id);
             }
-            await fetchDocuments(tender.id);
-            await fetchActivities(tender.id); // Refresh logs as upload creates activity
-        } catch (error) {
-            console.error('Error uploading file:', error);
-        } finally {
-            setUploading(false);
-            if (fileInputRef.current) fileInputRef.current.value = '';
+        } catch (err) {
+            console.error(err);
+            alert('Failed to create task');
         }
     };
 
+    const getAllReminders = () => {
+        return reminders.sort((a, b) => {
+            if (a.isCompleted !== b.isCompleted) return a.isCompleted ? 1 : -1;
+            if (!a.dueDate) return 1;
+            if (!b.dueDate) return -1;
+            return new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime();
+        });
+    };
+
+    const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>, type: 'documents' | 'technicalDocuments') => {
+        console.log('handleFileUpload triggered', type, e.target.files);
+        if (!tender?.id) {
+            console.error('No tender ID found');
+            return;
+        }
+        if (!e.target.files || e.target.files.length === 0) {
+            console.error('No files selected');
+            return;
+        }
+        setUploading(true);
+        const file = e.target.files[0];
+        try {
+            let catId = undefined;
+            if (type === 'technicalDocuments' && bidDocCategoryId) catId = bidDocCategoryId;
+            if (type === 'documents' && tenderDocCategoryId) catId = tenderDocCategoryId;
+
+            await documentApi.upload(file, { tenderId: tender.id, categoryId: catId });
+            await fetchDocuments(tender.id);
+            await fetchActivities(tender.id);
+        } catch (error) {
+            console.error('Error uploading file:', error);
+            alert('Upload failed');
+        } finally {
+            setUploading(false);
+            if (e.target) e.target.value = '';
+        }
+    };
+
+    const handleAddWorkLog = async () => {
+        if (!workLogForm.description.trim() || !tender?.id) return;
+        let desc = workLogForm.description;
+        if (workLogForm.workType !== 'General') desc = `[${workLogForm.workType}] ${desc}`;
+        if (workLogForm.hoursSpent) desc += ` (${workLogForm.hoursSpent} hrs)`;
+
+        try {
+            await tenderApi.addActivity(tender.id, {
+                activityType: 'Commented',
+                description: desc
+            } as any);
+            setWorkLogForm({ description: '', workType: 'General', hoursSpent: '', workDate: new Date().toISOString().split('T')[0] });
+            fetchActivities(tender.id);
+        } catch (e) { console.error(e); }
+    };
+
+    // AI Handlers
     const handleGenerateSummary = async () => {
         if (!tender?.id) return;
         setGeneratingSummary(true);
@@ -235,54 +473,28 @@ export function TenderDetailDrawer({ tenderId, isOpen, onClose, onUpdate }: Tend
             const response = await tenderApi.generateSummary(tender.id);
             if (response.success && response.data) {
                 setAiSummary(response.data.summary);
-                await fetchTender(tender.id);
+                fetchTender(tender.id);
             }
-        } catch (e) {
-            console.error(e);
-        } finally {
-            setGeneratingSummary(false);
-        }
+        } catch (e) { console.error(e); }
+        finally { setGeneratingSummary(false); }
     };
 
     const handleChatSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         if (!chatInput.trim() || !tender?.id) return;
-
         const userMsg = chatInput.trim();
         setChatMessages(prev => [...prev, { role: 'user', content: userMsg }]);
         setChatInput('');
         setChatLoading(true);
-
         try {
             const response = await tenderApi.chat(tender.id, userMsg, chatMessages);
             if (response.success && response.data) {
                 setChatMessages(prev => [...prev, { role: 'assistant', content: response.data!.answer }]);
             }
         } catch (e) {
-            console.error(e);
-            setChatMessages(prev => [...prev, { role: 'assistant', content: 'Sorry, I encountered an error.' }]);
+            setChatMessages(prev => [...prev, { role: 'assistant', content: 'Error getting response.' }]);
         } finally {
             setChatLoading(false);
-        }
-    };
-
-    const handleAddWorkLog = async () => {
-        if (!newWorkLog.trim() || !tender?.id) return;
-        setIsAddingLog(true);
-        try {
-            const response = await tenderApi.addActivity(tender.id, {
-                activityType: 'Commented',
-                description: newWorkLog,
-            } as any);
-
-            if (response.success) {
-                setNewWorkLog('');
-                await fetchActivities(tender.id);
-            }
-        } catch (e) {
-            console.error(e);
-        } finally {
-            setIsAddingLog(false);
         }
     };
 
@@ -292,522 +504,212 @@ export function TenderDetailDrawer({ tenderId, isOpen, onClose, onUpdate }: Tend
         }
     }, [chatMessages, showChat]);
 
-    const handleDeleteDocument = async (docId: number) => {
-        if (!tender?.id || !confirm('Are you sure you want to delete this document?')) return;
-        try {
-            await documentApi.delete(docId);
-            await fetchDocuments(tender.id);
-            await fetchActivities(tender.id);
-        } catch (error) {
-            console.error('Error deleting document:', error);
-        }
-    };
-
-    const formatFileSize = (bytes: number) => {
-        if (bytes === 0) return '0 Bytes';
-        const k = 1024;
-        const sizes = ['Bytes', 'KB', 'MB', 'GB'];
-        const i = Math.floor(Math.log(bytes) / Math.log(k));
-        return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
-    };
-
-    // Helper to get initials
-    const getInitials = (name: string) => {
-        return name
-            .split(' ')
-            .map((n) => n[0])
-            .join('')
-            .toUpperCase()
-            .substring(0, 2);
-    };
 
     return (
         <Sheet open={isOpen} onOpenChange={(open) => !open && onClose()}>
-            <SheetContent
-                side="right"
-                className="p-0 w-[80vw] h-screen flex flex-col border-l shadow-2xl transition-transform duration-300 bg-white"
-            >
-                {loading || !tender || !editedTender ? (
-                    <div className="flex items-center justify-center h-full">
-                        <Loader2 className="w-8 h-8 animate-spin text-indigo-600" />
-                    </div>
+            <SheetContent side="right" className="p-0 w-[85vw] h-screen flex flex-col border-l shadow-2xl transition-transform duration-300 bg-white sm:max-w-none">
+                {loading || !editedTender ? (
+                    <div className="flex items-center justify-center h-full"><Loader2 className="w-8 h-8 animate-spin" /></div>
                 ) : (
                     <>
                         {/* Header */}
-                        <div className="px-6 py-4 border-b border-gray-200 flex items-center justify-between bg-white sticky top-0 z-20 flex-shrink-0">
-                            <div className="flex flex-col gap-1.5 flex-1 min-w-0">
-                                <div className="flex items-center gap-2">
-                                    <span className="bg-indigo-50 text-indigo-700 text-[10px] font-bold px-1.5 py-0.5 rounded border border-indigo-100 uppercase tracking-wider">
-                                        #{tender.id.toString().padStart(4, '0')}
-                                    </span>
-                                    <Badge size="sm" className={
-                                        tender.priority === 'Critical' ? 'bg-red-100 text-red-800 border-red-200 shadow-none' :
-                                            tender.priority === 'High' ? 'bg-orange-100 text-orange-800 border-orange-200 shadow-none' :
-                                                'bg-blue-100 text-blue-800 border-blue-200 shadow-none'
-                                    }>
-                                        {tender.priority}
-                                    </Badge>
-                                </div>
-                                <SheetTitle className="text-xl font-bold text-gray-900 truncate pr-4">
-                                    {tender.title}
-                                </SheetTitle>
-                                <p className="text-xs text-gray-500 flex items-center gap-1">
-                                    <FileText className="w-3 h-3" />
-                                    {tender.client || 'Direct Client'}
-                                </p>
-                            </div>
-
+                        <div className="px-6 py-3 border-b border-gray-200 flex items-center justify-between bg-gray-50">
                             <div className="flex items-center gap-3">
-                                {saveSuccess && (
-                                    <div className="flex items-center text-emerald-600 text-xs font-medium animate-in fade-in slide-in-from-right-2">
-                                        <CheckCircle2 className="w-3.5 h-3.5 mr-1" />
-                                        {saveSuccess}
-                                    </div>
-                                )}
-                                <Button size="sm" onClick={handleSave} disabled={saving} className="h-9 shadow-sm">
+                                <div className="w-10 h-10 bg-indigo-600 rounded-lg flex items-center justify-center">
+                                    <FileText className="w-5 h-5 text-white" />
+                                </div>
+                                <div>
+                                    <h2 className="text-lg font-bold text-gray-900">#{tender?.id}</h2>
+                                    <p className="text-sm text-gray-500 truncate max-w-[300px]">{editedTender.title}</p>
+                                </div>
+                            </div>
+                            <div className="flex items-center gap-2">
+                                <Button onClick={handleSave} disabled={saving} size="sm">
                                     {saving ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Save className="w-4 h-4 mr-2" />}
                                     Save Changes
                                 </Button>
-                                <Button variant="ghost" size="icon" onClick={onClose} className="h-9 w-9 text-gray-400 hover:text-gray-600 hover:bg-gray-100">
-                                    <X className="w-5 h-5" />
-                                </Button>
+                                <Button variant="ghost" size="icon" onClick={onClose}><X className="w-5 h-5" /></Button>
                             </div>
                         </div>
 
-                        {/* Tabs */}
-                        <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1 flex flex-col min-h-0">
-                            <div className="px-6 border-b border-gray-200 bg-white">
-                                <TabsList className="h-10 p-0 bg-transparent gap-6">
-                                    {['Overview', 'Documents', 'Activity', 'AI Insights'].map((tab) => (
-                                        <TabsTrigger
-                                            key={tab}
-                                            value={tab.toLowerCase().replace(' ', '')}
-                                            className="h-10 rounded-none border-b-2 border-transparent data-[state=active]:border-indigo-600 data-[state=active]:text-indigo-600 px-0 bg-transparent shadow-none text-sm font-medium"
-                                        >
-                                            {tab === 'AI Insights' ? <><Sparkles className="w-3.5 h-3.5 mr-2" />{tab}</> : tab}
-                                            {tab === 'Documents' && documents.length > 0 && (
-                                                <span className="ml-2 bg-gray-100 text-gray-600 px-1.5 py-0.5 rounded-full text-[10px]">
-                                                    {documents.length}
-                                                </span>
-                                            )}
-                                        </TabsTrigger>
-                                    ))}
-                                </TabsList>
+                        {/* Status Messages */}
+                        {saveSuccess && (
+                            <div className="bg-green-50 text-green-700 px-4 py-2 text-sm flex items-center gap-2 border-b border-green-100">
+                                <CheckCircle2 className="w-4 h-4" /> {saveSuccess}
                             </div>
+                        )}
 
-                            {/* Content Areas */}
-                            <ScrollArea className="flex-1 bg-gray-50/50">
-                                <div className="p-6 max-w-4xl mx-auto">
+                        <ScrollArea className="flex-1 bg-gray-50/30">
+                            <div className="px-6 py-4">
+                                <Tabs defaultValue="details" className="w-full">
+                                    <TabsList className="grid w-full grid-cols-7 p-1 bg-slate-100/80 rounded-xl mb-4 h-auto">
+                                        <TabsTrigger value="details" className="text-sm py-2.5 flex items-center gap-1.5"><LayoutDashboard className="w-4 h-4" />Details</TabsTrigger>
+                                        <TabsTrigger value="documents" className="text-sm py-2.5 flex items-center gap-1.5"><FileText className="w-4 h-4" />Tender Docs</TabsTrigger>
+                                        <TabsTrigger value="technical" className="text-sm py-2.5 flex items-center gap-1.5"><CreditCard className="w-4 h-4" />Bid Docs</TabsTrigger>
+                                        <TabsTrigger value="tasks" className="text-sm py-2.5 flex items-center gap-1.5"><ListTodo className="w-4 h-4" />Tasks</TabsTrigger>
+                                        <TabsTrigger value="worklog" className="text-sm py-2.5 flex items-center gap-1.5"><Clock className="w-4 h-4" />Log</TabsTrigger>
+                                        <TabsTrigger value="auditlog" className="text-sm py-2.5 flex items-center gap-1.5"><List className="w-4 h-4" />Audit</TabsTrigger>
+                                        <TabsTrigger value="aiinsights" className="text-sm py-2.5 flex items-center gap-1.5"><Sparkles className="w-4 h-4 text-indigo-500" />AI Summary</TabsTrigger>
+                                    </TabsList>
 
-                                    {/* OVERVIEW TAB */}
-                                    <TabsContent value="overview" className="mt-0 space-y-8 pb-8">
-                                        {/* Classification Group */}
-                                        <section className="bg-white p-6 rounded-xl border border-gray-200 shadow-sm space-y-6">
-                                            <div className="flex items-center gap-2 pb-2 border-b border-gray-50">
-                                                <div className="w-8 h-8 rounded-lg bg-indigo-50 flex items-center justify-center">
-                                                    <BadgeCheck className="w-4 h-4 text-indigo-600" />
-                                                </div>
-                                                <h3 className="text-sm font-semibold text-gray-900">Classification</h3>
-                                            </div>
-                                            <div className="grid grid-cols-2 gap-6">
-                                                <div className="space-y-2">
-                                                    <Label className="text-xs font-bold uppercase tracking-wider text-gray-500">Status</Label>
-                                                    <Select
-                                                        value={editedTender.status}
-                                                        onValueChange={(val: any) => setEditedTender({ ...editedTender, status: val })}
-                                                    >
-                                                        <SelectTrigger className="h-10 bg-gray-50/50 border-gray-200">
-                                                            <SelectValue />
-                                                        </SelectTrigger>
-                                                        <SelectContent>
-                                                            {['Draft', 'Submitted', 'Under Review', 'Shortlisted', 'Won', 'Lost', 'Cancelled'].map(s => (
-                                                                <SelectItem key={s} value={s}>{s}</SelectItem>
-                                                            ))}
-                                                        </SelectContent>
-                                                    </Select>
-                                                </div>
-
-                                                <div className="space-y-2">
-                                                    <Label className="text-xs font-bold uppercase tracking-wider text-gray-500">Priority</Label>
-                                                    <Select
-                                                        value={editedTender.priority}
-                                                        onValueChange={(val: any) => setEditedTender({ ...editedTender, priority: val })}
-                                                    >
-                                                        <SelectTrigger className="h-10 bg-gray-50/50 border-gray-200">
-                                                            <SelectValue />
-                                                        </SelectTrigger>
-                                                        <SelectContent>
-                                                            {['Low', 'Medium', 'High', 'Critical'].map(p => (
-                                                                <SelectItem key={p} value={p}>{p}</SelectItem>
-                                                            ))}
-                                                        </SelectContent>
-                                                    </Select>
-                                                </div>
-                                            </div>
-                                        </section>
-
-                                        {/* Basic Info Group */}
-                                        <section className="bg-white p-6 rounded-xl border border-gray-200 shadow-sm space-y-6">
-                                            <div className="flex items-center gap-2 pb-2 border-b border-gray-50">
-                                                <div className="w-8 h-8 rounded-lg bg-blue-50 flex items-center justify-center">
-                                                    <FileText className="w-4 h-4 text-blue-600" />
-                                                </div>
-                                                <h3 className="text-sm font-semibold text-gray-900">Basic Information</h3>
-                                            </div>
-                                            <div className="space-y-5">
-                                                <div className="space-y-2">
-                                                    <Label className="text-xs font-bold uppercase tracking-wider text-gray-500">Tender Title</Label>
-                                                    <Input
-                                                        value={editedTender.title}
-                                                        onChange={(e) => setEditedTender({ ...editedTender, title: e.target.value })}
-                                                        className="h-10 font-medium bg-gray-50/50"
-                                                        placeholder="Enter tender title..."
-                                                    />
-                                                </div>
-
-                                                <div className="grid grid-cols-2 gap-6">
-                                                    <div className="space-y-2">
-                                                        <Label className="text-xs font-bold uppercase tracking-wider text-gray-500">Client / Authority</Label>
-                                                        <div className="space-y-2">
-                                                            <Select
-                                                                value={editedTender.companyId ? String(editedTender.companyId) : 'none'}
-                                                                onValueChange={(val) => setEditedTender({
-                                                                    ...editedTender,
-                                                                    companyId: val === 'none' ? undefined : Number(val),
-                                                                    client: val === 'none' ? editedTender.client : companies.find(c => c.id === Number(val))?.companyName || ''
-                                                                })}
-                                                            >
-                                                                <SelectTrigger className="h-10 bg-gray-50/50">
-                                                                    <SelectValue placeholder="Select Company" />
-                                                                </SelectTrigger>
-                                                                <SelectContent>
-                                                                    <SelectItem value="none">-- Manual Entry --</SelectItem>
-                                                                    {companies.map(c => (
-                                                                        <SelectItem key={c.id} value={String(c.id)}>{c.companyName}</SelectItem>
-                                                                    ))}
-                                                                </SelectContent>
-                                                            </Select>
-                                                            {!editedTender.companyId && (
-                                                                <Input
-                                                                    placeholder="Or type client name..."
-                                                                    value={editedTender.client || ''}
-                                                                    onChange={(e) => setEditedTender({ ...editedTender, client: e.target.value })}
-                                                                    className="h-9 text-sm bg-gray-50/50"
-                                                                />
-                                                            )}
-                                                        </div>
+                                    {/* DETAILS TAB - Condensed */}
+                                    <TabsContent value="details" className="space-y-4">
+                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                                            {/* Classification */}
+                                            <div className="bg-white p-4 rounded-xl border border-indigo-100 shadow-sm">
+                                                <h3 className="text-xs font-bold text-slate-800 mb-3 flex items-center gap-1.5"><LayoutDashboard className="w-3.5 h-3.5 text-indigo-600" /> Classification</h3>
+                                                <div className="grid grid-cols-2 gap-3">
+                                                    <div className="space-y-1"><Label className="text-[10px] uppercase text-slate-500 font-bold">Status</Label>
+                                                        <Select value={editedTender.status} onValueChange={(v: any) => setEditedTender({ ...editedTender, status: v })}>
+                                                            <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
+                                                            <SelectContent>{['Draft', 'Submitted', 'Under Review', 'Shortlisted', 'Won', 'Lost', 'Cancelled'].map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}</SelectContent>
+                                                        </Select>
                                                     </div>
-
-                                                    <div className="space-y-2">
-                                                        <Label className="text-xs font-bold uppercase tracking-wider text-gray-500">Assigned To</Label>
-                                                        <Select
-                                                            value={editedTender.assignedTo ? String(editedTender.assignedTo) : 'none'}
-                                                            onValueChange={(val) => setEditedTender({ ...editedTender, assignedTo: val === 'none' ? undefined : Number(val) })}
-                                                        >
-                                                            <SelectTrigger className="h-10 bg-gray-50/50">
-                                                                <SelectValue placeholder="Unassigned" />
-                                                            </SelectTrigger>
+                                                    <div className="space-y-1"><Label className="text-[10px] uppercase text-slate-500 font-bold">Type</Label>
+                                                        <Select value={editedTender.leadTypeId?.toString()} onValueChange={(v) => setEditedTender({ ...editedTender, leadTypeId: Number(v) })}>
+                                                            <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
                                                             <SelectContent>
-                                                                <SelectItem value="none">Unassigned</SelectItem>
-                                                                {users.map(u => (
-                                                                    <SelectItem key={u.id} value={String(u.id)}>{u.fullName}</SelectItem>
-                                                                ))}
+                                                                {leadTypes.map(lt => <SelectItem key={lt.id} value={lt.id.toString()}>{lt.name}</SelectItem>)}
                                                             </SelectContent>
                                                         </Select>
                                                     </div>
-                                                </div>
-
-                                                <div className="space-y-2">
-                                                    <Label className="text-xs font-bold uppercase tracking-wider text-gray-500">Description</Label>
-                                                    <Textarea
-                                                        value={editedTender.description || ''}
-                                                        onChange={(e) => setEditedTender({ ...editedTender, description: e.target.value })}
-                                                        className="min-h-[120px] text-sm resize-none bg-gray-50/50 focus:bg-white transition-colors"
-                                                        placeholder="Detailed description of the tender..."
-                                                    />
+                                                    <div className="space-y-1"><Label className="text-[10px] uppercase text-slate-500 font-bold">Priority</Label>
+                                                        <Select value={editedTender.priority} onValueChange={(v: any) => setEditedTender({ ...editedTender, priority: v })}>
+                                                            <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
+                                                            <SelectContent>{['Low', 'Medium', 'High', 'Critical'].map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}</SelectContent>
+                                                        </Select>
+                                                    </div>
                                                 </div>
                                             </div>
-                                        </section>
-
-                                        {/* Financials & Dates Group */}
-                                        <section className="bg-white p-6 rounded-xl border border-gray-200 shadow-sm space-y-6">
-                                            <div className="flex items-center gap-2 pb-2 border-b border-gray-50">
-                                                <div className="w-8 h-8 rounded-lg bg-green-50 flex items-center justify-center">
-                                                    <DollarSign className="w-4 h-4 text-green-600" />
-                                                </div>
-                                                <h3 className="text-sm font-semibold text-gray-900">Financials & Schedule</h3>
-                                            </div>
-                                            <div className="grid grid-cols-2 gap-6">
+                                            {/* Basic Info */}
+                                            <div className="bg-white p-4 rounded-xl border border-blue-100 shadow-sm">
+                                                <h3 className="text-xs font-bold text-slate-800 mb-3 flex items-center gap-1.5"><FileText className="w-3.5 h-3.5 text-blue-600" /> Basic Info</h3>
                                                 <div className="space-y-2">
-                                                    <Label className="text-xs font-bold uppercase tracking-wider text-gray-500">Est. Value (INR)</Label>
-                                                    <Input
-                                                        type="number"
-                                                        value={editedTender.estimatedValue || ''}
-                                                        onChange={(e) => setEditedTender({ ...editedTender, estimatedValue: parseFloat(e.target.value) || 0 })}
-                                                        className="h-10 bg-gray-50/50"
-                                                    />
+                                                    <div className="space-y-1"><Label className="text-[10px] uppercase text-slate-500 font-bold">Title</Label>
+                                                        <Input value={editedTender.title} onChange={e => setEditedTender({ ...editedTender, title: e.target.value })} className="h-8 text-xs" />
+                                                    </div>
+                                                    <div className="space-y-1"><Label className="text-[10px] uppercase text-slate-500 font-bold">Client</Label>
+                                                        <Select value={editedTender.companyId?.toString() || 'none'} onValueChange={v => setEditedTender({ ...editedTender, companyId: v === 'none' ? undefined : Number(v) })}>
+                                                            <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Select Client" /></SelectTrigger>
+                                                            <SelectContent><SelectItem value="none">None</SelectItem>{companies.map(c => <SelectItem key={c.id} value={c.id.toString()}>{c.companyName}</SelectItem>)}</SelectContent>
+                                                        </Select>
+                                                    </div>
                                                 </div>
-                                                <div className="space-y-2">
-                                                    <Label className="text-xs font-bold uppercase tracking-wider text-gray-500">Submission Date</Label>
-                                                    <Input
-                                                        type="date"
-                                                        value={editedTender.submissionDeadline ? new Date(editedTender.submissionDeadline).toISOString().split('T')[0] : ''}
-                                                        onChange={(e) => setEditedTender({ ...editedTender, submissionDeadline: e.target.value })}
-                                                        className="h-10 bg-gray-50/50"
-                                                    />
-                                                </div>
-                                                <div className="space-y-2">
-                                                    <Label className="text-xs font-bold uppercase tracking-wider text-gray-500">EMD Amount</Label>
-                                                    <Input
-                                                        type="number"
-                                                        value={editedTender.emdAmount || ''}
-                                                        onChange={(e) => setEditedTender({ ...editedTender, emdAmount: parseFloat(e.target.value) || 0 })}
-                                                        className="h-10 bg-gray-50/50"
-                                                    />
-                                                </div>
-                                                <div className="space-y-2">
-                                                    <Label className="text-xs font-bold uppercase tracking-wider text-gray-500">Tender Fees</Label>
-                                                    <Input
-                                                        type="number"
-                                                        value={editedTender.tenderFees || ''}
-                                                        onChange={(e) => setEditedTender({ ...editedTender, tenderFees: parseFloat(e.target.value) || 0 })}
-                                                        className="h-10 bg-gray-50/50"
-                                                    />
-                                                </div>
-                                                <div className="space-y-2">
-                                                    <Label className="text-xs font-bold uppercase tracking-wider text-gray-500">Contract Duration (Months)</Label>
-                                                    <Input
-                                                        type="number"
-                                                        value={editedTender.contractDurationMonths || ''}
-                                                        onChange={(e) => setEditedTender({ ...editedTender, contractDurationMonths: parseInt(e.target.value) || 0 })}
-                                                        className="h-10 bg-gray-50/50"
-                                                    />
-                                                </div>
-                                                <div className="space-y-2">
-                                                    <Label className="text-xs font-bold uppercase tracking-wider text-gray-500">Expected Award Date</Label>
-                                                    <Input
-                                                        type="date"
-                                                        value={editedTender.expectedAwardDate ? new Date(editedTender.expectedAwardDate).toISOString().split('T')[0] : ''}
-                                                        onChange={(e) => setEditedTender({ ...editedTender, expectedAwardDate: e.target.value })}
-                                                        className="h-10 bg-gray-50/50"
-                                                    />
-                                                </div>
-                                            </div>
-                                        </section>
-                                    </TabsContent>
-
-                                    {/* DOCUMENTS TAB */}
-                                    <TabsContent value="documents" className="mt-0 space-y-4">
-                                        <div className="bg-white border border-gray-200 rounded-lg p-4 flex flex-col items-center justify-center border-dashed gap-2 group hover:border-indigo-300 transition-colors">
-                                            <input
-                                                type="file"
-                                                multiple
-                                                className="hidden"
-                                                ref={fileInputRef}
-                                                onChange={handleFileUpload}
-                                            />
-                                            <div className="w-10 h-10 bg-gray-50 rounded-full flex items-center justify-center flex-shrink-0">
-                                                {uploading ? <Loader2 className="w-5 h-5 text-indigo-600 animate-spin" /> : <Upload className="w-5 h-5 text-gray-500 group-hover:text-indigo-600" />}
-                                            </div>
-                                            <div className="text-center">
-                                                <Button variant="link" onClick={() => fileInputRef.current?.click()} className="h-auto p-0 font-semibold text-indigo-600">
-                                                    Click to upload
-                                                </Button>
-                                                <span className="text-sm text-gray-500 ml-1">or drag and drop</span>
-                                                <p className="text-xs text-gray-400 mt-1">PDF, Docs, Images up to 10MB</p>
                                             </div>
                                         </div>
-
-                                        {loadingDocuments ? (
-                                            <div className="text-center py-8"><Loader2 className="w-6 h-6 animate-spin mx-auto text-indigo-600" /></div>
-                                        ) : documents.length === 0 ? (
-                                            <div className="text-center py-12 bg-white rounded-lg border border-gray-100">
-                                                <FileText className="w-10 h-10 text-gray-200 mx-auto mb-3" />
-                                                <p className="text-sm text-gray-500">No documents attached yet</p>
+                                        <div className="bg-white p-4 rounded-xl border border-gray-100 shadow-sm">
+                                            <h3 className="text-xs font-bold text-slate-800 mb-2">Description</h3>
+                                            <Textarea value={editedTender.description || ''} onChange={e => setEditedTender({ ...editedTender, description: e.target.value })} className="min-h-[80px] text-xs resize-none" />
+                                        </div>
+                                        <div className="bg-white p-4 rounded-xl border border-emerald-100 shadow-sm">
+                                            <h3 className="text-xs font-bold text-slate-800 mb-3 flex items-center gap-1.5"><DollarSign className="w-3.5 h-3.5 text-emerald-600" /> Financials & Dates</h3>
+                                            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                                                <div className="space-y-1"><Label className="text-[10px] uppercase text-slate-500 font-bold">Est. Value</Label><Input type="number" value={editedTender.estimatedValue || ''} onChange={e => setEditedTender({ ...editedTender, estimatedValue: parseFloat(e.target.value) })} className="h-8 text-xs" /></div>
+                                                <div className="space-y-1"><Label className="text-[10px] uppercase text-slate-500 font-bold">EMD</Label><Input type="number" value={editedTender.emdAmount || ''} onChange={e => setEditedTender({ ...editedTender, emdAmount: parseFloat(e.target.value) })} className="h-8 text-xs" /></div>
+                                                <div className="space-y-1"><Label className="text-[10px] uppercase text-slate-500 font-bold">Tender Fees</Label><Input type="number" value={editedTender.tenderFees || ''} onChange={e => setEditedTender({ ...editedTender, tenderFees: parseFloat(e.target.value) })} className="h-8 text-xs" /></div>
+                                                <div className="space-y-1"><Label className="text-[10px] uppercase text-slate-500 font-bold">Due Date</Label><Input type="date" value={editedTender.dueDate ? new Date(editedTender.dueDate).toISOString().split('T')[0] : ''} onChange={e => setEditedTender({ ...editedTender, dueDate: e.target.value })} className="h-8 text-xs" /></div>
                                             </div>
-                                        ) : (
-                                            <div className="bg-white rounded-lg border border-gray-200 divide-y divide-gray-100">
-                                                {documents.map(doc => (
-                                                    <div key={doc.id} className="p-3 flex items-center justify-between hover:bg-gray-50 transition-colors group">
-                                                        <div className="flex items-center gap-3 min-w-0">
-                                                            <div className="w-8 h-8 rounded bg-indigo-50 flex items-center justify-center flex-shrink-0">
-                                                                <FileText className="w-4 h-4 text-indigo-600" />
-                                                            </div>
-                                                            <div className="min-w-0">
-                                                                <p className="text-sm font-medium text-gray-900 truncate">{doc.displayName || doc.fileName}</p>
-                                                                <div className="flex items-center gap-2 text-xs text-gray-500">
-                                                                    <span>{formatFileSize(doc.fileSize)}</span>
-                                                                    <span>•</span>
-                                                                    <span>{formatDate(doc.uploadedAt)}</span>
-                                                                    <span>•</span>
-                                                                    <span>{doc.uploadedByName || 'Unknown'}</span>
-                                                                </div>
-                                                            </div>
-                                                        </div>
-                                                        <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                                                            <Button variant="ghost" size="icon" className="h-8 w-8 text-gray-500 hover:text-indigo-600">
-                                                                <Download className="w-4 h-4" />
-                                                            </Button>
-                                                            <Button variant="ghost" size="icon" className="h-8 w-8 text-gray-500 hover:text-red-600" onClick={() => handleDeleteDocument(doc.id)}>
-                                                                <Trash2 className="w-4 h-4" />
-                                                            </Button>
-                                                        </div>
+                                        </div>
+                                    </TabsContent>
+
+                                    {/* TASKS TAB - Enhanced */}
+                                    <TabsContent value="tasks" className="space-y-4">
+                                        <EnhancedTasksTab
+                                            tender={tender!}
+                                            users={users}
+                                            reminders={getAllReminders()}
+                                            onRefresh={() => {
+                                                fetchActivities(tender!.id);
+                                                fetchAllReminders(tender!.id);
+                                            }}
+                                        />
+                                    </TabsContent>
+
+                                    {/* DOCUMENTS & TECH TABS */}
+                                    {['documents', 'technical'].map(type => (
+                                        <TabsContent key={type} value={type} className="space-y-4">
+                                            <div className="flex justify-between items-center">
+                                                <h3 className="capitalize">{type === 'technical' ? 'Bid Documents' : 'Tender Documents'}</h3>
+                                                <div className="flex gap-2">
+                                                    <input type="file" className="hidden" ref={type === 'documents' ? fileInputRef : technicalFileInputRef} onChange={e => handleFileUpload(e, type as any)} />
+                                                    <Button size="sm" onClick={() => (type === 'documents' ? fileInputRef : technicalFileInputRef).current?.click()} disabled={uploading}><Upload className="w-4 h-4 mr-2" /> Upload</Button>
+                                                </div>
+                                            </div>
+                                            <div className="space-y-2">
+                                                {(type === 'documents' ? documents : technicalDocuments).map(doc => (
+                                                    <div key={doc.id} className="flex justify-between p-3 border rounded-lg bg-white">
+                                                        <div className="flex gap-3"><FileText className="w-5 h-5 text-indigo-500" />
+                                                            <div><p className="font-medium text-sm">{doc.originalName}</p><p className="text-xs text-slate-500">{formatFileSize(doc.fileSize)} • {safeDate(doc.uploadedAt)}</p></div></div>
+                                                        <div className="flex gap-1"><Button variant="ghost" size="icon"><Download className="w-4 h-4" /></Button><Button variant="ghost" size="icon" onClick={() => documentApi.delete(doc.id).then(() => fetchDocuments(tender!.id))}><Trash2 className="w-4 h-4 text-red-500" /></Button></div>
                                                     </div>
                                                 ))}
+                                                {(type === 'documents' ? documents : technicalDocuments).length === 0 && <div className="text-center py-8 border-dashed border-2 rounded text-slate-400">No documents</div>}
                                             </div>
-                                        )}
-                                    </TabsContent>
+                                        </TabsContent>
+                                    ))}
 
-                                    {/* ACTIVITY TAB */}
-                                    <TabsContent value="activity" className="mt-0">
-                                        <div className="p-4 bg-gray-50 border-b border-gray-200">
-                                            <div className="flex gap-2">
-                                                <Input
-                                                    placeholder="Add a note or work log..."
-                                                    value={newWorkLog}
-                                                    onChange={(e) => setNewWorkLog(e.target.value)}
-                                                    className="bg-white"
-                                                    onKeyDown={(e) => {
-                                                        if (e.key === 'Enter' && !e.shiftKey) {
-                                                            e.preventDefault();
-                                                            handleAddWorkLog();
-                                                        }
-                                                    }}
-                                                />
-                                                <Button size="icon" onClick={handleAddWorkLog} disabled={isAddingLog || !newWorkLog.trim()}>
-                                                    <Send className="w-4 h-4" />
-                                                </Button>
+                                    {/* WORK LOG */}
+                                    <TabsContent value="worklog" className="space-y-4">
+                                        <div className="bg-gray-50 p-4 rounded-lg">
+                                            <h3 className="font-bold text-sm mb-3">Add Entry</h3>
+                                            <div className="space-y-2">
+                                                <div className="flex gap-2"><Select value={workLogForm.workType} onValueChange={(v: any) => setWorkLogForm({ ...workLogForm, workType: v })}><SelectTrigger className="w-32 h-8 text-xs"><SelectValue /></SelectTrigger><SelectContent>{['General', 'Research', 'Other'].map(t => <SelectItem key={t} value={t}>{t}</SelectItem>)}</SelectContent></Select>
+                                                    <Input type="date" value={workLogForm.workDate} onChange={e => setWorkLogForm({ ...workLogForm, workDate: e.target.value })} className="w-32 h-8 text-xs" /></div>
+                                                <Textarea value={workLogForm.description} onChange={e => setWorkLogForm({ ...workLogForm, description: e.target.value })} placeholder="Description..." className="text-xs" />
+                                                <Button size="sm" onClick={handleAddWorkLog} disabled={!workLogForm.description}>Add Entry</Button>
                                             </div>
                                         </div>
-                                        {loadingActivities ? (
-                                            <div className="text-center py-8"><Loader2 className="w-6 h-6 animate-spin mx-auto text-indigo-600" /></div>
-                                        ) : (
-                                            <div className="space-y-6 p-4">
-                                                {activities.length === 0 ? (
-                                                    <div className="text-center py-12 text-sm text-gray-500">No activity recorded yet</div>
-                                                ) : (
-                                                    activities.map((activity, index) => (
-                                                        <div key={activity.id} className="relative pl-6 pb-6 last:pb-0 border-l border-gray-200">
-                                                            <div className="absolute left-[-5px] top-1 w-2.5 h-2.5 rounded-full bg-gray-200 ring-4 ring-white" />
-                                                            <div className="flex flex-col gap-1">
-                                                                <div className="flex items-center gap-2">
-                                                                    <span className="text-xs font-semibold text-gray-900">
-                                                                        {activity.user?.fullName || 'System'}
-                                                                    </span>
-                                                                    <span className="text-xs text-gray-500">
-                                                                        {activity.activityType}
-                                                                    </span>
-                                                                    <span className="text-[10px] text-gray-400 ml-auto">
-                                                                        {new Date(activity.createdAt).toLocaleString()}
-                                                                    </span>
-                                                                </div>
-                                                                <p className="text-sm text-gray-600 bg-gray-50 p-2 rounded border border-gray-100">
-                                                                    {activity.description}
-                                                                </p>
-                                                            </div>
-                                                        </div>
-                                                    ))
-                                                )}
-                                            </div>
-                                        )}
+                                        <div className="space-y-4 pt-4">
+                                            {workLogs.map(log => (
+                                                <div key={log.id} className="pl-4 border-l-2 border-indigo-200 py-1">
+                                                    <p className="text-sm font-semibold">{log.description}</p>
+                                                    <p className="text-xs text-slate-500">{safeDate(log.createdAt)} by {log.user?.fullName || 'System'}</p>
+                                                </div>
+                                            ))}
+                                        </div>
                                     </TabsContent>
 
-                                    {/* AI INSIGHTS TAB */}
-                                    <TabsContent value="aiinsights" className="mt-0 flex-1 flex flex-col min-h-[500px]">
+                                    {/* AUDIT LOG */}
+                                    <TabsContent value="auditlog" className="space-y-4">
+                                        <div className="space-y-2">
+                                            {auditLogs.map(log => (
+                                                <div key={log.id} className="text-xs text-slate-600 bg-gray-50 p-2 rounded">
+                                                    <span className="font-bold">{log.activityType}:</span> {log.description} <span className="opacity-50">({safeDate(log.createdAt)})</span>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </TabsContent>
+
+                                    {/* AI INSIGHTS */}
+                                    <TabsContent value="aiinsights" className="space-y-4">
                                         {!showChat ? (
                                             <div className="space-y-6">
                                                 <div className="bg-gradient-to-r from-indigo-50 to-purple-50 p-4 rounded-lg border border-indigo-100 flex items-center justify-between">
-                                                    <div>
-                                                        <h3 className="text-sm font-semibold text-indigo-900 flex items-center gap-2">
-                                                            <Sparkles className="w-4 h-4 text-indigo-600" />
-                                                            AI Summary
-                                                        </h3>
-                                                        <p className="text-xs text-indigo-700 mt-1">Generated from tender details and attached documents.</p>
-                                                    </div>
+                                                    <div><h3 className="text-sm font-semibold text-indigo-900 flex gap-2"><Sparkles className="w-4 h-4" /> AI Summary</h3></div>
                                                     <div className="flex gap-2">
-                                                        <Button size="sm" variant="outline" onClick={() => setShowChat(true)} className="h-8 bg-white text-indigo-700 border-indigo-200 hover:bg-indigo-50">
-                                                            <MessageCircle className="w-3.5 h-3.5 mr-2" />
-                                                            Chat
-                                                        </Button>
-                                                        <Button size="sm" onClick={handleGenerateSummary} disabled={generatingSummary} className="h-8 bg-indigo-600 hover:bg-indigo-700">
-                                                            {generatingSummary ? <Loader2 className="w-3.5 h-3.5 animate-spin mr-2" /> : <Sparkles className="w-3.5 h-3.5 mr-2" />}
-                                                            {aiSummary ? 'Regenerate' : 'Generate'}
-                                                        </Button>
+                                                        <Button size="sm" variant="outline" onClick={() => setShowChat(true)}><MessageCircle className="w-3.5 h-3.5 mr-2" /> Chat</Button>
+                                                        <Button size="sm" onClick={handleGenerateSummary} disabled={generatingSummary}>{generatingSummary ? <Loader2 className="animate-spin" /> : <Sparkles />} {aiSummary ? 'Regenerate' : 'Generate'}</Button>
                                                     </div>
                                                 </div>
-
-                                                {generatingSummary ? (
-                                                    <div className="py-12 text-center">
-                                                        <Loader2 className="w-8 h-8 animate-spin mx-auto text-indigo-600 mb-3" />
-                                                        <p className="text-sm text-indigo-600">Analyzing documents...</p>
-                                                    </div>
-                                                ) : aiSummary ? (
-                                                    <div className="bg-white rounded-lg border border-gray-200 p-4 prose prose-sm max-w-none text-gray-700">
-                                                        <div className="whitespace-pre-wrap font-sans text-sm leading-relaxed">
-                                                            {aiSummary}
-                                                        </div>
-                                                    </div>
-                                                ) : (
-                                                    <div className="text-center py-12 text-gray-400">
-                                                        <Sparkles className="w-12 h-12 mx-auto mb-3 opacity-20" />
-                                                        <p className="text-sm">No summary generated yet.</p>
-                                                    </div>
-                                                )}
+                                                {generatingSummary ? <div className="text-center py-8"><Loader2 className="animate-spin mx-auto" /><p>Analyzing...</p></div> :
+                                                    aiSummary ? <div className="p-4 bg-white border rounded text-sm leading-relaxed whitespace-pre-wrap">{aiSummary}</div> :
+                                                        <div className="text-center py-12 text-gray-400"><p>No summary yet.</p></div>}
                                             </div>
                                         ) : (
-                                            <div className="flex flex-col h-full bg-white rounded-lg border border-gray-200 overflow-hidden">
-                                                <div className="p-3 border-b flex items-center justify-between bg-gray-50">
-                                                    <div className="flex items-center gap-2">
-                                                        <MessageCircle className="w-4 h-4 text-indigo-600" />
-                                                        <span className="font-semibold text-sm">Scout Assistant</span>
-                                                    </div>
-                                                    <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => setShowChat(false)}>
-                                                        <X className="w-4 h-4" />
-                                                    </Button>
+                                            <div className="flex flex-col h-[500px] border rounded-lg">
+                                                <div className="p-2 border-b flex justify-between bg-gray-50"><span className="font-bold text-sm flex gap-2"><MessageCircle className="w-4 h-4" /> Chat</span><Button variant="ghost" size="icon" onClick={() => setShowChat(false)}><X className="w-4 h-4" /></Button></div>
+                                                <div className="flex-1 overflow-y-auto p-4 space-y-3" ref={chatScrollRef}>
+                                                    {chatMessages.length === 0 && <p className="text-center text-gray-400 text-sm">Ask anything.</p>}
+                                                    {chatMessages.map((m, i) => <div key={i} className={`flex ${m.role === 'user' ? 'justify-end' : 'justify-start'}`}><div className={`max-w-[85%] p-2 rounded text-sm ${m.role === 'user' ? 'bg-indigo-600 text-white' : 'bg-gray-100'}`}>{m.content}</div></div>)}
+                                                    {chatLoading && <div className="flex"><div className="bg-gray-100 p-2 rounded"><Loader2 className="w-3 h-3 animate-spin" /></div></div>}
                                                 </div>
-                                                <div className="flex-1 overflow-y-auto p-4 space-y-4" ref={chatScrollRef}>
-                                                    {chatMessages.length === 0 && (
-                                                        <div className="text-center text-gray-400 mt-8">
-                                                            <p className="text-sm">Ask me anything about this tender.</p>
-                                                        </div>
-                                                    )}
-                                                    {chatMessages.map((msg, i) => (
-                                                        <div key={i} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
-                                                            <div className={`max-w-[85%] p-3 rounded-lg text-sm ${msg.role === 'user' ? 'bg-indigo-600 text-white' : 'bg-gray-100 text-gray-800'
-                                                                }`}>
-                                                                {msg.content}
-                                                            </div>
-                                                        </div>
-                                                    ))}
-                                                    {chatLoading && (
-                                                        <div className="flex justify-start">
-                                                            <div className="bg-gray-100 p-3 rounded-lg flex items-center gap-2">
-                                                                <Loader2 className="w-4 h-4 animate-spin text-gray-500" />
-                                                                <span className="text-xs text-gray-500">Thinking...</span>
-                                                            </div>
-                                                        </div>
-                                                    )}
-                                                </div>
-                                                <div className="p-3 border-t">
-                                                    <form onSubmit={handleChatSubmit} className="flex gap-2">
-                                                        <Input
-                                                            value={chatInput}
-                                                            onChange={e => setChatInput(e.target.value)}
-                                                            placeholder="Type a message..."
-                                                            className="flex-1 h-9"
-                                                        />
-                                                        <Button type="submit" size="sm" disabled={chatLoading} className="h-9 px-3">
-                                                            <Send className="w-4 h-4" />
-                                                        </Button>
-                                                    </form>
-                                                </div>
+                                                <form onSubmit={handleChatSubmit} className="p-2 border-t flex gap-2"><Input value={chatInput} onChange={e => setChatInput(e.target.value)} placeholder="Type..." className="h-9" /><Button type="submit" size="sm" disabled={chatLoading}><Send className="w-4 h-4" /></Button></form>
                                             </div>
                                         )}
                                     </TabsContent>
-
-                                </div>
-                            </ScrollArea>
-                        </Tabs>
+                                </Tabs>
+                            </div>
+                        </ScrollArea>
                     </>
                 )}
             </SheetContent>

@@ -14,6 +14,7 @@ import {
   Calendar,
   Users,
 } from 'lucide-react';
+import { DashboardStatCard } from './DashboardStatCard';
 import {
   BarChart,
   Bar,
@@ -161,12 +162,12 @@ export function Dashboard() {
   const statusData = stats.tendersByStatus.map((item: any) => ({
     name: item.status,
     value: item.count,
-    color: item.status === 'Won' ? '#059669' : 
-           item.status === 'Lost' ? '#ef4444' :
-           item.status === 'Draft' ? '#6b7280' :
-           item.status === 'Submitted' ? '#8b5cf6' :
-           item.status === 'Under Review' ? '#3b82f6' :
-           item.status === 'Shortlisted' ? '#10b981' : '#f59e0b',
+    color: item.status === 'Won' ? '#059669' :
+      item.status === 'Lost' ? '#ef4444' :
+        item.status === 'Draft' ? '#6b7280' :
+          item.status === 'Submitted' ? '#8b5cf6' :
+            item.status === 'Under Review' ? '#3b82f6' :
+              item.status === 'Shortlisted' ? '#10b981' : '#f59e0b',
   }));
 
   // Use real category data from API
@@ -216,21 +217,26 @@ export function Dashboard() {
       <ScrollArea className="flex-1">
         <div className="p-6 space-y-6">
           {/* Stats Grid */}
-          <div className="grid grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4">
-            {statsCards.map((stat, index) => (
-              <Card key={index} className="p-6">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm text-muted-foreground">{stat.title}</p>
-                    <p className="text-3xl mt-2">{stat.value}</p>
-                    <p className="text-sm text-green-600 mt-1">{stat.change} from last month</p>
-                  </div>
-                  <div className={`w-12 h-12 ${stat.color} rounded-lg flex items-center justify-center`}>
-                    <stat.icon className="w-6 h-6 text-white" />
-                  </div>
-                </div>
-              </Card>
-            ))}
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+            {statsCards.map((stat, index) => {
+              const rawValue = index === 3 ? stats.totalValue :
+                index === 4 ? stats.totalEMD || 0 :
+                  index === 5 ? stats.totalFees || 0 :
+                    null;
+
+              return (
+                <DashboardStatCard
+                  key={index}
+                  title={stat.title}
+                  value={stat.value}
+                  rawValue={rawValue}
+                  change={stat.change}
+                  icon={stat.icon}
+                  color={stat.color}
+                  formatCurrency={formatCurrency}
+                />
+              );
+            })}
           </div>
 
           {/* Charts Row */}
@@ -240,14 +246,14 @@ export function Dashboard() {
               <h3 className="mb-4">Tenders by Category</h3>
               <div className="overflow-x-auto">
                 <ResponsiveContainer width="100%" height={300} minWidth={400}>
-                <BarChart data={categoryData}>
-                  <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis dataKey="category" />
-                  <YAxis />
-                  <Tooltip />
-                  <Bar dataKey="count" fill="#3b82f6" name="Count" />
-                </BarChart>
-              </ResponsiveContainer>
+                  <BarChart data={categoryData}>
+                    <CartesianGrid strokeDasharray="3 3" />
+                    <XAxis dataKey="category" />
+                    <YAxis />
+                    <Tooltip />
+                    <Bar dataKey="count" fill="#3b82f6" name="Count" />
+                  </BarChart>
+                </ResponsiveContainer>
               </div>
             </Card>
 
@@ -256,26 +262,26 @@ export function Dashboard() {
               <h3 className="mb-4">Tender Status Distribution</h3>
               <div className="overflow-x-auto">
                 <ResponsiveContainer width="100%" height={300} minWidth={400}>
-                <PieChart>
-                  <Pie
-                    data={statusData}
-                    cx="50%"
-                    cy="50%"
-                    labelLine={false}
-                    label={({ name, percent }) =>
-                      `${name} ${(percent * 100).toFixed(0)}%`
-                    }
-                    outerRadius={100}
-                    fill="#8884d8"
-                    dataKey="value"
-                  >
-                    {statusData.map((entry, index) => (
-                      <Cell key={`cell-${index}`} fill={entry.color} />
-                    ))}
-                  </Pie>
-                  <Tooltip />
-                </PieChart>
-              </ResponsiveContainer>
+                  <PieChart>
+                    <Pie
+                      data={statusData}
+                      cx="50%"
+                      cy="50%"
+                      labelLine={false}
+                      label={({ name, percent }) =>
+                        `${name} ${(percent * 100).toFixed(0)}%`
+                      }
+                      outerRadius={100}
+                      fill="#8884d8"
+                      dataKey="value"
+                    >
+                      {statusData.map((entry, index) => (
+                        <Cell key={`cell-${index}`} fill={entry.color} />
+                      ))}
+                    </Pie>
+                    <Tooltip />
+                  </PieChart>
+                </ResponsiveContainer>
               </div>
             </Card>
           </div>

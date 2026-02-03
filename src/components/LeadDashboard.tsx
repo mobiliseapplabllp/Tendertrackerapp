@@ -582,7 +582,7 @@ export function LeadDashboard({ onLogout, onNavigate }: LeadDashboardProps) {
                         </TableCell>
                       </TableRow>
                     ) : (
-                      filteredLeads.map((lead) => (
+                      filteredLeads.map((lead, index) => (
                         <TableRow
                           key={lead.id}
                           className="cursor-pointer hover:bg-gray-50"
@@ -669,7 +669,7 @@ export function LeadDashboard({ onLogout, onNavigate }: LeadDashboardProps) {
                         </TableCell>
                       </TableRow>
                     ) : (
-                      filteredLeads.map((lead) => (
+                      filteredLeads.map((lead, index) => (
                         <TableRow
                           key={lead.id}
                           className="opacity-60 hover:opacity-100"

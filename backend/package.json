@@ -28,6 +28,7 @@
     "migrate:crm": "ts-node scripts/run-crm-migrations.ts safe",
     "migrate:crm:rename": "ts-node scripts/run-crm-migrations.ts rename",
     "migrate:tender-scout": "ts-node scripts/run-tender-scout-migration.ts",
+    "migrate:document-categories": "ts-node scripts/run-document-categories-seed.ts",
     "test:notifications": "ts-node scripts/send-test-notifications.ts",
     "send-reminders": "ts-node src/scripts/send-reminders.ts"
   },

@@ -8,6 +8,7 @@ import { AIService } from '../services/aiService';
 import { DocumentExtractor } from '../services/documentExtractor';
 import { emailService } from '../services/emailService';
 import logger from '../utils/logger';
+import { ReminderController } from './reminderController';
 
 export class TenderController {
   /**
@@ -346,11 +347,58 @@ export class TenderController {
     } catch (error: any) {
       next(error);
     }
+
   }
 
   /**
-   * Create tender
+   * Get all reminders for a tender
    */
+  static async getReminders(req: Request, res: Response, next: NextFunction) {
+    try {
+      const { id } = req.params;
+
+      // Verify tender exists
+      // Get all activities for this tender that have reminders
+      const [reminders] = await db.query(
+        `SELECT 
+          r.*,
+          creator.id as creator_id, creator.full_name as creator_name, creator.email as creator_email,
+          completer.id as completer_id, completer.full_name as completer_name, completer.email as completer_email
+         FROM work_log_reminders r
+         INNER JOIN tender_activities ta ON r.activity_id = ta.id
+         LEFT JOIN users creator ON r.created_by = creator.id
+         LEFT JOIN users completer ON r.completed_by = completer.id
+         WHERE ta.tender_id = ? AND r.deleted_at IS NULL
+         ORDER BY r.created_at DESC`,
+        [id]
+      );
+
+      const remindersArray = reminders as any[];
+
+      // Get recipients for each reminder
+      for (const reminder of remindersArray) {
+        const [recipients] = await db.query(
+          `SELECT 
+            rec.*,
+            u.id as user_id, u.full_name as user_name, u.email as user_email, u.phone as user_phone
+           FROM work_log_reminder_recipients rec
+           LEFT JOIN users u ON rec.user_id = u.id
+           WHERE rec.reminder_id = ?`,
+          [reminder.id]
+        );
+
+        reminder.recipients = recipients as any[];
+      }
+
+      res.json({
+        success: true,
+        data: remindersArray.map(ReminderController.transformReminder),
+      });
+    } catch (error: any) {
+      next(error);
+    }
+  }
+
   static async create(req: Request, res: Response, next: NextFunction) {
     try {
       const {
@@ -582,6 +630,7 @@ export class TenderController {
         expectedAwardDate: 'expected_award_date',
         contractDurationMonths: 'contract_duration_months',
         assignedTo: 'assigned_to',
+        leadTypeId: 'lead_type_id', // Added leadTypeId mapping
       };
 
       // Track all field changes for activity logging
