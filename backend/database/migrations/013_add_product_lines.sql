@@ -39,10 +39,31 @@ CREATE TABLE IF NOT EXISTS user_product_lines (
 -- 4. Add product_line_id and sub_category to tenders table
 -- (Note: The table might be named 'tenders' or 'leads' depending on migration state)
 
--- Try adding to 'tenders' table first
-ALTER TABLE tenders
-    ADD COLUMN IF NOT EXISTS product_line_id INT NULL,
-    ADD COLUMN IF NOT EXISTS sub_category ENUM('Software', 'Hardware') NULL;
+-- Add product_line_id column if it doesn't exist
+SET @col_exists = (SELECT COUNT(*) FROM information_schema.COLUMNS
+    WHERE TABLE_SCHEMA = DATABASE()
+    AND TABLE_NAME = 'tenders'
+    AND COLUMN_NAME = 'product_line_id');
+
+SET @sql = IF(@col_exists = 0,
+    'ALTER TABLE tenders ADD COLUMN product_line_id INT NULL',
+    'SELECT 1');
+PREPARE stmt FROM @sql;
+EXECUTE stmt;
+DEALLOCATE PREPARE stmt;
+
+-- Add sub_category column if it doesn't exist
+SET @col_exists = (SELECT COUNT(*) FROM information_schema.COLUMNS
+    WHERE TABLE_SCHEMA = DATABASE()
+    AND TABLE_NAME = 'tenders'
+    AND COLUMN_NAME = 'sub_category');
+
+SET @sql = IF(@col_exists = 0,
+    'ALTER TABLE tenders ADD COLUMN sub_category ENUM(''Software'', ''Hardware'') NULL',
+    'SELECT 1');
+PREPARE stmt FROM @sql;
+EXECUTE stmt;
+DEALLOCATE PREPARE stmt;
 
 -- Add foreign key (wrapped in procedure to handle if already exists)
 -- Check if FK already exists before adding
