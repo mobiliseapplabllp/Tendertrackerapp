@@ -1,22 +1,4 @@
 import { useState, useEffect } from 'react';
-
-// ESC key handler component
-function EscKeyHandler({ isOpen, onClose }: { isOpen: boolean; onClose: () => void }) {
-  useEffect(() => {
-    const handleEsc = (e: KeyboardEvent) => {
-      if (e.key === 'Escape' && isOpen) {
-        onClose();
-      }
-    };
-
-    if (isOpen) {
-      window.addEventListener('keydown', handleEsc);
-      return () => window.removeEventListener('keydown', handleEsc);
-    }
-  }, [isOpen, onClose]);
-
-  return null;
-}
 import { Button } from './ui/button';
 import { Input } from './ui/input';
 import { Label } from './ui/label';
@@ -40,8 +22,26 @@ import { Card } from './ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs';
 import { Users, Plus, Edit, Trash2, Search, Shield, X, Save, UserCheck, UserX } from 'lucide-react';
 import { ScrollArea } from './ui/scroll-area';
-import { userApi } from '../lib/api';
-import type { User } from '../lib/types';
+import { userApi, productLineApi } from '../lib/api';
+import type { User, ProductLine } from '../lib/types';
+
+// ESC key handler component
+function EscKeyHandler({ isOpen, onClose }: { isOpen: boolean; onClose: () => void }) {
+  useEffect(() => {
+    const handleEsc = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && isOpen) {
+        onClose();
+      }
+    };
+
+    if (isOpen) {
+      window.addEventListener('keydown', handleEsc);
+      return () => window.removeEventListener('keydown', handleEsc);
+    }
+  }, [isOpen, onClose]);
+
+  return null;
+}
 
 export function UserManagement() {
   const [users, setUsers] = useState<User[]>([]);
@@ -53,6 +53,9 @@ export function UserManagement() {
   const [isCreateUserOpen, setIsCreateUserOpen] = useState(false);
   const [editingUser, setEditingUser] = useState<User | null>(null);
 
+  const [productLines, setProductLines] = useState<ProductLine[]>([]);
+  const [selectedProductLineIds, setSelectedProductLineIds] = useState<number[]>([]);
+
   const [formData, setFormData] = useState({
     fullName: '',
     email: '',
@@ -61,10 +64,28 @@ export function UserManagement() {
     password: '',
   });
 
-  // Fetch users from API
+  // Fetch users and product lines from API
   useEffect(() => {
     fetchUsers();
+    fetchProductLines();
   }, []);
+
+  const fetchProductLines = async () => {
+    try {
+      const response = await productLineApi.getAll();
+      if (response.success && response.data) {
+        setProductLines(Array.isArray(response.data) ? response.data : response.data.data || []);
+      }
+    } catch (err: any) {
+      console.error('Failed to load product lines:', err.message);
+    }
+  };
+
+  const toggleProductLine = (plId: number) => {
+    setSelectedProductLineIds(prev =>
+      prev.includes(plId) ? prev.filter(id => id !== plId) : [...prev, plId]
+    );
+  };
 
   const fetchUsers = async () => {
     try {
@@ -121,12 +142,14 @@ export function UserManagement() {
         role: formData.role,
         department: formData.department || null,
         password: formData.password,
+        productLineIds: selectedProductLineIds,
       });
 
       if (response.success) {
         await fetchUsers();
         setIsCreateUserOpen(false);
         setFormData({ fullName: '', email: '', role: 'User', department: '', password: '' });
+        setSelectedProductLineIds([]);
         setError(null);
       } else {
         setError(response.error || 'Failed to create user');
@@ -176,6 +199,9 @@ export function UserManagement() {
       department: user.department || '',
       password: '', // Don't pre-fill password
     });
+    // Set product line selections from user data
+    const plIds = user.productLines?.map((pl: any) => typeof pl === 'object' ? pl.id : pl) || user.productLineIds || [];
+    setSelectedProductLineIds(plIds);
     setIsCreateUserOpen(true);
   };
 
@@ -193,6 +219,7 @@ export function UserManagement() {
         fullName: formData.fullName,
         role: formData.role,
         department: formData.department || null,
+        productLineIds: selectedProductLineIds,
       };
 
       // Only include password if it's provided
@@ -207,6 +234,7 @@ export function UserManagement() {
         setIsCreateUserOpen(false);
         setEditingUser(null);
         setFormData({ fullName: '', email: '', role: 'User', department: '', password: '' });
+        setSelectedProductLineIds([]);
         setError(null);
       } else {
         setError(response.error || 'Failed to update user');
@@ -341,6 +369,7 @@ export function UserManagement() {
                       <TableRow>
                         <TableHead>User</TableHead>
                         <TableHead>Role</TableHead>
+                        <TableHead>Product Lines</TableHead>
                         <TableHead>Department</TableHead>
                         <TableHead>Status</TableHead>
                         <TableHead>Last Login</TableHead>
@@ -351,7 +380,7 @@ export function UserManagement() {
                     <TableBody>
                       {filteredUsers.length === 0 ? (
                         <TableRow>
-                          <TableCell colSpan={7} className="text-center py-8">
+                          <TableCell colSpan={8} className="text-center py-8">
                             <Users className="w-12 h-12 mx-auto mb-2 opacity-50" />
                             <p className="text-muted-foreground">No users found</p>
                           </TableCell>
@@ -371,6 +400,19 @@ export function UserManagement() {
                               <Badge className={getRoleBadgeColor(user.role)}>
                                 {user.role}
                               </Badge>
+                            </TableCell>
+                            <TableCell>
+                              <div className="flex flex-wrap gap-1">
+                                {user.productLines && user.productLines.length > 0 ? (
+                                  user.productLines.map((pl: any) => (
+                                    <Badge key={pl.id || pl} variant="outline" className="text-xs bg-blue-50 text-blue-700 border-blue-200">
+                                      {pl.name || pl}
+                                    </Badge>
+                                  ))
+                                ) : (
+                                  <span className="text-xs text-muted-foreground">All (No restriction)</span>
+                                )}
+                              </div>
                             </TableCell>
                             <TableCell>{user.department || 'N/A'}</TableCell>
                             <TableCell>
@@ -628,6 +670,23 @@ export function UserManagement() {
                   </div>
                 </div>
               </Card>
+
+              <Card className="p-6">
+                <h3 className="mb-4">Product Line Visibility</h3>
+                <p className="text-sm text-muted-foreground mb-3">
+                  Users can be assigned to one or more product lines. This controls which leads and tenders they can see.
+                </p>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="p-3 rounded-lg bg-blue-50 border border-blue-200">
+                    <p className="text-sm font-medium text-blue-800">Assigned Product Lines</p>
+                    <p className="text-xs text-blue-600 mt-1">User sees only leads/tenders from their assigned product lines. They can still create leads for any product line.</p>
+                  </div>
+                  <div className="p-3 rounded-lg bg-gray-50 border border-gray-200">
+                    <p className="text-sm font-medium text-gray-800">No Product Lines Assigned</p>
+                    <p className="text-xs text-gray-600 mt-1">Admin/Manager users with no product line assignments have global visibility and can see all leads/tenders.</p>
+                  </div>
+                </div>
+              </Card>
             </TabsContent>
           </Tabs>
         </div>
@@ -643,6 +702,7 @@ export function UserManagement() {
               setIsCreateUserOpen(false);
               setEditingUser(null);
               setFormData({ fullName: '', email: '', role: 'User', department: '', password: '' });
+              setSelectedProductLineIds([]);
               setError(null);
             }}
           />
@@ -652,6 +712,7 @@ export function UserManagement() {
               setIsCreateUserOpen(false);
               setEditingUser(null);
               setFormData({ fullName: '', email: '', role: 'User', department: '', password: '' });
+              setSelectedProductLineIds([]);
               setError(null);
             }}
           />
@@ -672,9 +733,9 @@ export function UserManagement() {
                 </div>
               </div>
               <div className="flex items-center gap-2">
-                <Button onClick={isCreateUserOpen ? handleCreateUser : handleUpdateUser} data-testid="btn-create-user">
+                <Button onClick={editingUser ? handleUpdateUser : handleCreateUser} data-testid="btn-create-user">
                   <Save className="w-4 h-4 mr-2" />
-                  {isCreateUserOpen ? 'Create User' : 'Update User'}
+                  {editingUser ? 'Update User' : 'Create User'}
                 </Button>
                 <Button
                   variant="ghost"
@@ -777,6 +838,45 @@ export function UserManagement() {
                         }
                       />
                     </div>
+                  </div>
+
+                  {/* Product Lines Assignment */}
+                  <div className="space-y-3">
+                    <Label>Product Lines</Label>
+                    <p className="text-xs text-muted-foreground">
+                      Assign product lines to control which leads/tenders this user can see. Leave empty for full visibility (Admin/Manager default).
+                    </p>
+                    <div className="grid grid-cols-2 gap-3">
+                      {productLines.map((pl) => (
+                        <div
+                          key={pl.id}
+                          className={`flex items-center gap-3 p-3 rounded-lg border cursor-pointer transition-colors ${
+                            selectedProductLineIds.includes(pl.id)
+                              ? 'bg-blue-50 border-blue-300'
+                              : 'bg-white border-gray-200 hover:border-gray-300'
+                          }`}
+                          onClick={() => toggleProductLine(pl.id)}
+                        >
+                          <input
+                            type="checkbox"
+                            checked={selectedProductLineIds.includes(pl.id)}
+                            onChange={() => toggleProductLine(pl.id)}
+                            className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                          />
+                          <div>
+                            <p className="text-sm font-medium">{pl.name}</p>
+                            {pl.description && (
+                              <p className="text-xs text-muted-foreground">{pl.description}</p>
+                            )}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                    {selectedProductLineIds.length > 0 && (
+                      <p className="text-xs text-blue-600">
+                        {selectedProductLineIds.length} product line(s) selected — user will only see leads from these product lines
+                      </p>
+                    )}
                   </div>
                 </div>
               </div>

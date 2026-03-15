@@ -53,6 +53,8 @@ router.post(
       emdAmount: Joi.number().min(0).allow(null),
       tenderFees: Joi.number().min(0).allow(null),
       source: Joi.string().allow(null, ''),
+      productLineId: Joi.number().integer().positive().allow(null),
+      subCategory: Joi.string().valid('Software', 'Hardware').allow(null, ''),
     }),
   }),
   LeadController.create
@@ -87,6 +89,8 @@ router.put(
       emdAmount: Joi.number().min(0).allow(null),
       tenderFees: Joi.number().min(0).allow(null),
       source: Joi.string().allow(null, ''),
+      productLineId: Joi.number().integer().positive().allow(null),
+      subCategory: Joi.string().valid('Software', 'Hardware').allow(null, ''),
     }),
   }),
   LeadController.update

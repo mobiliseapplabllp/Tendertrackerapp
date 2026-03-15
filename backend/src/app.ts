@@ -31,6 +31,7 @@ import dealRoutes from './routes/deals';
 import aiRoutes from './routes/ai';
 import tenderScoutRoutes from './routes/tenderScout';
 import configurationRoutes from './routes/configurationRoutes';
+import productLineRoutes from './routes/productLines';
 import { ReminderService } from './services/reminderService';
 
 const app: Express = express();
@@ -155,6 +156,7 @@ app.use(`/api/${API_VERSION}/deals`, dealRoutes);
 app.use(`/api/${API_VERSION}/ai`, aiRoutes);
 app.use(`/api/${API_VERSION}/tender-scout`, tenderScoutRoutes);
 app.use(`/api/${API_VERSION}/configuration`, configurationRoutes);
+app.use(`/api/${API_VERSION}/product-lines`, productLineRoutes);
 
 // 404 handler
 app.use(notFoundHandler);

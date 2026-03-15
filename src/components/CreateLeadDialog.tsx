@@ -14,8 +14,8 @@ import { Badge } from './ui/badge';
 import type { Lead, LeadType } from '../lib/types';
 import { X, FileText, Save, Upload, Trash2 } from 'lucide-react';
 import { ScrollArea } from './ui/scroll-area';
-import { documentApi, companyApi, leadTypeApi } from '../lib/api';
-import type { Company } from '../lib/types';
+import { documentApi, companyApi, leadTypeApi, productLineApi } from '../lib/api';
+import type { Company, ProductLine } from '../lib/types';
 
 interface CreateLeadDialogProps {
   isOpen: boolean;
@@ -42,11 +42,14 @@ export function CreateLeadDialog({
     companyId: '',
     leadTypeId: '',
     source: '',
+    productLineId: '',
+    subCategory: '',
   });
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
   const [isUploading, setIsUploading] = useState(false);
   const [companies, setCompanies] = useState<Company[]>([]);
   const [leadTypes, setLeadTypes] = useState<LeadType[]>([]);
+  const [productLines, setProductLines] = useState<ProductLine[]>([]);
   const [loadingCompanies, setLoadingCompanies] = useState(false);
   const [loadingLeadTypes, setLoadingLeadTypes] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -56,8 +59,20 @@ export function CreateLeadDialog({
     if (isOpen) {
       fetchCompanies();
       fetchLeadTypes();
+      fetchProductLines();
     }
   }, [isOpen]);
+
+  const fetchProductLines = async () => {
+    try {
+      const response = await productLineApi.getAll();
+      if (response.success && response.data) {
+        setProductLines(Array.isArray(response.data) ? response.data : response.data.data || []);
+      }
+    } catch (err: any) {
+      console.error('Failed to load product lines:', err.message);
+    }
+  };
 
   const fetchCompanies = async () => {
     try {
@@ -151,7 +166,9 @@ export function CreateLeadDialog({
         companyId: formData.companyId ? parseInt(formData.companyId) : undefined,
         leadTypeId: formData.leadTypeId ? parseInt(formData.leadTypeId) : undefined,
         source: formData.source || undefined,
-      };
+        productLineId: formData.productLineId ? parseInt(formData.productLineId) : undefined,
+        subCategory: formData.subCategory || undefined,
+      } as any;
 
       // Create lead with documents
       await onCreate(apiData, selectedFiles);
@@ -171,6 +188,8 @@ export function CreateLeadDialog({
         companyId: '',
         leadTypeId: '',
         source: '',
+        productLineId: '',
+        subCategory: '',
       });
       setSelectedFiles([]);
       onClose();
@@ -291,6 +310,49 @@ export function CreateLeadDialog({
                     </SelectContent>
                   </Select>
                   <p className="text-xs text-muted-foreground">Lead type is automatically set to "Lead" for new leads</p>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-6">
+                <div className="space-y-2">
+                  <Label htmlFor="productLineId">Product Line *</Label>
+                  <Select
+                    value={formData.productLineId || 'none'}
+                    onValueChange={(value) =>
+                      setFormData({ ...formData, productLineId: value && value !== 'none' ? value : '' })
+                    }
+                  >
+                    <SelectTrigger id="productLineId">
+                      <SelectValue placeholder="Select product line" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="none">Select product line</SelectItem>
+                      {productLines.map((pl) => (
+                        <SelectItem key={pl.id} value={pl.id.toString()}>
+                          {pl.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="subCategory">Sub Category</Label>
+                  <Select
+                    value={formData.subCategory || 'none'}
+                    onValueChange={(value) =>
+                      setFormData({ ...formData, subCategory: value && value !== 'none' ? value : '' })
+                    }
+                  >
+                    <SelectTrigger id="subCategory">
+                      <SelectValue placeholder="Select sub category" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="none">None</SelectItem>
+                      <SelectItem value="Software">Software</SelectItem>
+                      <SelectItem value="Hardware">Hardware</SelectItem>
+                    </SelectContent>
+                  </Select>
                 </div>
               </div>
 

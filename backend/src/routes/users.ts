@@ -87,6 +87,7 @@ router.post(
       role: Joi.string().valid('Admin', 'Manager', 'User', 'Viewer').default('User'),
       department: Joi.string().max(100).allow(null, ''),
       phone: Joi.string().max(20).allow(null, ''),
+      productLineIds: Joi.array().items(Joi.number().integer().positive()).optional(),
     }),
   }),
   UserController.create
@@ -108,6 +109,7 @@ router.put(
       department: Joi.string().max(100).allow(null, '').optional(),
       phone: Joi.string().max(20).allow(null, '').optional(),
       status: Joi.string().valid('Active', 'Inactive', 'Suspended').optional(),
+      productLineIds: Joi.array().items(Joi.number().integer().positive()).optional(),
     }),
   }),
   UserController.update

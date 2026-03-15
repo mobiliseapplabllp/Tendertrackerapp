@@ -20,8 +20,8 @@ import {
 } from './ui/table';
 
 import { CreateLeadDialog } from './CreateLeadDialog';
-import { leadApi, authApi, documentApi } from '../lib/api';
-import type { Lead, User as UserType } from '../lib/types';
+import { leadApi, authApi, documentApi, productLineApi } from '../lib/api';
+import type { Lead, User as UserType, ProductLine } from '../lib/types';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs';
 import {
   FileText,
@@ -59,6 +59,8 @@ export function LeadDashboard({ onLogout, onNavigate }: LeadDashboardProps) {
   const [deletedCount, setDeletedCount] = useState(0);
   const [currentUser, setCurrentUser] = useState<UserType | null>(null);
   const [isProfileDropdownOpen, setIsProfileDropdownOpen] = useState(false);
+  const [productLines, setProductLines] = useState<ProductLine[]>([]);
+  const [productLineFilter, setProductLineFilter] = useState('all');
   const { formatCurrency, formatDate } = useSettings();
 
   const handleLeadClick = (lead: Lead) => {
@@ -96,7 +98,19 @@ export function LeadDashboard({ onLogout, onNavigate }: LeadDashboardProps) {
       }
     };
     fetchCurrentUser();
+    fetchProductLines();
   }, []);
+
+  const fetchProductLines = async () => {
+    try {
+      const response = await productLineApi.getAll();
+      if (response.success && response.data) {
+        setProductLines(Array.isArray(response.data) ? response.data : response.data.data || []);
+      }
+    } catch (err: any) {
+      console.error('Failed to load product lines:', err.message);
+    }
+  };
 
   // Fetch leads from API
   useEffect(() => {
@@ -357,7 +371,9 @@ export function LeadDashboard({ onLogout, onNavigate }: LeadDashboardProps) {
     const matchesStatus = statusFilter === 'all' || lead.status === statusFilter;
     const matchesCreator =
       createdByFilter === 'all' || String(lead.createdBy) === createdByFilter;
-    return matchesSearch && matchesStatus && matchesCreator;
+    const matchesProductLine =
+      productLineFilter === 'all' || String(lead.productLineId) === productLineFilter;
+    return matchesSearch && matchesStatus && matchesCreator && matchesProductLine;
   });
 
   return (
@@ -529,6 +545,19 @@ export function LeadDashboard({ onLogout, onNavigate }: LeadDashboardProps) {
                   ))}
                 </SelectContent>
               </Select>
+              <Select value={productLineFilter} onValueChange={setProductLineFilter}>
+                <SelectTrigger className="w-[160px]">
+                  <SelectValue placeholder="Product Line" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Product Lines</SelectItem>
+                  {productLines.map((pl) => (
+                    <SelectItem key={pl.id} value={pl.id.toString()}>
+                      {pl.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
               <Button
                 onClick={() => setIsCreateDialogOpen(true)}
                 aria-label="Create new lead"
@@ -566,6 +595,7 @@ export function LeadDashboard({ onLogout, onNavigate }: LeadDashboardProps) {
                       <TableHead>Lead ID</TableHead>
                       <TableHead>Title</TableHead>
                       <TableHead>Client</TableHead>
+                      <TableHead>Product Line</TableHead>
                       <TableHead>Status</TableHead>
                       <TableHead>Due Date</TableHead>
                       <TableHead>Value</TableHead>
@@ -577,7 +607,7 @@ export function LeadDashboard({ onLogout, onNavigate }: LeadDashboardProps) {
                   <TableBody>
                     {filteredLeads.length === 0 ? (
                       <TableRow>
-                        <TableCell colSpan={9} className="text-center py-8 text-muted-foreground">
+                        <TableCell colSpan={11} className="text-center py-8 text-muted-foreground">
                           No active leads found
                         </TableCell>
                       </TableRow>
@@ -605,6 +635,22 @@ export function LeadDashboard({ onLogout, onNavigate }: LeadDashboardProps) {
                             </div>
                           </TableCell>
                           <TableCell>{lead.client}</TableCell>
+                          <TableCell>
+                            <div className="flex flex-wrap gap-1">
+                              {lead.productLineId ? (
+                                <Badge variant="outline" className="text-xs bg-blue-50 text-blue-700 border-blue-200">
+                                  {productLines.find(pl => pl.id === lead.productLineId)?.name || `PL-${lead.productLineId}`}
+                                </Badge>
+                              ) : (
+                                <span className="text-xs text-muted-foreground">-</span>
+                              )}
+                              {lead.subCategory && (
+                                <Badge variant="outline" className="text-xs bg-gray-50 text-gray-600 border-gray-200">
+                                  {lead.subCategory}
+                                </Badge>
+                              )}
+                            </div>
+                          </TableCell>
                           <TableCell>{getStatusBadge(lead.status)}</TableCell>
                           <TableCell>
                             <div className="flex flex-col gap-1">

@@ -14,8 +14,8 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs';
 import { ScrollArea } from './ui/scroll-area';
 import { Separator } from './ui/separator';
-import type { Tender, TenderActivity, Document, Company, WorkLogReminder } from '../lib/types';
-import { documentApi, tenderApi, companyApi, reminderApi, userApi } from '../lib/api';
+import type { Tender, TenderActivity, Document, Company, WorkLogReminder, User as UserType, ProductLine } from '../lib/types';
+import { documentApi, tenderApi, companyApi, reminderApi, userApi, productLineApi } from '../lib/api';
 import {
   X,
   FileText,
@@ -75,6 +75,7 @@ export function TenderDetailsPage({ tenderId, onBack, onUpdate }: TenderDetailsP
   const [saveSuccess, setSaveSuccess] = useState<string | null>(null);
   const [saveError, setSaveError] = useState<string | null>(null);
   const [companies, setCompanies] = useState<Company[]>([]);
+  const [productLines, setProductLines] = useState<ProductLine[]>([]);
   const [loadingCompanies, setLoadingCompanies] = useState(false);
   const [editingWorkLog, setEditingWorkLog] = useState<TenderActivity | null>(null);
   const [editWorkLogForm, setEditWorkLogForm] = useState({
@@ -92,7 +93,7 @@ export function TenderDetailsPage({ tenderId, onBack, onUpdate }: TenderDetailsP
   });
   const [newRecipientEmail, setNewRecipientEmail] = useState('');
   const [newRecipientPhone, setNewRecipientPhone] = useState('');
-  const [users, setUsers] = useState<User[]>([]);
+  const [users, setUsers] = useState<UserType[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const technicalFileInputRef = useRef<HTMLInputElement>(null);
   const [generatingSummary, setGeneratingSummary] = useState(false);
@@ -110,11 +111,23 @@ export function TenderDetailsPage({ tenderId, onBack, onUpdate }: TenderDetailsP
     fetchTender();
   }, [tenderId]);
 
-  // Fetch companies on mount
+  // Fetch companies and product lines on mount
   useEffect(() => {
     fetchCompanies();
     fetchUsers();
+    fetchProductLines();
   }, []);
+
+  const fetchProductLines = async () => {
+    try {
+      const response = await productLineApi.getAll();
+      if (response.success && response.data) {
+        setProductLines(Array.isArray(response.data) ? response.data : response.data.data || []);
+      }
+    } catch (err: any) {
+      console.error('Failed to load product lines:', err.message);
+    }
+  };
 
   const fetchTender = async () => {
     try {
@@ -376,6 +389,8 @@ export function TenderDetailsPage({ tenderId, onBack, onUpdate }: TenderDetailsP
       if (editedTender.assignedTo !== undefined) updatePayload.assignedTo = editedTender.assignedTo;
       if (editedTender.emdAmount !== undefined) updatePayload.emdAmount = editedTender.emdAmount;
       if (editedTender.tenderFees !== undefined) updatePayload.tenderFees = editedTender.tenderFees;
+      if (editedTender.productLineId !== undefined) updatePayload.productLineId = editedTender.productLineId;
+      if (editedTender.subCategory !== undefined) updatePayload.subCategory = editedTender.subCategory;
 
       // Call the API directly instead of using onUpdate to avoid sending invalid fields
       const response = await tenderApi.update(tender.id, updatePayload);
@@ -802,7 +817,7 @@ export function TenderDetailsPage({ tenderId, onBack, onUpdate }: TenderDetailsP
     try {
       await documentApi.view(docId);
     } catch (error: any) {
-      toast.error(`Failed to view document: ${error.message || 'Unknown error'}`);
+      alert(`Failed to view document: ${error.message || 'Unknown error'}`);
     }
   };
 
@@ -828,10 +843,10 @@ export function TenderDetailsPage({ tenderId, onBack, onUpdate }: TenderDetailsP
         document.body.removeChild(a);
       } else {
         const errorData = await response.json().catch(() => ({}));
-        toast.error(`Failed to download document: ${errorData.error || response.statusText}`);
+        alert(`Failed to download document: ${errorData.error || response.statusText}`);
       }
     } catch (error: any) {
-      toast.error(`Failed to download document: ${error.message || 'Unknown error'}`);
+      alert(`Failed to download document: ${error.message || 'Unknown error'}`);
     }
   };
 
@@ -1089,6 +1104,55 @@ export function TenderDetailsPage({ tenderId, onBack, onUpdate }: TenderDetailsP
                       })
                     }
                   />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-6">
+                <div className="space-y-2">
+                  <Label>Product Line</Label>
+                  <Select
+                    value={editedTender.productLineId?.toString() || 'none'}
+                    onValueChange={(value) =>
+                      setEditedTender({
+                        ...editedTender,
+                        productLineId: value && value !== 'none' ? parseInt(value, 10) : undefined,
+                      })
+                    }
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select product line" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="none">None</SelectItem>
+                      {productLines.map((pl) => (
+                        <SelectItem key={pl.id} value={pl.id.toString()}>
+                          {pl.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="space-y-2">
+                  <Label>Sub Category</Label>
+                  <Select
+                    value={editedTender.subCategory || 'none'}
+                    onValueChange={(value) =>
+                      setEditedTender({
+                        ...editedTender,
+                        subCategory: value === 'none' ? undefined : value as any,
+                      })
+                    }
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select sub category" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="none">None</SelectItem>
+                      <SelectItem value="Software">Software</SelectItem>
+                      <SelectItem value="Hardware">Hardware</SelectItem>
+                    </SelectContent>
+                  </Select>
                 </div>
               </div>
 

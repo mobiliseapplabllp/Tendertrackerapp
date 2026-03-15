@@ -20,8 +20,8 @@ import {
 } from './ui/table';
 import { CreateTenderDialog } from './CreateTenderDialog';
 import { TenderDetailDrawer } from './TenderDetailDrawer';
-import { tenderApi, authApi, leadTypeApi, documentApi } from '../lib/api';
-import type { Tender, User as UserType, LeadType } from '../lib/types';
+import { tenderApi, authApi, leadTypeApi, documentApi, productLineApi } from '../lib/api';
+import type { Tender, User as UserType, LeadType, ProductLine } from '../lib/types';
 import { Tabs, TabsList, TabsTrigger } from './ui/tabs';
 import {
   Plus,
@@ -49,9 +49,10 @@ import {
 
 interface TenderDashboardProps {
   onLogout: () => void;
+  onNavigate?: (view: string) => void;
 }
 
-export function TenderDashboard({ onLogout }: TenderDashboardProps) {
+export function TenderDashboard({ onLogout, onNavigate }: TenderDashboardProps) {
   const [tenders, setTenders] = useState<Tender[]>([]);
   const [loading, setLoading] = useState(true);
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
@@ -67,6 +68,8 @@ export function TenderDashboard({ onLogout }: TenderDashboardProps) {
   const [currentUser, setCurrentUser] = useState<UserType | null>(null);
   const [tenderLeadTypeId, setTenderLeadTypeId] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [productLines, setProductLines] = useState<ProductLine[]>([]);
+  const [productLineFilter, setProductLineFilter] = useState('all');
 
   // Drawer State
   const [selectedTenderId, setSelectedTenderId] = useState<number | null>(null);
@@ -242,10 +245,22 @@ export function TenderDashboard({ onLogout }: TenderDashboardProps) {
     fetchCurrentUser();
   }, []);
 
-  // Fetch tender lead type ID on mount
+  // Fetch tender lead type ID and product lines on mount
   useEffect(() => {
     fetchTenderLeadType();
+    fetchProductLines();
   }, []);
+
+  const fetchProductLines = async () => {
+    try {
+      const response = await productLineApi.getAll();
+      if (response.success && response.data) {
+        setProductLines(Array.isArray(response.data) ? response.data : response.data.data || []);
+      }
+    } catch (err: any) {
+      console.error('Failed to load product lines:', err.message);
+    }
+  };
 
   // Fetch deleted count when tender lead type ID is available
   useEffect(() => {
@@ -478,7 +493,11 @@ export function TenderDashboard({ onLogout }: TenderDashboardProps) {
     const matchesCreator =
       createdByFilter === 'all' || String(tender.createdBy) === createdByFilter;
 
-    return matchesSearch && matchesCreator;
+    // Apply product line filter
+    const matchesProductLine =
+      productLineFilter === 'all' || String(tender.productLineId) === productLineFilter;
+
+    return matchesSearch && matchesCreator && matchesProductLine;
   });
 
   return (
@@ -600,6 +619,22 @@ export function TenderDashboard({ onLogout }: TenderDashboardProps) {
               <SelectItem value="Low">Low</SelectItem>
             </SelectContent>
           </Select>
+          <Select value={productLineFilter} onValueChange={(value) => {
+            setProductLineFilter(value);
+            setPage(1);
+          }}>
+            <SelectTrigger className="w-[170px] h-10">
+              <SelectValue placeholder="Product Line" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Product Lines</SelectItem>
+              {productLines.map((pl) => (
+                <SelectItem key={pl.id} value={pl.id.toString()}>
+                  {pl.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
           <Button onClick={() => setIsCreateDialogOpen(true)} size="default" className="h-10 ml-auto">
             <Plus className="w-4 h-4 mr-2" />
             New Tender
@@ -654,6 +689,7 @@ export function TenderDashboard({ onLogout }: TenderDashboardProps) {
                   <TableHead className="w-[60px] text-xs font-semibold uppercase tracking-wider text-gray-500">S.No.</TableHead>
                   <TableHead className="text-xs font-semibold uppercase tracking-wider text-gray-500">Tender ID</TableHead>
                   <TableHead className="text-xs font-semibold uppercase tracking-wider text-gray-500 w-[30%]">Title / Client</TableHead>
+                  <TableHead className="text-xs font-semibold uppercase tracking-wider text-gray-500">Product Line</TableHead>
                   <TableHead className="text-xs font-semibold uppercase tracking-wider text-gray-500">Status</TableHead>
                   <TableHead className="text-xs font-semibold uppercase tracking-wider text-gray-500">Created By</TableHead>
                   <TableHead className="text-xs font-semibold uppercase tracking-wider text-gray-500">Deadline</TableHead>
@@ -664,17 +700,15 @@ export function TenderDashboard({ onLogout }: TenderDashboardProps) {
               <TableBody>
                 {loading ? (
                   <TableRow>
-                    <TableCell colSpan={8} className="h-32 text-center">
+                    <TableCell colSpan={9} className="h-32 text-center">
                       <Loader2 className="w-6 h-6 animate-spin mx-auto text-indigo-600" />
                     </TableCell>
                   </TableRow>
                 ) : filteredTenders.length === 0 ? (
                   <TableRow>
-                    <TableRow>
-                      <TableCell colSpan={8} className="h-32 text-center text-muted-foreground text-sm">
-                        No tenders found.
-                      </TableCell>
-                    </TableRow>
+                    <TableCell colSpan={9} className="h-32 text-center text-muted-foreground text-sm">
+                      No tenders found.
+                    </TableCell>
                   </TableRow>
                 ) : (
                   filteredTenders.map((tender, index) => (
@@ -693,6 +727,22 @@ export function TenderDashboard({ onLogout }: TenderDashboardProps) {
                         <div className="flex flex-col">
                           <span className="text-sm font-medium text-gray-900 truncate max-w-[300px]">{tender.title}</span>
                           <span className="text-xs text-muted-foreground truncate max-w-[300px]">{tender.client}</span>
+                        </div>
+                      </TableCell>
+                      <TableCell className="py-3">
+                        <div className="flex flex-wrap gap-1">
+                          {tender.productLineId ? (
+                            <Badge variant="outline" className="text-xs bg-blue-50 text-blue-700 border-blue-200">
+                              {productLines.find(pl => pl.id === tender.productLineId)?.name || `PL-${tender.productLineId}`}
+                            </Badge>
+                          ) : (
+                            <span className="text-xs text-muted-foreground">-</span>
+                          )}
+                          {tender.subCategory && (
+                            <Badge variant="outline" className="text-xs bg-gray-50 text-gray-600 border-gray-200">
+                              {tender.subCategory}
+                            </Badge>
+                          )}
                         </div>
                       </TableCell>
                       <TableCell className="py-3">

@@ -32,9 +32,6 @@ export function Sidebar({ currentView, onNavigate, onLogout, user }: SidebarProp
   const [isCollapsed, setIsCollapsed] = useState(false);
 
   // Helper to check if user has access to API Playground
-  // DEBUG LOGGING
-  console.log('Sidebar User:', user, 'Role:', user?.role);
-
   const canAccessPlayground = user &&
     ['admin', 'developer', 'senior qa', 'manager', 'superadmin'].includes((user.role || '').toLowerCase());
 

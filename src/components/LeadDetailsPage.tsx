@@ -14,8 +14,8 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs';
 import { ScrollArea } from './ui/scroll-area';
 import { Separator } from './ui/separator';
-import type { Lead, LeadActivity, Document, Company, WorkLogReminder } from '../lib/types';
-import { documentApi, leadApi, companyApi, reminderApi, userApi } from '../lib/api';
+import type { Lead, LeadActivity, Document, Company, WorkLogReminder, ProductLine } from '../lib/types';
+import { documentApi, leadApi, companyApi, reminderApi, userApi, productLineApi } from '../lib/api';
 import {
   X,
   FileText,
@@ -56,10 +56,23 @@ export function LeadDetailsPage({ leadId, onBack, onUpdate }: LeadDetailsPagePro
   const [editedLead, setEditedLead] = useState<Lead | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [productLines, setProductLines] = useState<ProductLine[]>([]);
 
   useEffect(() => {
     fetchLead();
+    fetchProductLines();
   }, [leadId]);
+
+  const fetchProductLines = async () => {
+    try {
+      const response = await productLineApi.getAll();
+      if (response.success && response.data) {
+        setProductLines(Array.isArray(response.data) ? response.data : response.data.data || []);
+      }
+    } catch (err: any) {
+      console.error('Failed to load product lines:', err.message);
+    }
+  };
 
   const fetchLead = async () => {
     try {
@@ -185,6 +198,20 @@ export function LeadDetailsPage({ leadId, onBack, onUpdate }: LeadDetailsPagePro
                 <div>
                   <Label className="text-sm text-muted-foreground">Source</Label>
                   <p className="text-base">{lead.source}</p>
+                </div>
+              )}
+              <div>
+                <Label className="text-sm text-muted-foreground">Product Line</Label>
+                <p className="text-base">
+                  {lead.productLineId
+                    ? productLines.find(pl => pl.id === lead.productLineId)?.name || `PL-${lead.productLineId}`
+                    : 'N/A'}
+                </p>
+              </div>
+              {lead.subCategory && (
+                <div>
+                  <Label className="text-sm text-muted-foreground">Sub Category</Label>
+                  <p className="text-base">{lead.subCategory}</p>
                 </div>
               )}
               {lead.submissionDeadline && (

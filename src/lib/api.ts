@@ -868,6 +868,40 @@ export const documentApi = {
     });
   },
 
+  download: async (docId: number, fileName: string) => {
+    const token = getAuthToken();
+    const API_BASE_URL = import.meta.env?.VITE_API_URL || '/api/v1';
+
+    if (!token) {
+      throw new Error('Not authenticated');
+    }
+
+    try {
+      const response = await fetch(`${API_BASE_URL}/documents/${docId}/download`, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+        },
+      });
+
+      if (response.ok) {
+        const blob = await response.blob();
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = fileName || 'document';
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        setTimeout(() => window.URL.revokeObjectURL(url), 1000);
+      } else {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || response.statusText);
+      }
+    } catch (error: any) {
+      throw new Error(error.message || 'Failed to download document');
+    }
+  },
+
   delete: async (id: number) => {
     return apiCall(`/documents/${id}`, { method: 'DELETE' });
   },
@@ -1338,6 +1372,41 @@ export const configurationApi = {
   clearCache: async () => {
     return apiCall('/configuration/cache/clear', {
       method: 'POST',
+    });
+  },
+};
+
+// Product Line API
+export const productLineApi = {
+  getAll: async () => {
+    return apiCall<any[]>('/product-lines');
+  },
+
+  getById: async (id: number) => {
+    return apiCall<any>(`/product-lines/${id}`);
+  },
+
+  getUserProductLines: async (userId: number) => {
+    return apiCall<any[]>(`/product-lines/user/${userId}`);
+  },
+
+  create: async (data: { name: string; description?: string; displayOrder?: number }) => {
+    return apiCall<any>('/product-lines', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  },
+
+  update: async (id: number, data: { name?: string; description?: string; isActive?: boolean; displayOrder?: number }) => {
+    return apiCall<any>(`/product-lines/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    });
+  },
+
+  delete: async (id: number) => {
+    return apiCall(`/product-lines/${id}`, {
+      method: 'DELETE',
     });
   },
 };

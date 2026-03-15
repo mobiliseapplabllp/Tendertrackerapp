@@ -46,8 +46,8 @@ import {
     Plus,
     Bell
 } from 'lucide-react';
-import type { Tender, TenderActivity, Document, Company, User as UserType, WorkLogReminder } from '../lib/types';
-import { tenderApi, documentApi, companyApi, userApi, leadTypeApi, reminderApi } from '../lib/api';
+import type { Tender, TenderActivity, Document, Company, User as UserType, WorkLogReminder, ProductLine } from '../lib/types';
+import { tenderApi, documentApi, companyApi, userApi, leadTypeApi, reminderApi, productLineApi } from '../lib/api';
 import EnhancedTasksTab from './EnhancedTasksTab';
 import { useSettings } from '../hooks/useSettings';
 
@@ -63,6 +63,7 @@ export function TenderDetailDrawer({ tenderId, isOpen, onClose, onUpdate }: Tend
     const [loading, setLoading] = useState(false);
     const [activeTab, setActiveTab] = useState('details');
     const [leadTypes, setLeadTypes] = useState<any[]>([]); // Store all lead types
+    const [productLines, setProductLines] = useState<ProductLine[]>([]);
 
     // Edit State
     const [editedTender, setEditedTender] = useState<Tender | null>(null);
@@ -160,6 +161,7 @@ export function TenderDetailDrawer({ tenderId, isOpen, onClose, onUpdate }: Tend
         fetchCompanies();
         fetchUsers();
         fetchTenderLeadType();
+        fetchProductLines();
         fetchCategories();
     }, []);
 
@@ -204,6 +206,15 @@ export function TenderDetailDrawer({ tenderId, isOpen, onClose, onUpdate }: Tend
                 setLeadTypes(response.data);
             }
         } catch (e) { console.error(e); }
+    };
+
+    const fetchProductLines = async () => {
+        try {
+            const response = await productLineApi.getAll();
+            if (response.success && response.data) {
+                setProductLines(Array.isArray(response.data) ? response.data : response.data.data || []);
+            }
+        } catch (e) { console.error('Error fetching product lines', e); }
     };
 
     const fetchCompanies = async () => {
@@ -421,7 +432,7 @@ export function TenderDetailDrawer({ tenderId, isOpen, onClose, onUpdate }: Tend
     };
 
     const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>, type: 'documents' | 'technicalDocuments') => {
-        console.log('handleFileUpload triggered', type, e.target.files);
+        // File upload handler
         if (!tender?.id) {
             console.error('No tender ID found');
             return;
@@ -579,6 +590,18 @@ export function TenderDetailDrawer({ tenderId, isOpen, onClose, onUpdate }: Tend
                                                             <SelectContent>{['Low', 'Medium', 'High', 'Critical'].map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}</SelectContent>
                                                         </Select>
                                                     </div>
+                                                    <div className="space-y-1"><Label className="text-[10px] uppercase text-slate-500 font-bold">Product Line</Label>
+                                                        <Select value={editedTender.productLineId?.toString() || 'none'} onValueChange={(v) => setEditedTender({ ...editedTender, productLineId: v === 'none' ? undefined : Number(v) })}>
+                                                            <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Select" /></SelectTrigger>
+                                                            <SelectContent><SelectItem value="none">None</SelectItem>{productLines.map(pl => <SelectItem key={pl.id} value={pl.id.toString()}>{pl.name}</SelectItem>)}</SelectContent>
+                                                        </Select>
+                                                    </div>
+                                                    <div className="space-y-1"><Label className="text-[10px] uppercase text-slate-500 font-bold">Sub Category</Label>
+                                                        <Select value={editedTender.subCategory || 'none'} onValueChange={(v: any) => setEditedTender({ ...editedTender, subCategory: v === 'none' ? undefined : v })}>
+                                                            <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Select" /></SelectTrigger>
+                                                            <SelectContent><SelectItem value="none">None</SelectItem><SelectItem value="Software">Software</SelectItem><SelectItem value="Hardware">Hardware</SelectItem></SelectContent>
+                                                        </Select>
+                                                    </div>
                                                 </div>
                                             </div>
                                             {/* Basic Info */}
@@ -640,7 +663,7 @@ export function TenderDetailDrawer({ tenderId, isOpen, onClose, onUpdate }: Tend
                                                     <div key={doc.id} className="flex justify-between p-3 border rounded-lg bg-white">
                                                         <div className="flex gap-3"><FileText className="w-5 h-5 text-indigo-500" />
                                                             <div><p className="font-medium text-sm">{doc.originalName}</p><p className="text-xs text-slate-500">{formatFileSize(doc.fileSize)} • {safeDate(doc.uploadedAt)}</p></div></div>
-                                                        <div className="flex gap-1"><Button variant="ghost" size="icon"><Download className="w-4 h-4" /></Button><Button variant="ghost" size="icon" onClick={() => documentApi.delete(doc.id).then(() => fetchDocuments(tender!.id))}><Trash2 className="w-4 h-4 text-red-500" /></Button></div>
+                                                        <div className="flex gap-1"><Button variant="ghost" size="icon" onClick={() => documentApi.download(doc.id, doc.originalName).catch((err: any) => alert(`Download failed: ${err.message}`))}><Download className="w-4 h-4" /></Button><Button variant="ghost" size="icon" onClick={() => documentApi.delete(doc.id).then(() => fetchDocuments(tender!.id)).catch((err: any) => alert(`Delete failed: ${err.message}`))}><Trash2 className="w-4 h-4 text-red-500" /></Button></div>
                                                     </div>
                                                 ))}
                                                 {(type === 'documents' ? documents : technicalDocuments).length === 0 && <div className="text-center py-8 border-dashed border-2 rounded text-slate-400">No documents</div>}

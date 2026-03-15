@@ -1,22 +1,4 @@
 import { useState, useEffect } from 'react';
-
-// ESC key handler component
-function EscKeyHandler({ isOpen, onClose }: { isOpen: boolean; onClose: () => void }) {
-  useEffect(() => {
-    const handleEsc = (e: KeyboardEvent) => {
-      if (e.key === 'Escape' && isOpen) {
-        onClose();
-      }
-    };
-
-    if (isOpen) {
-      window.addEventListener('keydown', handleEsc);
-      return () => window.removeEventListener('keydown', handleEsc);
-    }
-  }, [isOpen, onClose]);
-
-  return null;
-}
 import { Button } from './ui/button';
 import { Input } from './ui/input';
 import { Label } from './ui/label';
@@ -65,6 +47,24 @@ import {
 } from 'lucide-react';
 import { documentApi } from '../lib/api';
 import type { Document } from '../lib/types';
+
+// ESC key handler component
+function EscKeyHandler({ isOpen, onClose }: { isOpen: boolean; onClose: () => void }) {
+  useEffect(() => {
+    const handleEsc = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && isOpen) {
+        onClose();
+      }
+    };
+
+    if (isOpen) {
+      window.addEventListener('keydown', handleEsc);
+      return () => window.removeEventListener('keydown', handleEsc);
+    }
+  }, [isOpen, onClose]);
+
+  return null;
+}
 
 export function DocumentManagement() {
   const [documents, setDocuments] = useState<Document[]>([]);

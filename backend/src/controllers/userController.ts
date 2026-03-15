@@ -54,20 +54,44 @@ export class UserController {
         [...params, pageSize, offset]
       );
 
-      // Transform snake_case to camelCase
+      // Transform snake_case to camelCase and fetch product lines
       const usersArray = users as any[];
-      const transformedUsers = usersArray.map((user) => ({
-        id: user.id,
-        email: user.email,
-        fullName: user.full_name || '',
-        role: user.role,
-        department: user.department,
-        phone: user.phone,
-        status: user.status,
-        lastLogin: user.last_login,
-        createdAt: user.created_at,
-        updatedAt: user.updated_at,
-      }));
+      const transformedUsers = [];
+      for (const user of usersArray) {
+        // Fetch assigned product lines for each user
+        let productLines: any[] = [];
+        try {
+          const [plRows] = await db.query(
+            `SELECT pl.id, pl.name, pl.description
+             FROM product_lines pl
+             INNER JOIN user_product_lines upl ON upl.product_line_id = pl.id
+             WHERE upl.user_id = ?
+             ORDER BY pl.display_order ASC`,
+            [user.id]
+          );
+          productLines = (plRows as any[]).map((pl: any) => ({
+            id: pl.id,
+            name: pl.name,
+            description: pl.description,
+          }));
+        } catch (plErr) {
+          // Table might not exist yet (pre-migration)
+        }
+
+        transformedUsers.push({
+          id: user.id,
+          email: user.email,
+          fullName: user.full_name || '',
+          role: user.role,
+          department: user.department,
+          phone: user.phone,
+          status: user.status,
+          lastLogin: user.last_login,
+          createdAt: user.created_at,
+          updatedAt: user.updated_at,
+          productLines,
+        });
+      }
 
       res.json({
         success: true,
@@ -176,6 +200,21 @@ export class UserController {
 
       const insertResult = result as any;
       const userId = insertResult.insertId;
+
+      // Assign product lines if provided
+      const { productLineIds } = req.body;
+      if (productLineIds && Array.isArray(productLineIds) && productLineIds.length > 0) {
+        try {
+          for (const plId of productLineIds) {
+            await db.query(
+              'INSERT INTO user_product_lines (user_id, product_line_id) VALUES (?, ?)',
+              [userId, plId]
+            );
+          }
+        } catch (plError: any) {
+          logger.warn({ message: 'Could not assign product lines (table may not exist yet)', error: plError.message });
+        }
+      }
 
       // Log audit
       await db.query(
@@ -313,17 +352,41 @@ export class UserController {
         changes.status = { old: oldUser.status, new: status };
       }
 
-      if (updates.length === 0) {
+      // Check if productLineIds are being updated
+      const { productLineIds } = req.body;
+      const hasProductLineUpdate = productLineIds !== undefined && Array.isArray(productLineIds);
+
+      if (updates.length === 0 && !hasProductLineUpdate) {
         throw new CustomError('No fields to update', 400);
       }
 
-      updates.push('updated_at = NOW()');
-      params.push(id);
+      if (updates.length > 0) {
+        updates.push('updated_at = NOW()');
+        params.push(id);
 
-      await db.query(
-        `UPDATE users SET ${updates.join(', ')} WHERE id = ?`,
-        params
-      );
+        await db.query(
+          `UPDATE users SET ${updates.join(', ')} WHERE id = ?`,
+          params
+        );
+      }
+
+      // Sync product line assignments if provided
+      if (hasProductLineUpdate) {
+        try {
+          // Delete existing assignments
+          await db.query('DELETE FROM user_product_lines WHERE user_id = ?', [id]);
+          // Insert new assignments
+          for (const plId of productLineIds) {
+            await db.query(
+              'INSERT INTO user_product_lines (user_id, product_line_id) VALUES (?, ?)',
+              [id, plId]
+            );
+          }
+          changes.productLines = 'updated';
+        } catch (plError: any) {
+          logger.warn({ message: 'Could not update product lines (table may not exist yet)', error: plError.message });
+        }
+      }
 
       // Log audit
       await db.query(

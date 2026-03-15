@@ -13,6 +13,7 @@ declare global {
         userId: number;
         email: string;
         role: string;
+        productLineIds?: number[];
       };
     }
   }
@@ -74,6 +75,18 @@ export const authenticate = async (
       email: decoded.email,
       role: decoded.role,
     };
+
+    // Fetch user's assigned product line IDs for visibility filtering
+    try {
+      const [plRows] = await db.query(
+        'SELECT product_line_id FROM user_product_lines WHERE user_id = ?',
+        [decoded.userId]
+      );
+      req.user.productLineIds = (plRows as any[]).map(r => r.product_line_id);
+    } catch (plError: any) {
+      // If table doesn't exist yet (pre-migration), silently skip
+      req.user.productLineIds = [];
+    }
 
     next();
   } catch (error: any) {

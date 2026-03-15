@@ -47,6 +47,8 @@ router.post(
       tagIds: Joi.array().items(Joi.number().integer().positive()),
       emdAmount: Joi.number().min(0).allow(null),
       tenderFees: Joi.number().min(0).allow(null),
+      productLineId: Joi.number().integer().positive().allow(null),
+      subCategory: Joi.string().valid('Software', 'Hardware').allow(null, ''),
     }),
   }),
   TenderController.create
@@ -76,6 +78,8 @@ router.put(
       tagIds: Joi.array().items(Joi.number().integer().positive()),
       emdAmount: Joi.number().min(0).allow(null),
       tenderFees: Joi.number().min(0).allow(null),
+      productLineId: Joi.number().integer().positive().allow(null),
+      subCategory: Joi.string().valid('Software', 'Hardware').allow(null, ''),
     }),
   }),
   TenderController.update

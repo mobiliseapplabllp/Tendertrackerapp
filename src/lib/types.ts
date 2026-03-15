@@ -1,5 +1,16 @@
 // TypeScript Types and Interfaces for LeadTrack Pro
 
+export interface ProductLine {
+  id: number;
+  name: string;
+  description?: string;
+  isActive?: boolean;
+  displayOrder?: number;
+  leadCount?: number;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
 export interface User {
   id: number;
   email: string;
@@ -11,6 +22,8 @@ export interface User {
   lastLogin?: string;
   createdAt: string;
   updatedAt: string;
+  productLines?: ProductLine[];
+  productLineIds?: number[];
 }
 
 export interface Company {
@@ -139,6 +152,9 @@ export interface Lead {
   tags?: LeadTag[] | TenderTag[]; // Support both
   source?: string;
   convertedFrom?: number;
+  productLineId?: number;
+  productLine?: ProductLine;
+  subCategory?: 'Software' | 'Hardware';
   createdBy: number | string; // Can be user ID (number) or user name (string)
   updatedBy?: string; // User name who last updated
   client?: string; // Company name

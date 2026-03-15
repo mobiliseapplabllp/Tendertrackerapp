@@ -126,6 +126,30 @@ export class TenderController {
         params.push(dateTo);
       }
 
+      // Product line filter from query param
+      const productLineId = req.query.productLineId as string;
+      const subCategory = req.query.subCategory as string;
+
+      if (productLineId) {
+        whereClause += ' AND t.product_line_id = ?';
+        params.push(productLineId);
+      }
+
+      if (subCategory) {
+        whereClause += ' AND t.sub_category = ?';
+        params.push(subCategory);
+      }
+
+      // Product line visibility filtering based on user's assigned product lines
+      const userProductLineIds = req.user?.productLineIds || [];
+      const isAdmin = req.user?.role === 'Admin';
+
+      if (userProductLineIds.length > 0 && !isAdmin) {
+        const placeholders = userProductLineIds.map(() => '?').join(',');
+        whereClause += ` AND (t.product_line_id IN (${placeholders}) OR t.product_line_id IS NULL)`;
+        params.push(...userProductLineIds);
+      }
+
       // Get total count
       const [countResult] = await db.query(
         `SELECT COUNT(*) as total FROM tenders t WHERE ${whereClause}`,
@@ -192,6 +216,8 @@ export class TenderController {
         tender.expectedAwardDate = tender.expected_award_date;
         tender.contractDurationMonths = tender.contract_duration_months;
         tender.assignedTo = tender.assigned_to;
+        tender.productLineId = tender.product_line_id || null;
+        tender.subCategory = tender.sub_category || null;
         tender.createdBy = tender.creator_name || 'N/A';
         // Note: updated_by column doesn't exist in schema, so use creator as updatedBy
         tender.updatedBy = tender.creator_name || 'N/A';

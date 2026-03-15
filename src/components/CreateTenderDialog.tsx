@@ -14,8 +14,8 @@ import { Badge } from './ui/badge';
 import type { Tender } from '../lib/types';
 import { X, FileText, Save, Upload, Trash2 } from 'lucide-react';
 import { ScrollArea } from './ui/scroll-area';
-import { documentApi, companyApi, leadTypeApi } from '../lib/api';
-import type { Company, LeadType } from '../lib/types';
+import { documentApi, companyApi, leadTypeApi, productLineApi } from '../lib/api';
+import type { Company, LeadType, ProductLine } from '../lib/types';
 
 interface CreateTenderDialogProps {
   isOpen: boolean;
@@ -38,10 +38,13 @@ export function CreateTenderDialog({
     emdAmount: '',
     tenderFees: '',
     companyId: '',
+    productLineId: '',
+    subCategory: '',
   });
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
   const [isUploading, setIsUploading] = useState(false);
   const [companies, setCompanies] = useState<Company[]>([]);
+  const [productLines, setProductLines] = useState<ProductLine[]>([]);
   const [loadingCompanies, setLoadingCompanies] = useState(false);
   const [tenderLeadTypeId, setTenderLeadTypeId] = useState<number | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -51,8 +54,20 @@ export function CreateTenderDialog({
     if (isOpen) {
       fetchCompanies();
       fetchTenderLeadType();
+      fetchProductLines();
     }
   }, [isOpen]);
+
+  const fetchProductLines = async () => {
+    try {
+      const response = await productLineApi.getAll();
+      if (response.success && response.data) {
+        setProductLines(Array.isArray(response.data) ? response.data : response.data.data || []);
+      }
+    } catch (err: any) {
+      console.error('Failed to load product lines:', err.message);
+    }
+  };
 
   const fetchCompanies = async () => {
     try {
@@ -138,7 +153,9 @@ export function CreateTenderDialog({
         currency: 'INR',
         companyId: formData.companyId ? parseInt(formData.companyId) : undefined,
         leadTypeId: tenderLeadTypeId || undefined, // Always set to Tender lead type
-      };
+        productLineId: formData.productLineId ? parseInt(formData.productLineId) : undefined,
+        subCategory: formData.subCategory || undefined,
+      } as any;
 
       // Create tender with documents
       await onCreate(apiData, selectedFiles);
@@ -154,6 +171,8 @@ export function CreateTenderDialog({
         emdAmount: '',
         tenderFees: '',
         companyId: '',
+        productLineId: '',
+        subCategory: '',
       });
       setSelectedFiles([]);
       onClose();
@@ -261,6 +280,49 @@ export function CreateTenderDialog({
                       <SelectItem value="Won">Won</SelectItem>
                       <SelectItem value="Lost">Lost</SelectItem>
                       <SelectItem value="Cancelled">Cancelled</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-6">
+                <div className="space-y-2">
+                  <Label htmlFor="productLineId">Product Line *</Label>
+                  <Select
+                    value={formData.productLineId || 'none'}
+                    onValueChange={(value) =>
+                      setFormData({ ...formData, productLineId: value && value !== 'none' ? value : '' })
+                    }
+                  >
+                    <SelectTrigger id="productLineId">
+                      <SelectValue placeholder="Select product line" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="none">Select product line</SelectItem>
+                      {productLines.map((pl) => (
+                        <SelectItem key={pl.id} value={pl.id.toString()}>
+                          {pl.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="subCategory">Sub Category</Label>
+                  <Select
+                    value={formData.subCategory || 'none'}
+                    onValueChange={(value) =>
+                      setFormData({ ...formData, subCategory: value && value !== 'none' ? value : '' })
+                    }
+                  >
+                    <SelectTrigger id="subCategory">
+                      <SelectValue placeholder="Select sub category" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="none">None</SelectItem>
+                      <SelectItem value="Software">Software</SelectItem>
+                      <SelectItem value="Hardware">Hardware</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>

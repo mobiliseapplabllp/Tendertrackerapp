@@ -252,8 +252,6 @@ export function Settings() {
 
   const handleTestDesktopNotification = async () => {
     try {
-      console.log('Testing desktop notification...');
-
       // Check if browser supports notifications
       if (!('Notification' in window)) {
         const errorMsg = 'Your browser does not support desktop notifications.';
@@ -263,13 +261,9 @@ export function Settings() {
         return;
       }
 
-      console.log('Current notification permission:', Notification.permission);
-
       // Request permission if not already granted
       if (Notification.permission === 'default') {
-        console.log('Requesting notification permission...');
         const permission = await Notification.requestPermission();
-        console.log('Permission result:', permission);
 
         if (permission !== 'granted') {
           const errorMsg = `Notification permission was ${permission}. Please enable notifications in your browser settings.`;
@@ -290,7 +284,6 @@ export function Settings() {
 
       // Send test notification (bypass settings check for testing)
       if (Notification.permission === 'granted') {
-        console.log('Permission granted, creating notification...');
         try {
           const notification = new Notification('🔔 Test Desktop Notification', {
             body: 'This is a test notification to verify desktop notifications are working correctly. If you see this, notifications are working!',
@@ -302,30 +295,13 @@ export function Settings() {
             timestamp: Date.now(),
           });
 
-          console.log('Notification created:', notification);
-
-          // Add event listeners for debugging
           notification.onclick = () => {
-            console.log('Notification clicked');
             window.focus();
-          };
-
-          notification.onshow = () => {
-            console.log('Notification shown');
           };
 
           notification.onerror = (error) => {
             console.error('Notification error:', error);
           };
-
-          notification.onclose = () => {
-            console.log('Notification closed');
-          };
-
-          // Also try showing an alert to confirm the notification was created
-          console.log('Notification object:', notification);
-          console.log('Notification title:', notification.title);
-          console.log('Notification body:', notification.body);
 
           // Show multiple notifications to make sure one appears
           setTimeout(() => {
@@ -337,7 +313,7 @@ export function Settings() {
                 requireInteraction: false,
                 silent: false,
               });
-              console.log('Second notification created:', notification2);
+              // Second notification created successfully
             } catch (err) {
               console.error('Error creating second notification:', err);
             }

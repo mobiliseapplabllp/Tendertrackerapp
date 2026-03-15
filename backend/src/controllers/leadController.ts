@@ -132,6 +132,32 @@ export class LeadController {
         params.push(dateTo);
       }
 
+      // Product line filter from query param (manual filter in UI)
+      const productLineId = req.query.productLineId as string;
+      const subCategory = req.query.subCategory as string;
+
+      if (productLineId) {
+        whereClause += ' AND t.product_line_id = ?';
+        params.push(productLineId);
+      }
+
+      if (subCategory) {
+        whereClause += ' AND t.sub_category = ?';
+        params.push(subCategory);
+      }
+
+      // Product line visibility filtering based on user's assigned product lines
+      // Admin users with no assigned product lines see everything
+      // Users with assigned product lines only see leads from those lines (+ leads with NULL product_line_id)
+      const userProductLineIds = req.user?.productLineIds || [];
+      const isAdmin = req.user?.role === 'Admin';
+
+      if (userProductLineIds.length > 0 && !isAdmin) {
+        const placeholders = userProductLineIds.map(() => '?').join(',');
+        whereClause += ` AND (t.product_line_id IN (${placeholders}) OR t.product_line_id IS NULL)`;
+        params.push(...userProductLineIds);
+      }
+
       // Get total count - use tenders table (will be leads after migration)
       const [countResult] = await db.query(
         `SELECT COUNT(*) as total FROM tenders t WHERE ${whereClause}`,
@@ -206,6 +232,8 @@ export class LeadController {
         lead.expectedCloseDate = lead.expected_close_date;
         lead.contractDurationMonths = lead.contract_duration_months;
         lead.assignedTo = lead.assigned_to;
+        lead.productLineId = lead.product_line_id || null;
+        lead.subCategory = lead.sub_category || null;
 
         lead.createdBy = lead.creator_name || 'N/A';
         // Note: updated_by column doesn't exist in schema, so use creator as updatedBy
@@ -487,6 +515,21 @@ export class LeadController {
         insertParams.push(req.body.source || null);
       }
 
+      // Add product line fields if columns exist
+      const hasProductLineId = columnNames.includes('product_line_id');
+      const hasSubCategory = columnNames.includes('sub_category');
+
+      if (hasProductLineId) {
+        insertFields += ', product_line_id';
+        insertValues += ', ?';
+        insertParams.push(req.body.productLineId || null);
+      }
+      if (hasSubCategory) {
+        insertFields += ', sub_category';
+        insertValues += ', ?';
+        insertParams.push(req.body.subCategory || null);
+      }
+
       const [result] = await db.query(
         `INSERT INTO tenders (${insertFields}) VALUES (${insertValues})`,
         insertParams
@@ -676,6 +719,8 @@ export class LeadController {
         contractDurationMonths: 'contract_duration_months',
         assignedTo: 'assigned_to',
         source: 'source',
+        productLineId: 'product_line_id',
+        subCategory: 'sub_category',
       };
 
       // Track all field changes for activity logging
