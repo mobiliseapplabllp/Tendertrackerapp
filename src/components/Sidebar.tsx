@@ -105,7 +105,7 @@ export function Sidebar({ currentView, onNavigate, onLogout, user }: SidebarProp
                 whiteSpace: 'nowrap'
               }}
             >
-              LeadTrack Pro
+              Mobilise CRM
             </h1>
             <p
               className="text-xs text-gray-500"

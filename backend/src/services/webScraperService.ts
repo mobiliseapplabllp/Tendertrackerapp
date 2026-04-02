@@ -5,8 +5,8 @@ import logger from '../utils/logger';
 
 export class WebScraperService {
     private static userAgents = [
-        'LeadTrackBot/1.0 (+https://leadtrack.com/bot)',
-        'Mozilla/5.0 (compatible; LeadScout/1.0; +https://leadtrack.com)',
+        'MobiliseCRMBot/1.0 (+https://leadtrack.com/bot)',
+        'Mozilla/5.0 (compatible; MobiliseCRMScout/1.0; +https://leadtrack.com)',
     ];
 
     private static getRandomUserAgent(): string {

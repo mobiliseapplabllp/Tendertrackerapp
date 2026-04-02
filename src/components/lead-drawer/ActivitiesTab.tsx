@@ -30,7 +30,21 @@ export function ActivitiesTab({ leadId }: ActivitiesTabProps) {
             const response = await leadApi.getActivities(leadId);
 
             if (response.success && response.data) {
-                setActivities(response.data || []);
+                // Transform snake_case API response to camelCase
+                const transformed = (response.data || []).map((activity: any) => ({
+                    id: activity.id,
+                    leadId: activity.lead_id || activity.leadId,
+                    tenderId: activity.tender_id || activity.tenderId,
+                    userId: activity.user_id || activity.userId,
+                    performedByName: activity.user_name || activity.performedByName || activity.full_name,
+                    activityType: activity.activity_type || activity.activityType,
+                    description: activity.description,
+                    oldValue: activity.old_value || activity.oldValue,
+                    newValue: activity.new_value || activity.newValue,
+                    createdAt: activity.created_at || activity.createdAt,
+                    metadata: activity.metadata,
+                }));
+                setActivities(transformed);
             } else {
                 setError(response.error || 'Failed to load activities');
             }
@@ -50,7 +64,7 @@ export function ActivitiesTab({ leadId }: ActivitiesTabProps) {
             setError(null);
 
             const response = await leadApi.addActivity(leadId, {
-                activityType: 'work_log',
+                activityType: 'Commented',
                 description: newWorkLog.trim(),
             });
 
@@ -70,14 +84,19 @@ export function ActivitiesTab({ leadId }: ActivitiesTabProps) {
 
     const getActivityIcon = (type: string) => {
         switch (type) {
+            case 'Commented':
             case 'work_log':
             case 'note':
                 return <MessageSquare className="w-4 h-4" />;
+            case 'Document Added':
             case 'document_upload':
             case 'document_delete':
                 return <FileText className="w-4 h-4" />;
+            case 'Status Changed':
             case 'status_change':
             case 'field_update':
+            case 'Updated':
+            case 'Deadline Changed':
                 return <Clock className="w-4 h-4" />;
             default:
                 return <User className="w-4 h-4" />;
@@ -86,17 +105,23 @@ export function ActivitiesTab({ leadId }: ActivitiesTabProps) {
 
     const getActivityColor = (type: string): string => {
         switch (type) {
+            case 'Commented':
             case 'work_log':
             case 'note':
                 return 'bg-blue-50 text-blue-600';
+            case 'Document Added':
             case 'document_upload':
                 return 'bg-green-50 text-green-600';
             case 'document_delete':
                 return 'bg-red-50 text-red-600';
+            case 'Status Changed':
             case 'status_change':
                 return 'bg-purple-50 text-purple-600';
+            case 'Updated':
             case 'field_update':
                 return 'bg-orange-50 text-orange-600';
+            case 'Assigned':
+                return 'bg-teal-50 text-teal-600';
             default:
                 return 'bg-gray-50 text-gray-600';
         }
@@ -104,6 +129,13 @@ export function ActivitiesTab({ leadId }: ActivitiesTabProps) {
 
     const getActivityLabel = (type: string): string => {
         const labels: Record<string, string> = {
+            'Commented': 'Work Log',
+            'Created': 'Created',
+            'Updated': 'Updated',
+            'Status Changed': 'Status Change',
+            'Document Added': 'Document Added',
+            'Assigned': 'Assigned',
+            'Deadline Changed': 'Deadline Changed',
             'work_log': 'Work Log',
             'note': 'Note',
             'document_upload': 'Document Upload',

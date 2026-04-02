@@ -146,8 +146,9 @@ router.post(
       title: Joi.string().required(),
       description: Joi.string().allow(null, '').optional(),
       dueDate: Joi.string().isoDate().optional(),
-      priority: Joi.string().valid('Low', 'Medium', 'High').optional(),
-      status: Joi.string().valid('Pending', 'In Progress', 'Completed', 'Deferred').optional(),
+      priority: Joi.string().valid('Low', 'Medium', 'High', 'Critical').optional(),
+      status: Joi.string().valid('Not Started', 'In Progress', 'Completed', 'Deferred', 'Cancelled').optional(),
+      assignedTo: Joi.number().integer().optional(),
     }),
   }),
   ActivityController.createTask
@@ -164,8 +165,9 @@ router.put(
       title: Joi.string().optional(),
       description: Joi.string().allow(null, '').optional(),
       dueDate: Joi.string().isoDate().optional(),
-      priority: Joi.string().valid('Low', 'Medium', 'High').optional(),
-      status: Joi.string().valid('Pending', 'In Progress', 'Completed', 'Deferred').optional(),
+      priority: Joi.string().valid('Low', 'Medium', 'High', 'Critical').optional(),
+      status: Joi.string().valid('Not Started', 'In Progress', 'Completed', 'Deferred', 'Cancelled').optional(),
+      assignedTo: Joi.number().integer().optional(),
     }),
   }),
   ActivityController.updateTask

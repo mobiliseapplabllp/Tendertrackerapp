@@ -77,7 +77,7 @@ export async function formatCurrency(amount: number | null | undefined, currency
  */
 export async function getCompanyName(): Promise<string> {
   const settings = await getSystemSettings();
-  return settings['company_name'] || 'LeadTrack Pro';
+  return settings['company_name'] || 'Mobilise CRM';
 }
 
 /**

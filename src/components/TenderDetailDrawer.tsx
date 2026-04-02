@@ -47,7 +47,7 @@ import {
     Bell
 } from 'lucide-react';
 import type { Tender, TenderActivity, Document, Company, User as UserType, WorkLogReminder, ProductLine } from '../lib/types';
-import { tenderApi, documentApi, companyApi, userApi, leadTypeApi, reminderApi, productLineApi } from '../lib/api';
+import { tenderApi, documentApi, companyApi, userApi, leadTypeApi, reminderApi, productLineApi, activityApi } from '../lib/api';
 import EnhancedTasksTab from './EnhancedTasksTab';
 import { useSettings } from '../hooks/useSettings';
 
@@ -101,8 +101,8 @@ export function TenderDetailDrawer({ tenderId, isOpen, onClose, onUpdate }: Tend
     const [newTaskForm, setNewTaskForm] = useState({
         title: '',
         description: '',
-        priority: 'Medium' as 'Low' | 'Medium' | 'High' | 'Urgent',
-        status: 'Pending' as 'Pending' | 'In Progress' | 'Completed',
+        priority: 'Medium' as 'Low' | 'Medium' | 'High' | 'Critical',
+        status: 'Not Started' as 'Not Started' | 'In Progress' | 'Completed' | 'Deferred' | 'Cancelled',
         dueDate: '',
         assignedTo: undefined as number | undefined,
         estimatedHours: '',
@@ -385,36 +385,50 @@ export function TenderDetailDrawer({ tenderId, isOpen, onClose, onUpdate }: Tend
     const handleCreateTask = async () => {
         if (!tender || !newTaskForm.title || !newTaskForm.description) return;
         try {
-            // Create task description with metadata
-            const taskDesc = `[${newTaskForm.priority}] ${newTaskForm.title}: ${newTaskForm.description}`;
+            // Step 1: Create structured task in tasks table
+            const taskRes = await activityApi.createTask(tender.id, {
+                title: newTaskForm.title,
+                description: newTaskForm.description,
+                priority: newTaskForm.priority,
+                status: newTaskForm.status,
+                dueDate: newTaskForm.dueDate || undefined,
+                assignedTo: newTaskForm.assignedTo,
+            });
 
+            // Step 2: Create timeline activity entry for visibility in activity feed
             const activityRes = await tenderApi.addActivity(tender.id, {
                 activityType: 'Task',
-                description: taskDesc,
+                description: `Task created: ${newTaskForm.title}`,
                 hoursSpent: parseFloat(newTaskForm.estimatedHours) || 0,
                 workDate: new Date().toISOString()
             } as any);
 
+            // Step 3: Create reminder linked to the activity (for notification system)
             if (activityRes.success && activityRes.data) {
                 const activityId = activityRes.data.id;
                 await reminderApi.create(activityId, {
                     actionRequired: newTaskForm.title,
                     dueDate: newTaskForm.dueDate,
                     recipients: newTaskForm.assignedTo ? [{ userId: newTaskForm.assignedTo }] : [],
-                    sendEmail: true,  // Send email notification by default
-                    sendSMS: false,   // SMS optional, can be enabled later
+                    sendEmail: true,
+                    sendSMS: false,
                 });
+            }
+
+            if (taskRes.success) {
                 setNewTaskForm({
                     title: '',
                     description: '',
                     priority: 'Medium',
-                    status: 'Pending',
+                    status: 'Not Started',
                     dueDate: '',
                     assignedTo: undefined,
                     estimatedHours: ''
                 });
                 fetchActivities(tender.id);
                 fetchAllReminders(tender.id);
+            } else {
+                alert(taskRes.error || 'Failed to create task');
             }
         } catch (err) {
             console.error(err);

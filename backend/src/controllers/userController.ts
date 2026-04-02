@@ -461,7 +461,7 @@ export class UserController {
             changeDetails.push('Password: Updated');
           }
 
-          const subject = 'Your Profile Has Been Updated - LeadTrack Pro';
+          const subject = 'Your Profile Has Been Updated - Mobilise CRM';
           const htmlBody = `
             <!DOCTYPE html>
             <html>
@@ -484,7 +484,7 @@ export class UserController {
             <body>
               <div class="container">
                 <div class="header">
-                  <h1>LeadTrack Pro</h1>
+                  <h1>Mobilise CRM</h1>
                   <p>Profile Update Notification</p>
                 </div>
                 <div class="content">
@@ -518,7 +518,7 @@ export class UserController {
 
                   <p>Please log in to your account to view your updated profile:</p>
                   <div style="text-align: center;">
-                    <a href="${loginUrl}" class="button">Login to LeadTrack Pro</a>
+                    <a href="${loginUrl}" class="button">Login to Mobilise CRM</a>
                   </div>
 
                   <p style="margin-top: 30px; padding-top: 20px; border-top: 1px solid #e5e7eb; color: #6b7280; font-size: 14px;">
@@ -526,8 +526,8 @@ export class UserController {
                   </p>
                 </div>
                 <div class="footer">
-                  <p>This is an automated notification from LeadTrack Pro.</p>
-                  <p>© ${new Date().getFullYear()} LeadTrack Pro. All rights reserved.</p>
+                  <p>This is an automated notification from Mobilise CRM.</p>
+                  <p>© ${new Date().getFullYear()} Mobilise CRM. All rights reserved.</p>
                 </div>
               </div>
             </body>
@@ -535,7 +535,7 @@ export class UserController {
           `;
 
           const textBody = `
-LeadTrack Pro - Profile Update Notification
+Mobilise CRM - Profile Update Notification
 
 Hello ${updatedUser.fullName || 'User'},
 
@@ -557,8 +557,8 @@ ${loginUrl}
 If you did not request this change or have any concerns, please contact your system administrator immediately.
 
 ---
-This is an automated notification from LeadTrack Pro.
-© ${new Date().getFullYear()} LeadTrack Pro. All rights reserved.
+This is an automated notification from Mobilise CRM.
+© ${new Date().getFullYear()} Mobilise CRM. All rights reserved.
           `;
 
           await emailService.sendNotification(

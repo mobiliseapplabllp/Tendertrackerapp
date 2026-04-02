@@ -63,7 +63,7 @@ class SMSService {
 
     try {
       await this.client.messages.create({
-        body: `Your LeadTrack Pro verification code is: ${otp}. This code expires in 10 minutes.`,
+        body: `Your Mobilise CRM verification code is: ${otp}. This code expires in 10 minutes.`,
         from: this.phoneNumber!,
         to: phoneNumber,
       });
@@ -123,7 +123,7 @@ class SMSService {
     try {
       await this.sendNotification(
         testPhone,
-        'Test SMS from LeadTrack Pro - Configuration is working correctly.'
+        'Test SMS from Mobilise CRM - Configuration is working correctly.'
       );
       return true;
     } catch (error) {

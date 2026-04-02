@@ -199,7 +199,7 @@ export class ReminderService {
             <p>This reminder will continue to be sent until the action is marked as complete.</p>
           </div>
           <div class="footer">
-            <p>This is an automated reminder from LeadTrack Pro</p>
+            <p>This is an automated reminder from Mobilise CRM</p>
           </div>
         </div>
       </body>
@@ -238,7 +238,7 @@ Please complete this action and mark it as complete in the system.
 This reminder will continue to be sent until the action is marked as complete.
 
 ---
-This is an automated reminder from LeadTrack Pro
+This is an automated reminder from Mobilise CRM
     `.trim();
   }
 
@@ -250,7 +250,7 @@ This is an automated reminder from LeadTrack Pro
       ? new Date(reminder.due_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
       : 'No due date';
 
-    return `LeadTrack Pro: Action Required - "${reminder.action_required.substring(0, 50)}${reminder.action_required.length > 50 ? '...' : ''}" for Lead ${reminder.tender_number}. Due: ${dueDateText}. Please complete and mark as done.`;
+    return `Mobilise CRM: Action Required - "${reminder.action_required.substring(0, 50)}${reminder.action_required.length > 50 ? '...' : ''}" for Lead ${reminder.tender_number}. Due: ${dueDateText}. Please complete and mark as done.`;
   }
 }
 

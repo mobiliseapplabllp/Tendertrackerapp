@@ -59,7 +59,7 @@ export async function getSetting(key: string, defaultValue: string = '', forceRe
  * Get company name from settings
  */
 export async function getCompanyName(): Promise<string> {
-  return await getSetting('company_name', 'LeadTrack Pro');
+  return await getSetting('company_name', 'Mobilise CRM');
 }
 
 /**

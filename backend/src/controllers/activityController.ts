@@ -216,15 +216,15 @@ export class ActivityController {
   static async createTask(req: Request, res: Response, next: NextFunction) {
     try {
       const { leadId } = req.params;
-      const { title, description, dueDate, priority, status } = req.body;
+      const { title, description, dueDate, priority, status, assignedTo } = req.body;
 
       if (!title) {
         throw new CustomError('Task title is required', 400);
       }
 
       const [result] = await db.query(
-        `INSERT INTO tasks (lead_id, user_id, title, description, due_date, priority, status)
-         VALUES (?, ?, ?, ?, ?, ?, ?)`,
+        `INSERT INTO tasks (lead_id, user_id, title, description, due_date, priority, status, assigned_to)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
         [
           leadId,
           req.user!.userId,
@@ -232,7 +232,8 @@ export class ActivityController {
           description || null,
           dueDate || null,
           priority || 'Medium',
-          status || 'Pending',
+          status || 'Not Started',
+          assignedTo || null,
         ]
       );
 

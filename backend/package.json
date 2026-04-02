@@ -1,7 +1,7 @@
 {
-  "name": "leadtrack-backend",
+  "name": "mobilise-crm-backend",
   "version": "1.0.0",
-  "description": "LeadTrack Pro Backend API",
+  "description": "Mobilise CRM Backend API",
   "main": "dist/app.js",
   "scripts": {
     "dev": "ts-node-dev --respawn --transpile-only src/app.ts",

@@ -399,7 +399,7 @@ export function LoginPage({ onLogin }: LoginPageProps) {
               <Sparkles className="w-7 h-7 text-white" />
             </div>
             <div>
-              <h1 className="text-2xl font-black text-white tracking-tight">LeadTrack Pro</h1>
+              <h1 className="text-2xl font-black text-white tracking-tight">Mobilise CRM</h1>
               <p className="text-xs text-white/60 font-medium">Intelligent Lead Architecture Platform</p>
             </div>
           </div>

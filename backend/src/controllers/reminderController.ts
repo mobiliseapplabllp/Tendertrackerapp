@@ -133,14 +133,14 @@ export class ReminderController {
                     <p style="color: #718096; font-size: 14px; margin: 5px 0;"><strong>Due Date:</strong> ${dueDateStr}</p>
                   </div>
                   
-                  <p style="font-size: 14px; color: #4a5568; margin-bottom: 20px;">Please log in to the Tender Tracker to view details and update the task status.</p>
+                  <p style="font-size: 14px; color: #4a5568; margin-bottom: 20px;">Please log in to the Mobilise CRM to view details and update the task status.</p>
                   
                   <div style="text-align: center; margin-top: 30px;">
                     <a href="https://tendertracker.mobilisepro.com" style="background: #667eea; color: white; padding: 12px 30px; text-decoration: none; border-radius: 6px; font-weight: bold; display: inline-block;">View Task</a>
                   </div>
                   
                   <div style="margin-top: 30px; padding-top: 20px; border-top: 1px solid #e2e8f0; text-align: center;">
-                    <p style="font-size: 12px; color: #a0aec0; margin: 0;">This is an automated notification from Tender Tracker</p>
+                    <p style="font-size: 12px; color: #a0aec0; margin: 0;">This is an automated notification from Mobilise CRM</p>
                   </div>
                 </div>
               </div>
@@ -157,12 +157,12 @@ Task: ${actionRequired}
 Tender: ${tender?.title || 'N/A'}
 Due Date: ${dueDateStr}
 
-Please log in to the Tender Tracker to view details and update the task status.
+Please log in to the Mobilise CRM to view details and update the task status.
 
 Visit: https://tendertracker.mobilisepro.com
 
 ---
-This is an automated notification from Tender Tracker
+This is an automated notification from Mobilise CRM
             `;
 
             await emailService.sendNotification(recipientEmail, subject, textBody, htmlBody);
@@ -185,7 +185,7 @@ This is an automated notification from Tender Tracker
         // Send SMS notification if requested and phone available
         if (sendSMS !== false && recipientPhone) {
           try {
-            const smsMessage = `New Task: ${actionRequired}. Due: ${dueDate ? new Date(dueDate).toLocaleDateString() : 'No due date'}. Check Tender Tracker for details.`;
+            const smsMessage = `New Task: ${actionRequired}. Due: ${dueDate ? new Date(dueDate).toLocaleDateString() : 'No due date'}. Check Mobilise CRM for details.`;
 
             await smsService.sendNotification(recipientPhone, smsMessage);
 

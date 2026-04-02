@@ -1,4 +1,4 @@
-// TypeScript Types and Interfaces for LeadTrack Pro
+// TypeScript Types and Interfaces for Mobilise CRM
 
 export interface ProductLine {
   id: number;

@@ -87,7 +87,7 @@ class EmailService {
                         <path d="M2 12L12 17L22 12" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
                       </svg>
                     </div>
-                    <h1 style="margin: 0; color: #ffffff; font-size: 26px; font-weight: 700; letter-spacing: -0.5px;">LeadTrack Pro</h1>
+                    <h1 style="margin: 0; color: #ffffff; font-size: 26px; font-weight: 700; letter-spacing: -0.5px;">Mobilise CRM</h1>
                     <p style="margin: 3px 0 0 0; color: rgba(255, 255, 255, 0.9); font-size: 14px; font-weight: 400;">Secure Login Verification</p>
                   </td>
                 </tr>
@@ -99,7 +99,7 @@ class EmailService {
           <tr>
             <td style="padding: 18px 20px;">
               <h2 style="margin: 0 0 10px 0; color: #1f2937; font-size: 24px; font-weight: 600; line-height: 1.3;">Hello ${name || 'User'}! 👋</h2>
-              <p style="margin: 0 0 15px 0; color: #4b5563; font-size: 16px; line-height: 1.6;">We received a request to sign in to your LeadTrack Pro account. Use the verification code below to complete your login:</p>
+              <p style="margin: 0 0 15px 0; color: #4b5563; font-size: 16px; line-height: 1.6;">We received a request to sign in to your Mobilise CRM account. Use the verification code below to complete your login:</p>
               
               <!-- OTP Code Box -->
               <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%">
@@ -141,7 +141,7 @@ class EmailService {
               <!-- Security Notice -->
               <div style="background-color: #fef3c7; border-radius: 8px; padding: 8px; margin: 15px 0; text-align: center;">
                 <p style="margin: 0; color: #92400e; font-size: 13px; line-height: 1.6;">
-                  <strong>🔒 Security Tip:</strong> LeadTrack Pro will never ask for your password via email. Always verify the sender before entering your credentials.
+                  <strong>🔒 Security Tip:</strong> Mobilise CRM will never ask for your password via email. Always verify the sender before entering your credentials.
                 </p>
               </div>
             </td>
@@ -154,7 +154,7 @@ class EmailService {
                 <tr>
                   <td align="center" style="padding-bottom: 10px;">
                     <p style="margin: 0; color: #6b7280; font-size: 13px; line-height: 1.6;">
-                      This is an automated security email from <strong style="color: #1f2937;">LeadTrack Pro</strong>
+                      This is an automated security email from <strong style="color: #1f2937;">Mobilise CRM</strong>
                     </p>
                     <p style="margin: 6px 0 0 0; color: #9ca3af; font-size: 12px;">
                       If you have any questions, please contact our support team
@@ -164,7 +164,7 @@ class EmailService {
                 <tr>
                   <td align="center" style="padding-top: 10px; border-top: 1px solid #e5e7eb;">
                     <p style="margin: 0; color: #9ca3af; font-size: 11px;">
-                      © ${new Date().getFullYear()} LeadTrack Pro. All rights reserved.
+                      © ${new Date().getFullYear()} Mobilise CRM. All rights reserved.
                     </p>
                   </td>
                 </tr>
@@ -191,18 +191,18 @@ class EmailService {
         `,
         text: `Hello ${name || 'User'}!
 
-Your LeadTrack Pro login verification code is: ${otp}
+Your Mobilise CRM login verification code is: ${otp}
 
 This code will expire in 10 minutes.
 
 Important Security Information:
 - Never share this code with anyone
 - If you didn't request this code, please ignore this email
-- LeadTrack Pro will never ask for your password via email
+- Mobilise CRM will never ask for your password via email
 
-This is an automated security email from LeadTrack Pro.
+This is an automated security email from Mobilise CRM.
 
-© ${new Date().getFullYear()} LeadTrack Pro. All rights reserved.`,
+© ${new Date().getFullYear()} Mobilise CRM. All rights reserved.`,
       };
 
       await sgMail.send(msg);
@@ -477,7 +477,7 @@ This is an automated security email from ${companyName}.
     try {
       await this.sendNotification(
         testEmail,
-        'Test Email from LeadTrack Pro',
+        'Test Email from Mobilise CRM',
         'This is a test email to verify your SendGrid email configuration is working correctly.',
         `
 <!DOCTYPE html>
@@ -493,7 +493,7 @@ This is an automated security email from ${companyName}.
         <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="600" style="max-width: 600px; background-color: #ffffff; border-radius: 12px; box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1); overflow: hidden;">
           <tr>
             <td style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 40px 30px; text-align: center;">
-              <h1 style="margin: 0; color: #ffffff; font-size: 28px; font-weight: 700;">LeadTrack Pro</h1>
+              <h1 style="margin: 0; color: #ffffff; font-size: 28px; font-weight: 700;">Mobilise CRM</h1>
               <p style="margin: 8px 0 0 0; color: rgba(255, 255, 255, 0.9); font-size: 14px;">Email Configuration Test</p>
             </td>
           </tr>
@@ -515,7 +515,7 @@ This is an automated security email from ${companyName}.
           <tr>
             <td style="background-color: #f9fafb; padding: 30px 40px; border-top: 1px solid #e5e7eb; text-align: center;">
               <p style="margin: 0; color: #6b7280; font-size: 13px;">
-                © ${new Date().getFullYear()} LeadTrack Pro. All rights reserved.
+                © ${new Date().getFullYear()} Mobilise CRM. All rights reserved.
               </p>
             </td>
           </tr>

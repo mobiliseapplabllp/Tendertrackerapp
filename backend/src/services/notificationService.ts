@@ -467,7 +467,7 @@ export class NotificationService {
             ${daysUntilDeadline < 0 ? '<p style="color: #ef4444;"><strong>⚠️ This tender is overdue. Please take immediate action.</strong></p>' : ''}
           </div>
           <div class="footer">
-            <p>This is an automated notification from LeadTrack Pro</p>
+            <p>This is an automated notification from Mobilise CRM</p>
             <p>Please do not reply to this email</p>
           </div>
         </div>
@@ -492,7 +492,7 @@ Please ensure all required documents and submissions are prepared and submitted 
 ${daysUntilDeadline < 0 ? '⚠️ This tender is overdue. Please take immediate action.\n' : ''}
 
 ---
-This is an automated notification from LeadTrack Pro
+This is an automated notification from Mobilise CRM
 Please do not reply to this email
     `;
 
@@ -776,7 +776,7 @@ Please do not reply to this email
             }) ? '<p style="color: #ef4444; margin-top: 15px;"><strong>⚠️ Some tenders in this category are overdue. Please take immediate action.</strong></p>' : ''}
           </div>
           <div class="footer">
-            <p>This is an automated notification from LeadTrack Pro</p>
+            <p>This is an automated notification from Mobilise CRM</p>
             <p>Please do not reply to this email</p>
           </div>
         </div>
@@ -818,7 +818,7 @@ ${idx + 1}. ${t.tenderNumber} - ${t.title}
 Please review these tenders and ensure all required documents and submissions are prepared and submitted before their respective deadlines.
 
 ---
-This is an automated notification from LeadTrack Pro
+This is an automated notification from Mobilise CRM
 Please do not reply to this email
     `;
 
@@ -975,7 +975,7 @@ Please do not reply to this email
             ` : ''}
           </div>
           <div class="footer">
-            <p>This is an automated notification from LeadTrack Pro</p>
+            <p>This is an automated notification from Mobilise CRM</p>
             <p>Please do not reply to this email</p>
           </div>
         </div>
@@ -1006,7 +1006,7 @@ ${idx + 1}. ${t.tenderNumber} - ${t.title}
 ` : ''}
 
 ---
-This is an automated notification from LeadTrack Pro
+This is an automated notification from Mobilise CRM
 Please do not reply to this email
     `;
 

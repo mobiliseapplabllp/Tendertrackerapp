@@ -964,7 +964,7 @@ export function Administration() {
                       <Label htmlFor="from-name">From Name</Label>
                       <Input
                         id="from-name"
-                        placeholder="LeadTrack Pro"
+                        placeholder="Mobilise CRM"
                         value={emailConfig.fromName}
                         onChange={(e) =>
                           setEmailConfig({ ...emailConfig, fromName: e.target.value })

@@ -29,13 +29,13 @@ async function sendOTPDirect() {
       to: toEmail,
       from: {
         email: fromEmail,
-        name: 'LeadTrack Pro',
+        name: 'Mobilise CRM',
       },
       subject: 'Your Login Verification Code',
       html: `
         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
           <div style="background-color: #4f46e5; color: white; padding: 20px; border-radius: 8px 8px 0 0;">
-            <h1 style="margin: 0; font-size: 24px;">LeadTrack Pro</h1>
+            <h1 style="margin: 0; font-size: 24px;">Mobilise CRM</h1>
           </div>
           <div style="background-color: #ffffff; padding: 30px; border: 1px solid #e5e7eb; border-top: none; border-radius: 0 0 8px 8px;">
             <h2 style="color: #1f2937; margin-top: 0;">Login Verification Code</h2>

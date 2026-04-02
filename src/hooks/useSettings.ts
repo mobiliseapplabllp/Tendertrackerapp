@@ -27,7 +27,7 @@ export function useSettings() {
         timezone: systemSettings['timezone'] || 'UTC',
         dateFormat: systemSettings['date_format'] || 'MM/DD/YYYY',
         currency: systemSettings['currency'] || 'INR',
-        companyName: systemSettings['company_name'] || 'LeadTrack Pro',
+        companyName: systemSettings['company_name'] || 'Mobilise CRM',
         companyEmail: systemSettings['company_email'] || 'noreply@leadtrack.com',
         ...systemSettings,
       });
@@ -38,7 +38,7 @@ export function useSettings() {
         timezone: 'UTC',
         dateFormat: 'MM/DD/YYYY',
         currency: 'INR',
-        companyName: 'LeadTrack Pro',
+        companyName: 'Mobilise CRM',
         companyEmail: 'noreply@leadtrack.com',
       });
     } finally {

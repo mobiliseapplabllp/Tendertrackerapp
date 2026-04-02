@@ -1,4 +1,4 @@
-// API Client for LeadTrack Pro
+// API Client for Mobilise CRM
 // This file will be used to connect to the MySQL backend
 
 import type {
@@ -566,8 +566,9 @@ export const activityApi = {
     title: string;
     description?: string;
     dueDate?: string;
-    priority?: 'Low' | 'Medium' | 'High';
-    status?: 'Pending' | 'In Progress' | 'Completed' | 'Deferred';
+    priority?: 'Low' | 'Medium' | 'High' | 'Critical';
+    status?: 'Not Started' | 'In Progress' | 'Completed' | 'Deferred' | 'Cancelled';
+    assignedTo?: number;
   }) => {
     return apiCall<any>(`/activities/leads/${leadId}/tasks`, {
       method: 'POST',
