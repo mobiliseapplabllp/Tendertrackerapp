@@ -20,6 +20,7 @@ import {
 import { Button } from './ui/button';
 import { Separator } from './ui/separator';
 import React, { useState } from 'react';
+import { useBranding } from '../hooks/useBranding';
 
 interface SidebarProps {
   currentView: string;
@@ -30,6 +31,7 @@ interface SidebarProps {
 
 export function Sidebar({ currentView, onNavigate, onLogout, user }: SidebarProps) {
   const [isCollapsed, setIsCollapsed] = useState(false);
+  const { appName } = useBranding();
 
   // Helper to check if user has access to API Playground
   const canAccessPlayground = user &&
@@ -105,7 +107,7 @@ export function Sidebar({ currentView, onNavigate, onLogout, user }: SidebarProp
                 whiteSpace: 'nowrap'
               }}
             >
-              Mobilise CRM
+              {appName}
             </h1>
             <p
               className="text-xs text-gray-500"

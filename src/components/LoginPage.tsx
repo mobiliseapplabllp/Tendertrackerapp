@@ -19,12 +19,14 @@ import {
   rateLimiter
 } from '../lib/security';
 import { authApi, tokenManager } from '../lib/api';
+import { useBranding } from '../hooks/useBranding';
 
 interface LoginPageProps {
   onLogin: () => void;
 }
 
 export function LoginPage({ onLogin }: LoginPageProps) {
+  const { appName, tagline } = useBranding();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -399,8 +401,8 @@ export function LoginPage({ onLogin }: LoginPageProps) {
               <Sparkles className="w-7 h-7 text-white" />
             </div>
             <div>
-              <h1 className="text-2xl font-black text-white tracking-tight">Mobilise CRM</h1>
-              <p className="text-xs text-white/60 font-medium">Intelligent Lead Architecture Platform</p>
+              <h1 className="text-2xl font-black text-white tracking-tight">{appName}</h1>
+              <p className="text-xs text-white/60 font-medium">{tagline}</p>
             </div>
           </div>
 

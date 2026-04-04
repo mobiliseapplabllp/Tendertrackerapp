@@ -112,6 +112,25 @@ app.use((req, _res, next) => {
   next();
 });
 
+// Public branding endpoint (no auth required) - used by login page
+app.get('/api/v1/branding', async (_req, res) => {
+  try {
+    const [rows] = await db.query(
+      "SELECT config_value FROM system_config WHERE config_key = 'company_name'"
+    );
+    const appName = (rows as any[])?.[0]?.config_value || 'Mobilise CRM';
+
+    const [taglineRows] = await db.query(
+      "SELECT config_value FROM system_config WHERE config_key = 'company_tagline'"
+    );
+    const tagline = (taglineRows as any[])?.[0]?.config_value || 'Intelligent Lead Management Platform';
+
+    res.json({ success: true, data: { appName, tagline } });
+  } catch {
+    res.json({ success: true, data: { appName: 'Mobilise CRM', tagline: 'Intelligent Lead Management Platform' } });
+  }
+});
+
 // Health check endpoint (before rate limiting)
 app.get('/health', async (_req, res) => {
   try {
