@@ -23,6 +23,11 @@ export function useBranding() {
       try {
         const baseUrl = import.meta.env.VITE_API_URL || '/api/v1';
         const res = await fetch(`${baseUrl}/branding`);
+        const contentType = res.headers.get('content-type') || '';
+        if (!res.ok || !contentType.includes('application/json')) {
+          // Server doesn't have the endpoint yet — use defaults
+          return;
+        }
         const json = await res.json();
         if (json.success && json.data) {
           const b = { appName: json.data.appName, tagline: json.data.tagline };
