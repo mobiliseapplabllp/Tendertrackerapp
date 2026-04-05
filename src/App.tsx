@@ -20,6 +20,10 @@ import { TenderScout } from './components/TenderScout';
 import { ScoutConfig } from './components/ScoutConfig';
 import { AISearch } from './components/AISearch';
 import { ApiPlaygroundPage } from './components/ApiPlaygroundPage';
+import { TeamStructurePage } from './components/TeamStructurePage';
+import { SalesTargetsPage } from './components/SalesTargetsPage';
+import { MyPerformancePage } from './components/MyPerformancePage';
+import { CollateralRepository } from './components/CollateralRepository';
 import { tokenManager, authApi } from './lib/api';
 import { SessionManager } from './lib/security';
 
@@ -183,6 +187,14 @@ export default function App() {
         return <EmailAlerts />;
       case 'api-playground':
         return <ApiPlaygroundPage />;
+      case 'team-structure':
+        return <TeamStructurePage />;
+      case 'sales-targets':
+        return <SalesTargetsPage />;
+      case 'my-performance':
+        return <MyPerformancePage />;
+      case 'collateral':
+        return <CollateralRepository />;
       case 'tender-details':
         return tenderDetailsId ? (
           <TenderDetailsPage

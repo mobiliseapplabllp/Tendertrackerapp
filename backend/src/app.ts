@@ -32,6 +32,10 @@ import aiRoutes from './routes/ai';
 import tenderScoutRoutes from './routes/tenderScout';
 import configurationRoutes from './routes/configurationRoutes';
 import productLineRoutes from './routes/productLines';
+import salesTeamRoutes from './routes/salesTeams';
+import salesTargetRoutes from './routes/salesTargets';
+import salesPerformanceRoutes from './routes/salesPerformance';
+import collateralRoutes from './routes/collateral';
 import { ReminderService } from './services/reminderService';
 
 const app: Express = express();
@@ -176,6 +180,10 @@ app.use(`/api/${API_VERSION}/ai`, aiRoutes);
 app.use(`/api/${API_VERSION}/tender-scout`, tenderScoutRoutes);
 app.use(`/api/${API_VERSION}/configuration`, configurationRoutes);
 app.use(`/api/${API_VERSION}/product-lines`, productLineRoutes);
+app.use(`/api/${API_VERSION}/sales-teams`, salesTeamRoutes);
+app.use(`/api/${API_VERSION}/sales-targets`, salesTargetRoutes);
+app.use(`/api/${API_VERSION}/sales-performance`, salesPerformanceRoutes);
+app.use(`/api/${API_VERSION}/collateral`, collateralRoutes);
 
 // 404 handler
 app.use(notFoundHandler);

@@ -3,6 +3,8 @@ import {
   FileText,
   Users,
   Building2,
+  Target,
+  FolderArchive,
   BarChart3,
   Settings,
   Bell,
@@ -58,6 +60,10 @@ export function Sidebar({ currentView, onNavigate, onLogout, user }: SidebarProp
         { id: 'leads', icon: FileText, label: 'Leads', badge: null },
         { id: 'pipeline', icon: BarChart3, label: 'Pipeline', badge: null },
         { id: 'sales-dashboard', icon: BarChart3, label: 'Sales Dashboard', badge: null },
+        { id: 'team-structure', icon: Users, label: 'Team Structure', badge: null },
+        { id: 'sales-targets', icon: Target, label: 'Sales Targets', badge: null },
+        { id: 'my-performance', icon: TrendingUp, label: 'My Performance', badge: null },
+        { id: 'collateral', icon: FolderArchive, label: 'Collateral Repository', badge: null },
       ]
     },
     {
