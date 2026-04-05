@@ -451,7 +451,7 @@ export class TenderController {
       }
 
       // Auto-generate tender number if not provided (format: TND-00001)
-      let finalTenderNumber = tenderNumber;
+      let finalTenderNumber = tenderNumber && tenderNumber.trim() ? tenderNumber.trim() : null;
       if (!finalTenderNumber) {
         const [maxRow] = await db.query(
           "SELECT tender_number FROM tenders WHERE tender_number LIKE 'TND-%' ORDER BY CAST(SUBSTRING(tender_number, 5) AS UNSIGNED) DESC LIMIT 1"

@@ -136,7 +136,7 @@ export function CreateTenderDialog({
     try {
       // Map form data to API format
       const apiData: Partial<Tender> = {
-        tenderNumber: formData.tenderNumber,
+        tenderNumber: formData.tenderNumber || undefined, // undefined triggers auto-generation
         title: formData.title,
         description: formData.description || undefined,
         status: formData.status,

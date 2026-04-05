@@ -202,6 +202,9 @@ export function LeadDashboard({ onLogout, onNavigate }: LeadDashboardProps) {
         await fetchLeads(); // Refresh list
         await fetchDeletedCount(); // Update deleted count
         setIsCreateDialogOpen(false);
+        // Show success message
+        setError(null);
+        alert(`Lead "${response.data.title}" created successfully! (${response.data.tenderNumber || response.data.tender_number || 'ID: ' + response.data.id})`);
       } else {
         setError(response.error || 'Failed to create lead');
       }

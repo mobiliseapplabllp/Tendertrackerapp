@@ -146,7 +146,7 @@ export function CreateLeadDialog({
     try {
       // Map form data to API format
       const apiData: Partial<Lead> = {
-        leadNumber: formData.leadNumber,
+        leadNumber: formData.leadNumber || undefined, // undefined triggers auto-generation
         title: formData.title,
         description: formData.description || undefined,
         status: formData.status,

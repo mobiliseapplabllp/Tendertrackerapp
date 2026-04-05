@@ -436,7 +436,7 @@ export class LeadController {
       }
 
       // Auto-generate lead number if not provided (format: LD-00001)
-      let finalLeadNumber = leadNumber;
+      let finalLeadNumber = leadNumber && leadNumber.trim() ? leadNumber.trim() : null;
       if (!finalLeadNumber) {
         const [maxRow] = await db.query(
           "SELECT tender_number FROM tenders WHERE tender_number LIKE 'LD-%' ORDER BY CAST(SUBSTRING(tender_number, 4) AS UNSIGNED) DESC LIMIT 1"
