@@ -275,19 +275,6 @@ export function CreateLeadDialog({
             >
               <div className="grid grid-cols-2 gap-6">
                 <div className="space-y-2">
-                  <Label htmlFor="leadNumber">Lead Number *</Label>
-                  <Input
-                    id="leadNumber"
-                    placeholder="e.g., LD-2025-001"
-                    value={formData.leadNumber}
-                    onChange={(e) =>
-                      setFormData({ ...formData, leadNumber: e.target.value })
-                    }
-                    required
-                  />
-                </div>
-
-                <div className="space-y-2">
                   <Label htmlFor="leadTypeId">Lead Type *</Label>
                   <Select
                     value={formData.leadTypeId || 'none'}

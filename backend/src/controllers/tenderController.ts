@@ -446,14 +446,25 @@ export class TenderController {
         tagIds,
       } = req.body;
 
-      if (!tenderNumber || !title) {
-        throw new CustomError('Tender number and title are required', 400);
+      if (!title) {
+        throw new CustomError('Title is required', 400);
+      }
+
+      // Auto-generate tender number if not provided (format: TND-00001)
+      let finalTenderNumber = tenderNumber;
+      if (!finalTenderNumber) {
+        const [maxRow] = await db.query(
+          "SELECT tender_number FROM tenders WHERE tender_number LIKE 'TND-%' ORDER BY CAST(SUBSTRING(tender_number, 5) AS UNSIGNED) DESC LIMIT 1"
+        );
+        const lastNum = (maxRow as any[])?.[0]?.tender_number;
+        const nextSeq = lastNum ? parseInt(lastNum.replace('TND-', ''), 10) + 1 : 1;
+        finalTenderNumber = `TND-${String(nextSeq).padStart(5, '0')}`;
       }
 
       // Check if tender number already exists
       const [existing] = await db.query(
         'SELECT id FROM tenders WHERE tender_number = ?',
-        [tenderNumber]
+        [finalTenderNumber]
       );
 
       if ((existing as any[]).length > 0) {
@@ -468,7 +479,7 @@ export class TenderController {
           contract_duration_months, assigned_to, created_by
         ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         [
-          tenderNumber,
+          finalTenderNumber,
           title,
           description || null,
           companyId || null,

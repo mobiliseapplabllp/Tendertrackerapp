@@ -431,14 +431,25 @@ export class LeadController {
         tagIds,
       } = req.body;
 
-      if (!leadNumber || !title) {
-        throw new CustomError('Lead number and title are required', 400);
+      if (!title) {
+        throw new CustomError('Title is required', 400);
       }
 
-      // Check if lead number already exists - use tenders table initially
+      // Auto-generate lead number if not provided (format: LD-00001)
+      let finalLeadNumber = leadNumber;
+      if (!finalLeadNumber) {
+        const [maxRow] = await db.query(
+          "SELECT tender_number FROM tenders WHERE tender_number LIKE 'LD-%' ORDER BY CAST(SUBSTRING(tender_number, 4) AS UNSIGNED) DESC LIMIT 1"
+        );
+        const lastNum = (maxRow as any[])?.[0]?.tender_number;
+        const nextSeq = lastNum ? parseInt(lastNum.replace('LD-', ''), 10) + 1 : 1;
+        finalLeadNumber = `LD-${String(nextSeq).padStart(5, '0')}`;
+      }
+
+      // Check if lead number already exists
       const [existing] = await db.query(
         'SELECT id FROM tenders WHERE tender_number = ? OR lead_number = ?',
-        [leadNumber, leadNumber]
+        [finalLeadNumber, finalLeadNumber]
       );
 
       if ((existing as any[]).length > 0) {
@@ -465,7 +476,7 @@ export class LeadController {
           contract_duration_months, assigned_to, created_by`;
       let insertValues = `?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?`;
       const insertParams: any[] = [
-        leadNumber,
+        finalLeadNumber,
         title,
         description || null,
         companyId || null,

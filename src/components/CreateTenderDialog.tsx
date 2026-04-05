@@ -249,19 +249,6 @@ export function CreateTenderDialog({
             <form id="create-tender-form" onSubmit={handleSubmit} className="space-y-6" encType="multipart/form-data">
               <div className="grid grid-cols-2 gap-6">
                 <div className="space-y-2">
-                  <Label htmlFor="tenderNumber">Tender Number *</Label>
-                  <Input
-                    id="tenderNumber"
-                    placeholder="e.g., TND-2025-001"
-                    value={formData.tenderNumber}
-                    onChange={(e) =>
-                      setFormData({ ...formData, tenderNumber: e.target.value })
-                    }
-                    required
-                  />
-                </div>
-
-                <div className="space-y-2">
                   <Label htmlFor="status">Status</Label>
                   <Select
                     value={formData.status}

@@ -31,7 +31,7 @@ router.post(
   '/',
   validate({
     body: Joi.object({
-      tenderNumber: Joi.string().required(),
+      tenderNumber: Joi.string().optional().allow(null, ''),
       title: Joi.string().required(),
       description: Joi.string().allow(null, ''),
       companyId: Joi.number().integer().positive().allow(null),
