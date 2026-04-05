@@ -221,7 +221,7 @@ const EnhancedTasksTab: React.FC<EnhancedTasksTabProps> = ({ tender, users, remi
     // Toggle Complete Handler
     const handleToggleComplete = async (reminderId: number, currentStatus: boolean) => {
         try {
-            await reminderApi.markComplete(reminderId, !currentStatus);
+            await reminderApi.markComplete(reminderId);
             onRefresh();
         } catch (err) {
             console.error('Failed to update task:', err);

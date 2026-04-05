@@ -132,7 +132,8 @@ export function TeamStructureManager() {
     try {
       setActionLoading(true);
       const res = await salesApi.addMember({
-        userId: Number(selectedUser),
+        teamMemberId: Number(selectedUser),
+        salesHeadId: Number(selectedHead),
         productLineId: selectedProductLine,
       });
       if (!res.success) {
@@ -179,10 +180,18 @@ export function TeamStructureManager() {
         alert('Could not find the member to transfer.');
         return;
       }
+      // Find the sales head of the target product line
+      const targetPL = teamData.find((t: any) => t.product_line_id === Number(transferTarget));
+      const toSalesHeadId = targetPL?.sales_head_id || targetPL?.head?.id;
+      if (!toSalesHeadId) {
+        alert('Target product line has no sales head assigned. Please assign a head first.');
+        return;
+      }
       await salesApi.transferMember({
-        userId: transferUserId,
+        teamMemberId: transferUserId,
         fromProductLineId: fromPLId,
         toProductLineId: Number(transferTarget),
+        toSalesHeadId: toSalesHeadId,
       });
       setShowTransfer(false);
       setTransferTarget('');
