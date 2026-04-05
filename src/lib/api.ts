@@ -1412,3 +1412,145 @@ export const productLineApi = {
   },
 };
 
+// ==================== Sales API (Teams, Targets, Performance) ====================
+export const salesApi = {
+  // Team Structure
+  getTeamStructure: async () => apiCall<any>('/sales-teams'),
+  getTeamByProductLine: async (productLineId: number) => apiCall<any>(`/sales-teams/product-line/${productLineId}`),
+  getTeamHistory: async (params?: any) => {
+    const query = params ? '?' + new URLSearchParams(params).toString() : '';
+    return apiCall<any>(`/sales-teams/history${query}`);
+  },
+  assignHead: async (data: { userId: number; productLineId: number }) =>
+    apiCall<any>('/sales-teams/assign-head', { method: 'POST', body: JSON.stringify(data) }),
+  addMember: async (data: { teamMemberId: number; salesHeadId: number; productLineId: number }) =>
+    apiCall<any>('/sales-teams/add-member', { method: 'POST', body: JSON.stringify(data) }),
+  removeMember: async (assignmentId: number) =>
+    apiCall<any>('/sales-teams/remove-member', { method: 'POST', body: JSON.stringify({ teamMemberId: assignmentId, productLineId: 0 }) }),
+  transferMember: async (data: { teamMemberId: number; fromProductLineId: number; toProductLineId: number; toSalesHeadId: number }) =>
+    apiCall<any>('/sales-teams/transfer-member', { method: 'POST', body: JSON.stringify(data) }),
+
+  // Targets
+  getTargets: async (params?: any) => {
+    const query = params ? '?' + new URLSearchParams(params).toString() : '';
+    return apiCall<any>(`/sales-targets${query}`);
+  },
+  getTargetSummary: async (params?: any) => {
+    const query = params ? '?' + new URLSearchParams(params).toString() : '';
+    return apiCall<any>(`/sales-targets/summary${query}`);
+  },
+  createTarget: async (data: any) =>
+    apiCall<any>('/sales-targets', { method: 'POST', body: JSON.stringify(data) }),
+  updateTarget: async (id: number, data: any) =>
+    apiCall<any>(`/sales-targets/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
+  distributeTarget: async (id: number, data: any) =>
+    apiCall<any>('/sales-targets/distribute', { method: 'POST', body: JSON.stringify({ targetId: id, ...data }) }),
+  bulkSetTargets: async (data: any) =>
+    apiCall<any>('/sales-targets/bulk', { method: 'POST', body: JSON.stringify(data) }),
+  copyPeriodTargets: async (data: any) =>
+    apiCall<any>('/sales-targets/copy', { method: 'POST', body: JSON.stringify(data) }),
+
+  // Performance
+  getOverview: async (params?: any) => {
+    const query = params ? '?' + new URLSearchParams(params).toString() : '';
+    return apiCall<any>(`/sales-performance/overview${query}`);
+  },
+  getProductLinePerformance: async (params?: any) => {
+    const query = params ? '?' + new URLSearchParams(params).toString() : '';
+    return apiCall<any>(`/sales-performance/product-lines${query}`);
+  },
+  getTeamPerformance: async (params?: any) => {
+    const query = params ? '?' + new URLSearchParams(params).toString() : '';
+    return apiCall<any>(`/sales-performance/team${query}`);
+  },
+  getIndividualPerformance: async (userId: number, params?: any) => {
+    const query = params ? '&' + new URLSearchParams(params).toString() : '';
+    return apiCall<any>(`/sales-performance/individual?userId=${userId}${query}`);
+  },
+  getLeaderboard: async (params?: any) => {
+    const query = params ? '?' + new URLSearchParams(params).toString() : '';
+    return apiCall<any>(`/sales-performance/leaderboard${query}`);
+  },
+  getTrends: async (params?: any) => {
+    const query = params ? '?' + new URLSearchParams(params).toString() : '';
+    return apiCall<any>(`/sales-performance/trends${query}`);
+  },
+  getPipelineAnalysis: async (params?: any) => {
+    const query = params ? '?' + new URLSearchParams(params).toString() : '';
+    return apiCall<any>(`/sales-performance/pipeline${query}`);
+  },
+};
+
+// ==================== Collateral API ====================
+export const collateralApi = {
+  getAll: async (params?: any) => {
+    const query = params ? '?' + new URLSearchParams(params).toString() : '';
+    return apiCall<any>(`/collateral${query}`);
+  },
+  getById: async (id: number) => apiCall<any>(`/collateral/${id}`),
+  getCategories: async () => apiCall<any>('/collateral/categories'),
+  getTags: async () => apiCall<any>('/collateral/tags'),
+  getDashboardStats: async () => apiCall<any>('/collateral/dashboard'),
+  search: async (query: string) => apiCall<any>(`/collateral/search?q=${encodeURIComponent(query)}`),
+  getVersions: async (id: number) => apiCall<any>(`/collateral/${id}/versions`),
+
+  upload: async (file: File, data: any) => {
+    const token = getAuthToken();
+    const API_BASE_URL = import.meta.env?.VITE_API_URL || '/api/v1';
+    const formData = new FormData();
+    formData.append('file', file);
+    Object.entries(data).forEach(([key, value]) => {
+      if (value !== null && value !== undefined) formData.append(key, String(value));
+    });
+    const res = await fetch(`${API_BASE_URL}/collateral`, {
+      method: 'POST',
+      headers: { 'Authorization': `Bearer ${token}` },
+      body: formData,
+    });
+    return res.json();
+  },
+
+  update: async (id: number, data: any, file?: File) => {
+    const token = getAuthToken();
+    const API_BASE_URL = import.meta.env?.VITE_API_URL || '/api/v1';
+    const formData = new FormData();
+    if (file) formData.append('file', file);
+    Object.entries(data).forEach(([key, value]) => {
+      if (value !== null && value !== undefined) formData.append(key, String(value));
+    });
+    const res = await fetch(`${API_BASE_URL}/collateral/${id}`, {
+      method: 'PUT',
+      headers: { 'Authorization': `Bearer ${token}` },
+      body: formData,
+    });
+    return res.json();
+  },
+
+  delete: async (id: number) => apiCall<any>(`/collateral/${id}`, { method: 'DELETE' }),
+
+  download: async (id: number, fileName: string) => {
+    const token = getAuthToken();
+    const API_BASE_URL = import.meta.env?.VITE_API_URL || '/api/v1';
+    const res = await fetch(`${API_BASE_URL}/collateral/${id}/download`, {
+      headers: { 'Authorization': `Bearer ${token}` },
+    });
+    if (res.ok) {
+      const blob = await res.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = fileName || 'file';
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      setTimeout(() => window.URL.revokeObjectURL(url), 1000);
+    }
+  },
+
+  createTag: async (data: { name: string; tagType: string }) =>
+    apiCall<any>('/collateral/tags', { method: 'POST', body: JSON.stringify(data) }),
+  deleteTag: async (id: number) => apiCall<any>(`/collateral/tags/${id}`, { method: 'DELETE' }),
+  createCategory: async (data: { name: string; description?: string; icon?: string }) =>
+    apiCall<any>('/collateral/categories', { method: 'POST', body: JSON.stringify(data) }),
+};
+
