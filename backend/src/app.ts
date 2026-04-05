@@ -194,6 +194,49 @@ const server = app.listen(PORT, () => {
   if (!process.env.AI_API_ENCRYPTION_KEY) {
     logger.warn('⚠️  AI_API_ENCRYPTION_KEY is not set. API keys will be encrypted with a random key and will be lost on restart.');
   }
+
+  // Schedule reminder sending ONLY after server successfully starts
+  if (process.env.NODE_ENV !== 'test') {
+    // Send reminders after 30 seconds
+    setTimeout(() => {
+      ReminderService.sendReminders().catch((error) => {
+        logger.error({
+          message: 'Error in initial reminder send',
+          error: error.message,
+        });
+      });
+    }, 30000);
+
+    // Then send reminders every hour
+    setInterval(() => {
+      ReminderService.sendReminders().catch((error) => {
+        logger.error({
+          message: 'Error in scheduled reminder send',
+          error: error.message,
+        });
+      });
+    }, 60 * 60 * 1000);
+
+    logger.info('Reminder service scheduled to run every hour');
+  }
+});
+
+// Handle server startup errors (e.g., port already in use)
+server.on('error', (error: any) => {
+  if (error.code === 'EADDRINUSE') {
+    logger.error({
+      message: `❌ Port ${PORT} is already in use. Server cannot start.`,
+      port: PORT,
+      fix: 'Run: fuser -k ' + PORT + '/tcp  OR  lsof -ti:' + PORT + ' | xargs kill -9',
+    });
+  } else {
+    logger.error({
+      message: 'Server startup error',
+      error: error.message,
+      code: error.code,
+    });
+  }
+  process.exit(1);
 });
 
 // Graceful shutdown
@@ -204,31 +247,6 @@ process.on('SIGTERM', () => {
     process.exit(0);
   });
 });
-
-// Schedule reminder sending (every hour)
-if (process.env.NODE_ENV !== 'test') {
-  // Send reminders immediately on startup (for testing)
-  setTimeout(() => {
-    ReminderService.sendReminders().catch((error) => {
-      logger.error({
-        message: 'Error in initial reminder send',
-        error: error.message,
-      });
-    });
-  }, 30000); // Wait 30 seconds after server starts
-
-  // Then send reminders every hour
-  setInterval(() => {
-    ReminderService.sendReminders().catch((error) => {
-      logger.error({
-        message: 'Error in scheduled reminder send',
-        error: error.message,
-      });
-    });
-  }, 60 * 60 * 1000); // Every hour
-
-  logger.info('Reminder service scheduled to run every hour');
-}
 
 process.on('SIGINT', () => {
   logger.info('SIGINT signal received: closing HTTP server');
