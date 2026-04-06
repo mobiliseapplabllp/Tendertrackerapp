@@ -446,10 +446,10 @@ export class LeadController {
         finalLeadNumber = `LD-${String(nextSeq).padStart(5, '0')}`;
       }
 
-      // Check if lead number already exists
+      // Check if lead number already exists (use tender_number only - lead_number column may not exist yet)
       const [existing] = await db.query(
-        'SELECT id FROM tenders WHERE tender_number = ? OR lead_number = ?',
-        [finalLeadNumber, finalLeadNumber]
+        'SELECT id FROM tenders WHERE tender_number = ?',
+        [finalLeadNumber]
       );
 
       if ((existing as any[]).length > 0) {
