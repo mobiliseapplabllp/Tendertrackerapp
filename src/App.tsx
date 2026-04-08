@@ -25,6 +25,7 @@ import { SalesTargetsPage } from './components/SalesTargetsPage';
 import { MyPerformancePage } from './components/MyPerformancePage';
 import { CollateralRepository } from './components/CollateralRepository';
 import { ProductCatalogPage } from './components/ProductCatalogPage';
+import { SalesHubPage } from './components/SalesHubPage';
 import { tokenManager, authApi } from './lib/api';
 import { SessionManager } from './lib/security';
 
@@ -160,10 +161,8 @@ export default function App() {
         return <TenderDashboard onLogout={handleLogout} onNavigate={handleNavigate} />;
       case 'leads':
         return <LeadDashboard onLogout={handleLogout} onNavigate={handleNavigate} />;
-      case 'pipeline':
-        return <PipelineView />;
-      case 'sales-dashboard':
-        return <SalesDashboard />;
+      case 'sales-hub':
+        return <SalesHubPage user={currentUser} />;
       case 'documents':
         return <DocumentManagement />;
       case 'users':
@@ -192,8 +191,6 @@ export default function App() {
         return <TeamStructurePage />;
       case 'sales-targets':
         return <SalesTargetsPage />;
-      case 'my-performance':
-        return <MyPerformancePage user={currentUser} />;
       case 'collateral':
         return <CollateralRepository />;
       case 'product-catalog':
