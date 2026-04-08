@@ -35,7 +35,7 @@ export function DocumentsTab({ leadId }: DocumentsTabProps) {
         try {
             setLoading(true);
             setError(null);
-            const response = await documentApi.getByTenderId(leadId);
+            const response = await documentApi.getAll({ tenderId: leadId });
 
             if (response.success && response.data) {
                 setDocuments(response.data.data || []);
