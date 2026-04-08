@@ -1,22 +1,21 @@
-import { Request, Response, NextFunction } from 'express';
+import { Request, Response } from 'express';
 import db from '../config/database';
-import { logger } from '../utils/logger';
+import logger from '../utils/logger';
 
 // RBAC helper
 const isAdmin = (req: Request) => req.user?.role?.toLowerCase() === 'admin';
-const isManagerOrAdmin = (req: Request) => ['admin', 'manager'].includes(req.user?.role?.toLowerCase() || '');
 
 // ==================== Categories ====================
 
-export const getCategories = async (req: Request, res: Response) => {
+export const getCategories = async (_req: Request, res: Response) => {
   try {
     const [rows] = await db.query(
       'SELECT * FROM product_categories WHERE is_active = TRUE ORDER BY display_order, name'
     );
-    res.json({ success: true, data: rows });
+    return res.json({ success: true, data: rows });
   } catch (error: any) {
     logger.error({ message: 'Error fetching product categories', error: error.message });
-    res.status(500).json({ success: false, error: 'Failed to fetch categories' });
+    return res.status(500).json({ success: false, error: 'Failed to fetch categories' });
   }
 };
 
@@ -30,10 +29,10 @@ export const createCategory = async (req: Request, res: Response) => {
     );
     const id = (result as any).insertId;
     const [rows] = await db.query('SELECT * FROM product_categories WHERE id = ?', [id]);
-    res.status(201).json({ success: true, data: (rows as any[])[0] });
+    return res.status(201).json({ success: true, data: (rows as any[])[0] });
   } catch (error: any) {
     logger.error({ message: 'Error creating category', error: error.message });
-    res.status(500).json({ success: false, error: 'Failed to create category' });
+    return res.status(500).json({ success: false, error: 'Failed to create category' });
   }
 };
 
@@ -54,10 +53,10 @@ export const updateCategory = async (req: Request, res: Response) => {
     params.push(id);
     await db.query(`UPDATE product_categories SET ${fields.join(', ')} WHERE id = ?`, params);
     const [rows] = await db.query('SELECT * FROM product_categories WHERE id = ?', [id]);
-    res.json({ success: true, data: (rows as any[])[0] });
+    return res.json({ success: true, data: (rows as any[])[0] });
   } catch (error: any) {
     logger.error({ message: 'Error updating category', error: error.message });
-    res.status(500).json({ success: false, error: 'Failed to update category' });
+    return res.status(500).json({ success: false, error: 'Failed to update category' });
   }
 };
 
@@ -70,10 +69,10 @@ export const deleteCategory = async (req: Request, res: Response) => {
       return res.status(400).json({ success: false, error: 'Cannot delete category with products. Reassign products first.' });
     }
     await db.query('UPDATE product_categories SET is_active = FALSE WHERE id = ?', [id]);
-    res.json({ success: true, message: 'Category deactivated' });
+    return res.json({ success: true, message: 'Category deactivated' });
   } catch (error: any) {
     logger.error({ message: 'Error deleting category', error: error.message });
-    res.status(500).json({ success: false, error: 'Failed to delete category' });
+    return res.status(500).json({ success: false, error: 'Failed to delete category' });
   }
 };
 
@@ -110,10 +109,10 @@ export const getProducts = async (req: Request, res: Response) => {
        LIMIT ? OFFSET ?`,
       [...params, pageSizeNum, offset]
     );
-    res.json({ success: true, data: { data: rows, total, page: pageNum, pageSize: pageSizeNum, totalPages: Math.ceil(total / pageSizeNum) } });
+    return res.json({ success: true, data: { data: rows, total, page: pageNum, pageSize: pageSizeNum, totalPages: Math.ceil(total / pageSizeNum) } });
   } catch (error: any) {
     logger.error({ message: 'Error fetching products', error: error.message });
-    res.status(500).json({ success: false, error: 'Failed to fetch products' });
+    return res.status(500).json({ success: false, error: 'Failed to fetch products' });
   }
 };
 
@@ -144,10 +143,10 @@ export const getProductById = async (req: Request, res: Response) => {
       );
       product.components = components;
     }
-    res.json({ success: true, data: product });
+    return res.json({ success: true, data: product });
   } catch (error: any) {
     logger.error({ message: 'Error fetching product', error: error.message });
-    res.status(500).json({ success: false, error: 'Failed to fetch product' });
+    return res.status(500).json({ success: false, error: 'Failed to fetch product' });
   }
 };
 
@@ -165,11 +164,11 @@ export const createProduct = async (req: Request, res: Response) => {
     const id = (result as any).insertId;
     const [rows] = await db.query('SELECT * FROM products WHERE id = ?', [id]);
     logger.info({ message: 'Product created', productId: id, createdBy: req.user!.userId });
-    res.status(201).json({ success: true, data: (rows as any[])[0] });
+    return res.status(201).json({ success: true, data: (rows as any[])[0] });
   } catch (error: any) {
     if (error.code === 'ER_DUP_ENTRY') return res.status(409).json({ success: false, error: 'SKU already exists' });
     logger.error({ message: 'Error creating product', error: error.message });
-    res.status(500).json({ success: false, error: 'Failed to create product' });
+    return res.status(500).json({ success: false, error: 'Failed to create product' });
   }
 };
 
@@ -196,10 +195,10 @@ export const updateProduct = async (req: Request, res: Response) => {
     params.push(id);
     await db.query(`UPDATE products SET ${fields.join(', ')} WHERE id = ?`, params);
     const [rows] = await db.query('SELECT * FROM products WHERE id = ?', [id]);
-    res.json({ success: true, data: (rows as any[])[0] });
+    return res.json({ success: true, data: (rows as any[])[0] });
   } catch (error: any) {
     logger.error({ message: 'Error updating product', error: error.message });
-    res.status(500).json({ success: false, error: 'Failed to update product' });
+    return res.status(500).json({ success: false, error: 'Failed to update product' });
   }
 };
 
@@ -208,10 +207,10 @@ export const deleteProduct = async (req: Request, res: Response) => {
     if (!isAdmin(req)) return res.status(403).json({ success: false, error: 'Only admins can manage products' });
     const { id } = req.params;
     await db.query('UPDATE products SET deleted_at = NOW() WHERE id = ?', [id]);
-    res.json({ success: true, message: 'Product deleted' });
+    return res.json({ success: true, message: 'Product deleted' });
   } catch (error: any) {
     logger.error({ message: 'Error deleting product', error: error.message });
-    res.status(500).json({ success: false, error: 'Failed to delete product' });
+    return res.status(500).json({ success: false, error: 'Failed to delete product' });
   }
 };
 
@@ -228,10 +227,10 @@ export const getBOM = async (req: Request, res: Response) => {
        WHERE b.parent_product_id = ?
        ORDER BY b.display_order, p.name`, [id]
     );
-    res.json({ success: true, data: components });
+    return res.json({ success: true, data: components });
   } catch (error: any) {
     logger.error({ message: 'Error fetching BOM', error: error.message });
-    res.status(500).json({ success: false, error: 'Failed to fetch BOM' });
+    return res.status(500).json({ success: false, error: 'Failed to fetch BOM' });
   }
 };
 
@@ -253,11 +252,11 @@ export const addBOMComponent = async (req: Request, res: Response) => {
        FROM product_bom b JOIN products p ON b.component_product_id = p.id
        WHERE b.parent_product_id = ? ORDER BY b.display_order`, [id]
     );
-    res.status(201).json({ success: true, data: components });
+    return res.status(201).json({ success: true, data: components });
   } catch (error: any) {
     if (error.code === 'ER_DUP_ENTRY') return res.status(409).json({ success: false, error: 'Component already in BOM' });
     logger.error({ message: 'Error adding BOM component', error: error.message });
-    res.status(500).json({ success: false, error: 'Failed to add component' });
+    return res.status(500).json({ success: false, error: 'Failed to add component' });
   }
 };
 
@@ -269,10 +268,10 @@ export const updateBOMComponent = async (req: Request, res: Response) => {
       'UPDATE product_bom SET quantity = ?, is_optional = ?, display_order = ?, notes = ? WHERE id = ? AND parent_product_id = ?',
       [quantity, isOptional ?? false, displayOrder || 0, notes || null, bomId, id]
     );
-    res.json({ success: true, message: 'BOM component updated' });
+    return res.json({ success: true, message: 'BOM component updated' });
   } catch (error: any) {
     logger.error({ message: 'Error updating BOM', error: error.message });
-    res.status(500).json({ success: false, error: 'Failed to update component' });
+    return res.status(500).json({ success: false, error: 'Failed to update component' });
   }
 };
 
@@ -285,9 +284,9 @@ export const removeBOMComponent = async (req: Request, res: Response) => {
     if ((remaining as any[])[0].count === 0) {
       await db.query('UPDATE products SET is_bundle = FALSE WHERE id = ?', [id]);
     }
-    res.json({ success: true, message: 'Component removed from BOM' });
+    return res.json({ success: true, message: 'Component removed from BOM' });
   } catch (error: any) {
     logger.error({ message: 'Error removing BOM component', error: error.message });
-    res.status(500).json({ success: false, error: 'Failed to remove component' });
+    return res.status(500).json({ success: false, error: 'Failed to remove component' });
   }
 };

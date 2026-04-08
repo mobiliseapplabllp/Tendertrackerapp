@@ -1,6 +1,6 @@
-import { Request, Response, NextFunction } from 'express';
+import { Request, Response } from 'express';
 import db from '../config/database';
-import { logger } from '../utils/logger';
+import logger from '../utils/logger';
 
 // ==================== Templates ====================
 
@@ -15,10 +15,10 @@ export const getTemplates = async (req: Request, res: Response) => {
     }
     query += ' ORDER BY name';
     const [rows] = await db.query(query, params);
-    res.json({ success: true, data: rows });
+    return res.json({ success: true, data: rows });
   } catch (error: any) {
     logger.error({ message: 'Error fetching templates', error: error.message });
-    res.status(500).json({ success: false, error: 'Failed to fetch templates' });
+    return res.status(500).json({ success: false, error: 'Failed to fetch templates' });
   }
 };
 
@@ -37,10 +37,10 @@ export const getByLead = async (req: Request, res: Response) => {
        WHERE p.tender_id = ? AND p.deleted_at IS NULL
        ORDER BY p.created_at DESC`, [leadId]
     );
-    res.json({ success: true, data: rows });
+    return res.json({ success: true, data: rows });
   } catch (error: any) {
     logger.error({ message: 'Error fetching proposals', error: error.message });
-    res.status(500).json({ success: false, error: 'Failed to fetch proposals' });
+    return res.status(500).json({ success: false, error: 'Failed to fetch proposals' });
   }
 };
 
@@ -69,10 +69,10 @@ export const getById = async (req: Request, res: Response) => {
     );
     proposal.lineItems = items;
 
-    res.json({ success: true, data: proposal });
+    return res.json({ success: true, data: proposal });
   } catch (error: any) {
     logger.error({ message: 'Error fetching proposal', error: error.message });
-    res.status(500).json({ success: false, error: 'Failed to fetch proposal' });
+    return res.status(500).json({ success: false, error: 'Failed to fetch proposal' });
   }
 };
 
@@ -133,10 +133,10 @@ export const create = async (req: Request, res: Response) => {
 
     logger.info({ message: 'Proposal created', proposalId, tenderId, createdBy: req.user!.userId });
     const [rows] = await db.query('SELECT * FROM proposals WHERE id = ?', [proposalId]);
-    res.status(201).json({ success: true, data: (rows as any[])[0] });
+    return res.status(201).json({ success: true, data: (rows as any[])[0] });
   } catch (error: any) {
     logger.error({ message: 'Error creating proposal', error: error.message });
-    res.status(500).json({ success: false, error: 'Failed to create proposal' });
+    return res.status(500).json({ success: false, error: 'Failed to create proposal' });
   }
 };
 
@@ -159,10 +159,10 @@ export const update = async (req: Request, res: Response) => {
     params.push(id);
     await db.query(`UPDATE proposals SET ${fields.join(', ')} WHERE id = ? AND deleted_at IS NULL`, params);
     const [rows] = await db.query('SELECT * FROM proposals WHERE id = ?', [id]);
-    res.json({ success: true, data: (rows as any[])[0] });
+    return res.json({ success: true, data: (rows as any[])[0] });
   } catch (error: any) {
     logger.error({ message: 'Error updating proposal', error: error.message });
-    res.status(500).json({ success: false, error: 'Failed to update proposal' });
+    return res.status(500).json({ success: false, error: 'Failed to update proposal' });
   }
 };
 
@@ -170,10 +170,10 @@ export const deleteProposal = async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
     await db.query('UPDATE proposals SET deleted_at = NOW() WHERE id = ?', [id]);
-    res.json({ success: true, message: 'Proposal deleted' });
+    return res.json({ success: true, message: 'Proposal deleted' });
   } catch (error: any) {
     logger.error({ message: 'Error deleting proposal', error: error.message });
-    res.status(500).json({ success: false, error: 'Failed to delete proposal' });
+    return res.status(500).json({ success: false, error: 'Failed to delete proposal' });
   }
 };
 
@@ -193,10 +193,10 @@ export const submitForApproval = async (req: Request, res: Response) => {
       `INSERT INTO tender_activities (tender_id, user_id, activity_type, description) VALUES (?, ?, 'Updated', ?)`,
       [proposal.tender_id, req.user!.userId, `Proposal "${proposal.title}" submitted for approval`]
     );
-    res.json({ success: true, message: 'Proposal submitted for approval' });
+    return res.json({ success: true, message: 'Proposal submitted for approval' });
   } catch (error: any) {
     logger.error({ message: 'Error submitting proposal', error: error.message });
-    res.status(500).json({ success: false, error: 'Failed to submit proposal' });
+    return res.status(500).json({ success: false, error: 'Failed to submit proposal' });
   }
 };
 
@@ -218,10 +218,10 @@ export const approve = async (req: Request, res: Response) => {
       `INSERT INTO tender_activities (tender_id, user_id, activity_type, description) VALUES (?, ?, 'Updated', ?)`,
       [proposal.tender_id, req.user!.userId, `Proposal "${proposal.title}" approved`]
     );
-    res.json({ success: true, message: 'Proposal approved' });
+    return res.json({ success: true, message: 'Proposal approved' });
   } catch (error: any) {
     logger.error({ message: 'Error approving proposal', error: error.message });
-    res.status(500).json({ success: false, error: 'Failed to approve proposal' });
+    return res.status(500).json({ success: false, error: 'Failed to approve proposal' });
   }
 };
 
@@ -241,10 +241,10 @@ export const reject = async (req: Request, res: Response) => {
       `INSERT INTO tender_activities (tender_id, user_id, activity_type, description) VALUES (?, ?, 'Updated', ?)`,
       [proposal.tender_id, req.user!.userId, `Proposal "${proposal.title}" rejected: ${reason || 'No reason given'}`]
     );
-    res.json({ success: true, message: 'Proposal rejected and returned to Draft' });
+    return res.json({ success: true, message: 'Proposal rejected and returned to Draft' });
   } catch (error: any) {
     logger.error({ message: 'Error rejecting proposal', error: error.message });
-    res.status(500).json({ success: false, error: 'Failed to reject proposal' });
+    return res.status(500).json({ success: false, error: 'Failed to reject proposal' });
   }
 };
 
@@ -264,10 +264,10 @@ export const markSubmitted = async (req: Request, res: Response) => {
       `INSERT INTO tender_activities (tender_id, user_id, activity_type, description) VALUES (?, ?, 'Updated', ?)`,
       [proposal.tender_id, req.user!.userId, `Proposal "${proposal.title}" submitted to ${submittedTo || 'client'}`]
     );
-    res.json({ success: true, message: 'Proposal marked as submitted' });
+    return res.json({ success: true, message: 'Proposal marked as submitted' });
   } catch (error: any) {
     logger.error({ message: 'Error marking proposal submitted', error: error.message });
-    res.status(500).json({ success: false, error: 'Failed to update proposal' });
+    return res.status(500).json({ success: false, error: 'Failed to update proposal' });
   }
 };
 
@@ -289,10 +289,10 @@ export const updateOutcome = async (req: Request, res: Response) => {
       `INSERT INTO tender_activities (tender_id, user_id, activity_type, description) VALUES (?, ?, 'Status Changed', ?)`,
       [proposal.tender_id, req.user!.userId, `Proposal "${proposal.title}" outcome: ${status}`]
     );
-    res.json({ success: true, message: `Proposal marked as ${status}` });
+    return res.json({ success: true, message: `Proposal marked as ${status}` });
   } catch (error: any) {
     logger.error({ message: 'Error updating outcome', error: error.message });
-    res.status(500).json({ success: false, error: 'Failed to update outcome' });
+    return res.status(500).json({ success: false, error: 'Failed to update outcome' });
   }
 };
 
@@ -308,10 +308,10 @@ export const getLineItems = async (req: Request, res: Response) => {
        WHERE li.proposal_id = ?
        ORDER BY li.display_order, li.id`, [proposalId]
     );
-    res.json({ success: true, data: rows });
+    return res.json({ success: true, data: rows });
   } catch (error: any) {
     logger.error({ message: 'Error fetching line items', error: error.message });
-    res.status(500).json({ success: false, error: 'Failed to fetch line items' });
+    return res.status(500).json({ success: false, error: 'Failed to fetch line items' });
   }
 };
 
@@ -345,10 +345,10 @@ export const addLineItem = async (req: Request, res: Response) => {
 
     const itemId = (result as any).insertId;
     const [rows] = await db.query('SELECT * FROM proposal_line_items WHERE id = ?', [itemId]);
-    res.status(201).json({ success: true, data: (rows as any[])[0] });
+    return res.status(201).json({ success: true, data: (rows as any[])[0] });
   } catch (error: any) {
     logger.error({ message: 'Error adding line item', error: error.message });
-    res.status(500).json({ success: false, error: 'Failed to add line item' });
+    return res.status(500).json({ success: false, error: 'Failed to add line item' });
   }
 };
 
@@ -385,10 +385,10 @@ export const updateLineItem = async (req: Request, res: Response) => {
     await db.query(`UPDATE proposal_line_items SET ${fields.join(', ')} WHERE id = ? AND proposal_id = ?`, params);
     await recalcProposalTotals(Number(proposalId));
     const [rows] = await db.query('SELECT * FROM proposal_line_items WHERE id = ?', [itemId]);
-    res.json({ success: true, data: (rows as any[])[0] });
+    return res.json({ success: true, data: (rows as any[])[0] });
   } catch (error: any) {
     logger.error({ message: 'Error updating line item', error: error.message });
-    res.status(500).json({ success: false, error: 'Failed to update line item' });
+    return res.status(500).json({ success: false, error: 'Failed to update line item' });
   }
 };
 
@@ -399,10 +399,10 @@ export const removeLineItem = async (req: Request, res: Response) => {
     await db.query('DELETE FROM proposal_line_items WHERE parent_line_item_id = ?', [itemId]);
     await db.query('DELETE FROM proposal_line_items WHERE id = ? AND proposal_id = ?', [itemId, proposalId]);
     await recalcProposalTotals(Number(proposalId));
-    res.json({ success: true, message: 'Line item removed' });
+    return res.json({ success: true, message: 'Line item removed' });
   } catch (error: any) {
     logger.error({ message: 'Error removing line item', error: error.message });
-    res.status(500).json({ success: false, error: 'Failed to remove line item' });
+    return res.status(500).json({ success: false, error: 'Failed to remove line item' });
   }
 };
 
@@ -458,10 +458,10 @@ export const addBundleToProposal = async (req: Request, res: Response) => {
 
     await recalcProposalTotals(Number(proposalId));
     const [items] = await db.query('SELECT * FROM proposal_line_items WHERE proposal_id = ? ORDER BY display_order, id', [proposalId]);
-    res.status(201).json({ success: true, data: items });
+    return res.status(201).json({ success: true, data: items });
   } catch (error: any) {
     logger.error({ message: 'Error adding bundle', error: error.message });
-    res.status(500).json({ success: false, error: 'Failed to add bundle' });
+    return res.status(500).json({ success: false, error: 'Failed to add bundle' });
   }
 };
 
@@ -477,10 +477,10 @@ export const getVersions = async (req: Request, res: Response) => {
        WHERE v.proposal_id = ?
        ORDER BY v.version_number DESC`, [proposalId]
     );
-    res.json({ success: true, data: rows });
+    return res.json({ success: true, data: rows });
   } catch (error: any) {
     logger.error({ message: 'Error fetching versions', error: error.message });
-    res.status(500).json({ success: false, error: 'Failed to fetch versions' });
+    return res.status(500).json({ success: false, error: 'Failed to fetch versions' });
   }
 };
 
