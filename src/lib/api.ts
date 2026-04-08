@@ -1554,3 +1554,109 @@ export const collateralApi = {
     apiCall<any>('/collateral/categories', { method: 'POST', body: JSON.stringify(data) }),
 };
 
+// ==================== Product Catalog API ====================
+export const productCatalogApi = {
+  // Categories
+  getCategories: async () => apiCall<any>('/product-catalog/categories'),
+  createCategory: async (data: any) =>
+    apiCall<any>('/product-catalog/categories', { method: 'POST', body: JSON.stringify(data) }),
+  updateCategory: async (id: number, data: any) =>
+    apiCall<any>(`/product-catalog/categories/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
+  deleteCategory: async (id: number) =>
+    apiCall<any>(`/product-catalog/categories/${id}`, { method: 'DELETE' }),
+
+  // Products
+  getAll: async (params?: any) => {
+    const query = params ? '?' + new URLSearchParams(params).toString() : '';
+    return apiCall<any>(`/product-catalog${query}`);
+  },
+  getById: async (id: number) => apiCall<any>(`/product-catalog/${id}`),
+  create: async (data: any) =>
+    apiCall<any>('/product-catalog', { method: 'POST', body: JSON.stringify(data) }),
+  update: async (id: number, data: any) =>
+    apiCall<any>(`/product-catalog/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
+  delete: async (id: number) =>
+    apiCall<any>(`/product-catalog/${id}`, { method: 'DELETE' }),
+
+  // BOM
+  getBOM: async (productId: number) => apiCall<any>(`/product-catalog/${productId}/bom`),
+  addBOMComponent: async (productId: number, data: any) =>
+    apiCall<any>(`/product-catalog/${productId}/bom`, { method: 'POST', body: JSON.stringify(data) }),
+  updateBOMComponent: async (productId: number, bomId: number, data: any) =>
+    apiCall<any>(`/product-catalog/${productId}/bom/${bomId}`, { method: 'PUT', body: JSON.stringify(data) }),
+  removeBOMComponent: async (productId: number, bomId: number) =>
+    apiCall<any>(`/product-catalog/${productId}/bom/${bomId}`, { method: 'DELETE' }),
+};
+
+// ==================== Proposal API ====================
+export const proposalApi = {
+  getByLead: async (leadId: number) => apiCall<any>(`/proposals/lead/${leadId}`),
+  getById: async (id: number) => apiCall<any>(`/proposals/${id}`),
+  create: async (data: any) =>
+    apiCall<any>('/proposals', { method: 'POST', body: JSON.stringify(data) }),
+  update: async (id: number, data: any) =>
+    apiCall<any>(`/proposals/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
+  delete: async (id: number) =>
+    apiCall<any>(`/proposals/${id}`, { method: 'DELETE' }),
+  submitForApproval: async (id: number) =>
+    apiCall<any>(`/proposals/${id}/submit-for-approval`, { method: 'POST' }),
+  approve: async (id: number) =>
+    apiCall<any>(`/proposals/${id}/approve`, { method: 'POST' }),
+  reject: async (id: number, reason: string) =>
+    apiCall<any>(`/proposals/${id}/reject`, { method: 'POST', body: JSON.stringify({ reason }) }),
+  markSubmitted: async (id: number, data: { submittedTo: string; submittedToEmail?: string }) =>
+    apiCall<any>(`/proposals/${id}/mark-submitted`, { method: 'POST', body: JSON.stringify(data) }),
+  updateOutcome: async (id: number, status: 'Accepted' | 'Rejected') =>
+    apiCall<any>(`/proposals/${id}/outcome`, { method: 'POST', body: JSON.stringify({ status }) }),
+  // Line items
+  getLineItems: async (proposalId: number) => apiCall<any>(`/proposals/${proposalId}/line-items`),
+  addLineItem: async (proposalId: number, data: any) =>
+    apiCall<any>(`/proposals/${proposalId}/line-items`, { method: 'POST', body: JSON.stringify(data) }),
+  updateLineItem: async (proposalId: number, itemId: number, data: any) =>
+    apiCall<any>(`/proposals/${proposalId}/line-items/${itemId}`, { method: 'PUT', body: JSON.stringify(data) }),
+  removeLineItem: async (proposalId: number, itemId: number) =>
+    apiCall<any>(`/proposals/${proposalId}/line-items/${itemId}`, { method: 'DELETE' }),
+  addBundleToProposal: async (proposalId: number, productId: number, quantity: number) =>
+    apiCall<any>(`/proposals/${proposalId}/add-bundle`, { method: 'POST', body: JSON.stringify({ productId, quantity }) }),
+  // Versions
+  getVersions: async (proposalId: number) => apiCall<any>(`/proposals/${proposalId}/versions`),
+  uploadVersion: async (proposalId: number, file: File, changeNote: string) => {
+    const token = getAuthToken();
+    const API_BASE_URL = import.meta.env?.VITE_API_URL || '/api/v1';
+    const formData = new FormData();
+    formData.append('file', file);
+    formData.append('changeNote', changeNote);
+    const res = await fetch(`${API_BASE_URL}/proposals/${proposalId}/versions`, {
+      method: 'POST',
+      headers: { 'Authorization': `Bearer ${token}` },
+      body: formData,
+    });
+    return res.json();
+  },
+  // Templates
+  getTemplates: async (productLineId?: number) => {
+    const query = productLineId ? `?productLineId=${productLineId}` : '';
+    return apiCall<any>(`/proposals/templates${query}`);
+  },
+  // PDF
+  generatePDF: async (proposalId: number) => {
+    const token = getAuthToken();
+    const API_BASE_URL = import.meta.env?.VITE_API_URL || '/api/v1';
+    const res = await fetch(`${API_BASE_URL}/proposals/${proposalId}/generate-pdf`, {
+      headers: { 'Authorization': `Bearer ${token}` },
+    });
+    if (res.ok) {
+      const blob = await res.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `proposal-${proposalId}.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      setTimeout(() => window.URL.revokeObjectURL(url), 1000);
+    }
+    return { success: res.ok };
+  },
+};
+

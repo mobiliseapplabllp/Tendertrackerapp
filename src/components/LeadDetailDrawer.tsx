@@ -11,6 +11,7 @@ import { WorkLogTab } from './lead-drawer/WorkLogTab';
 import { AuditLogTab } from './lead-drawer/AuditLogTab';
 import { AISummaryTab } from './lead-drawer/AISummaryTab';
 import { EnhancedTasksTab } from './EnhancedTasksTab';
+import { ProposalTab } from './lead-drawer/ProposalTab';
 
 interface LeadDetailDrawerProps {
     leadId: number | null;
@@ -155,6 +156,7 @@ export function LeadDetailDrawer({
                                 <TabsTrigger value="activities" className="text-xs py-2 flex items-center gap-1"><MessageSquare className="w-3.5 h-3.5" />Activities</TabsTrigger>
                                 <TabsTrigger value="audit" className="text-xs py-2 flex items-center gap-1"><Shield className="w-3.5 h-3.5" />Audit</TabsTrigger>
                                 <TabsTrigger value="ai" className="text-xs py-2 flex items-center gap-1"><Sparkles className="w-3.5 h-3.5 text-indigo-500" />AI</TabsTrigger>
+                                <TabsTrigger value="proposals" className="text-xs py-2 flex items-center gap-1"><FileText className="w-3.5 h-3.5 text-indigo-500" />Proposals</TabsTrigger>
                             </TabsList>
 
                             <div className="flex-1 overflow-y-auto">
@@ -189,6 +191,10 @@ export function LeadDetailDrawer({
 
                                 <TabsContent value="ai" className="mt-0 h-full">
                                     <AISummaryTab leadId={lead.id} />
+                                </TabsContent>
+
+                                <TabsContent value="proposals" className="mt-0 h-full">
+                                    <ProposalTab leadId={lead.id} />
                                 </TabsContent>
                             </div>
                         </Tabs>

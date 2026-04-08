@@ -36,6 +36,8 @@ import salesTeamRoutes from './routes/salesTeams';
 import salesTargetRoutes from './routes/salesTargets';
 import salesPerformanceRoutes from './routes/salesPerformance';
 import collateralRoutes from './routes/collateral';
+import productCatalogRoutes from './routes/productCatalog';
+import proposalRoutes from './routes/proposals';
 import { ReminderService } from './services/reminderService';
 
 const app: Express = express();
@@ -184,6 +186,8 @@ app.use(`/api/${API_VERSION}/sales-teams`, salesTeamRoutes);
 app.use(`/api/${API_VERSION}/sales-targets`, salesTargetRoutes);
 app.use(`/api/${API_VERSION}/sales-performance`, salesPerformanceRoutes);
 app.use(`/api/${API_VERSION}/collateral`, collateralRoutes);
+app.use(`/api/${API_VERSION}/product-catalog`, productCatalogRoutes);
+app.use(`/api/${API_VERSION}/proposals`, proposalRoutes);
 
 // 404 handler
 app.use(notFoundHandler);

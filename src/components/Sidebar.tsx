@@ -64,6 +64,7 @@ export function Sidebar({ currentView, onNavigate, onLogout, user }: SidebarProp
         { id: 'sales-targets', icon: Target, label: 'Sales Targets', badge: null },
         { id: 'my-performance', icon: TrendingUp, label: 'My Performance', badge: null },
         { id: 'collateral', icon: FolderArchive, label: 'Collateral Repository', badge: null },
+        { id: 'product-catalog', icon: Tag, label: 'Product Catalog', badge: null },
       ]
     },
     {
