@@ -2,6 +2,10 @@ import { Request, Response, NextFunction } from 'express';
 import db from '../config/database';
 import { logger } from '../utils/logger';
 
+// RBAC helper
+const isAdmin = (req: Request) => req.user?.role?.toLowerCase() === 'admin';
+const isManagerOrAdmin = (req: Request) => ['admin', 'manager'].includes(req.user?.role?.toLowerCase() || '');
+
 // ==================== Categories ====================
 
 export const getCategories = async (req: Request, res: Response) => {
@@ -18,6 +22,7 @@ export const getCategories = async (req: Request, res: Response) => {
 
 export const createCategory = async (req: Request, res: Response) => {
   try {
+    if (!isAdmin(req)) return res.status(403).json({ success: false, error: 'Only admins can manage product categories' });
     const { name, description, parentId, icon, displayOrder } = req.body;
     const [result] = await db.query(
       'INSERT INTO product_categories (name, description, parent_id, icon, display_order) VALUES (?, ?, ?, ?, ?)',
@@ -34,6 +39,7 @@ export const createCategory = async (req: Request, res: Response) => {
 
 export const updateCategory = async (req: Request, res: Response) => {
   try {
+    if (!isAdmin(req)) return res.status(403).json({ success: false, error: 'Only admins can manage product categories' });
     const { id } = req.params;
     const { name, description, parentId, icon, isActive, displayOrder } = req.body;
     const fields: string[] = [];
@@ -57,6 +63,7 @@ export const updateCategory = async (req: Request, res: Response) => {
 
 export const deleteCategory = async (req: Request, res: Response) => {
   try {
+    if (!isAdmin(req)) return res.status(403).json({ success: false, error: 'Only admins can manage product categories' });
     const { id } = req.params;
     const [products] = await db.query('SELECT COUNT(*) as count FROM products WHERE category_id = ?', [id]);
     if ((products as any[])[0].count > 0) {
@@ -75,6 +82,8 @@ export const deleteCategory = async (req: Request, res: Response) => {
 export const getProducts = async (req: Request, res: Response) => {
   try {
     const { search, categoryId, productLineId, subCategory, isBundle, isActive, page = 1, pageSize = 50 } = req.query;
+    const pageNum = Math.max(1, Math.min(Number(page) || 1, 10000));
+    const pageSizeNum = Math.max(1, Math.min(Number(pageSize) || 50, 200));
     let where = 'p.deleted_at IS NULL';
     const params: any[] = [];
 
@@ -86,7 +95,7 @@ export const getProducts = async (req: Request, res: Response) => {
     if (isActive !== undefined) { where += ' AND p.is_active = ?'; params.push(isActive === 'true'); }
     else { where += ' AND p.is_active = TRUE'; }
 
-    const offset = (Number(page) - 1) * Number(pageSize);
+    const offset = (pageNum - 1) * pageSizeNum;
     const [countResult] = await db.query(`SELECT COUNT(*) as total FROM products p WHERE ${where}`, params);
     const total = (countResult as any[])[0].total;
 
@@ -99,9 +108,9 @@ export const getProducts = async (req: Request, res: Response) => {
        WHERE ${where}
        ORDER BY p.name
        LIMIT ? OFFSET ?`,
-      [...params, Number(pageSize), offset]
+      [...params, pageSizeNum, offset]
     );
-    res.json({ success: true, data: { data: rows, total, page: Number(page), pageSize: Number(pageSize), totalPages: Math.ceil(total / Number(pageSize)) } });
+    res.json({ success: true, data: { data: rows, total, page: pageNum, pageSize: pageSizeNum, totalPages: Math.ceil(total / pageSizeNum) } });
   } catch (error: any) {
     logger.error({ message: 'Error fetching products', error: error.message });
     res.status(500).json({ success: false, error: 'Failed to fetch products' });
@@ -144,6 +153,7 @@ export const getProductById = async (req: Request, res: Response) => {
 
 export const createProduct = async (req: Request, res: Response) => {
   try {
+    if (!isAdmin(req)) return res.status(403).json({ success: false, error: 'Only admins can manage products' });
     const { sku, name, description, categoryId, productLineId, subCategory, unitPrice, currency, unitOfMeasure, taxRate, hsnCode, isStandalone, isBundle, imageUrl, tags } = req.body;
     const [result] = await db.query(
       `INSERT INTO products (sku, name, description, category_id, product_line_id, sub_category, unit_price, currency, unit_of_measure, tax_rate, hsn_code, is_standalone, is_bundle, image_url, tags, created_by)
@@ -165,6 +175,7 @@ export const createProduct = async (req: Request, res: Response) => {
 
 export const updateProduct = async (req: Request, res: Response) => {
   try {
+    if (!isAdmin(req)) return res.status(403).json({ success: false, error: 'Only admins can manage products' });
     const { id } = req.params;
     const allowedFields: Record<string, string> = {
       sku: 'sku', name: 'name', description: 'description', categoryId: 'category_id',
@@ -194,6 +205,7 @@ export const updateProduct = async (req: Request, res: Response) => {
 
 export const deleteProduct = async (req: Request, res: Response) => {
   try {
+    if (!isAdmin(req)) return res.status(403).json({ success: false, error: 'Only admins can manage products' });
     const { id } = req.params;
     await db.query('UPDATE products SET deleted_at = NOW() WHERE id = ?', [id]);
     res.json({ success: true, message: 'Product deleted' });

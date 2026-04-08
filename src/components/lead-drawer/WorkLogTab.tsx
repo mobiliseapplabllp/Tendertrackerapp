@@ -26,7 +26,31 @@ export function WorkLogTab({ leadId }: WorkLogTabProps) {
   const { formatDate } = useSettings();
 
   useEffect(() => {
-    fetchWorkLogs();
+    let isMounted = true;
+    const load = async () => {
+      try {
+        setLoading(true);
+        const response = await tenderApi.getActivities(leadId);
+        if (isMounted && response.success && response.data) {
+          const acts = (response.data || []).map((a: any) => ({
+            id: a.id,
+            leadId: a.tender_id || a.lead_id || a.leadId,
+            userId: a.user_id || a.userId,
+            performedByName: a.user_name || a.full_name,
+            activityType: a.activity_type || a.activityType,
+            description: a.description,
+            createdAt: a.created_at || a.createdAt,
+          }));
+          setWorkLogs(acts.filter((a: any) => a.activityType === 'Commented'));
+        }
+      } catch (err) {
+        if (isMounted) console.error('Error fetching work logs:', err);
+      } finally {
+        if (isMounted) setLoading(false);
+      }
+    };
+    load();
+    return () => { isMounted = false; };
   }, [leadId]);
 
   const fetchWorkLogs = async () => {

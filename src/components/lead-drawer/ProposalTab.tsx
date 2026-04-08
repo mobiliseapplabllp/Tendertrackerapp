@@ -111,22 +111,27 @@ export function ProposalTab({ leadId, userRole }: ProposalTabProps) {
   const handleAddProduct = async (product: any) => {
     if (!selectedProposal) return;
     try {
+      let res;
       if (product.is_bundle) {
-        await proposalApi.addBundleToProposal(selectedProposal.id, product.id, 1);
+        res = await proposalApi.addBundleToProposal(selectedProposal.id, product.id, 1);
       } else {
-        await proposalApi.addLineItem(selectedProposal.id, {
+        res = await proposalApi.addLineItem(selectedProposal.id, {
           productId: product.id, itemName: product.name, itemDescription: product.description,
           itemType: product.is_bundle ? 'Bundle' : 'Product', sku: product.sku,
           hsnCode: product.hsn_code, unitOfMeasure: product.unit_of_measure,
           quantity: 1, unitPrice: product.unit_price, taxRate: product.tax_rate,
         });
       }
+      if (!res?.success) {
+        setError(res?.error || 'Failed to add product to proposal');
+        return;
+      }
       // Refresh proposal
       const detail = await proposalApi.getById(selectedProposal.id);
       if (detail.success) setSelectedProposal(detail.data);
       setShowProductPicker(false);
       setProductSearch('');
-    } catch (err) { console.error('Error adding product:', err); }
+    } catch (err: any) { setError(err.message || 'Error adding product'); }
   };
 
   const handleAddCustomItem = async () => {

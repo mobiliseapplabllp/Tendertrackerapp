@@ -103,7 +103,7 @@ export const create = async (req: Request, res: Response) => {
       }
     }
 
-    const validDays = validityPeriodDays || templateDefaults.validity_period_days || 30;
+    const validDays = Math.max(1, Math.min(validityPeriodDays || templateDefaults.validity_period_days || 30, 365));
     const validUntil = new Date();
     validUntil.setDate(validUntil.getDate() + validDays);
 
@@ -281,6 +281,9 @@ export const updateOutcome = async (req: Request, res: Response) => {
     const [rows] = await db.query('SELECT * FROM proposals WHERE id = ? AND deleted_at IS NULL', [id]);
     if ((rows as any[]).length === 0) return res.status(404).json({ success: false, error: 'Proposal not found' });
     const proposal = (rows as any[])[0];
+    if (proposal.status !== 'Submitted') {
+      return res.status(400).json({ success: false, error: 'Only submitted proposals can have outcomes recorded' });
+    }
     await db.query('UPDATE proposals SET status = ? WHERE id = ?', [status, id]);
     await db.query(
       `INSERT INTO tender_activities (tender_id, user_id, activity_type, description) VALUES (?, ?, 'Status Changed', ?)`,
