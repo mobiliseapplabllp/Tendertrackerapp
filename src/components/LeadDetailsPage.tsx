@@ -12,7 +12,7 @@ import { WorkLogTab } from './lead-drawer/WorkLogTab';
 import { AuditLogTab } from './lead-drawer/AuditLogTab';
 import { AISummaryTab } from './lead-drawer/AISummaryTab';
 import { ProposalTab } from './lead-drawer/ProposalTab';
-import { EnhancedTasksTab } from './EnhancedTasksTab';
+import EnhancedTasksTab from './EnhancedTasksTab';
 import {
   ArrowLeft, Loader2, AlertCircle, FileText, Clock, Shield,
   Sparkles, CheckSquare, MessageSquare, ScrollText

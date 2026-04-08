@@ -10,7 +10,7 @@ import { ActivitiesTab } from './lead-drawer/ActivitiesTab';
 import { WorkLogTab } from './lead-drawer/WorkLogTab';
 import { AuditLogTab } from './lead-drawer/AuditLogTab';
 import { AISummaryTab } from './lead-drawer/AISummaryTab';
-import { EnhancedTasksTab } from './EnhancedTasksTab';
+import EnhancedTasksTab from './EnhancedTasksTab';
 import { ProposalTab } from './lead-drawer/ProposalTab';
 
 interface LeadDetailDrawerProps {
