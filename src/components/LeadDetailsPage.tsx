@@ -1,48 +1,21 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect } from 'react';
 import { Button } from './ui/button';
-import { Input } from './ui/input';
 import { Label } from './ui/label';
-import { Textarea } from './ui/textarea';
 import { Badge } from './ui/badge';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from './ui/select';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs';
-import { ScrollArea } from './ui/scroll-area';
-import { Separator } from './ui/separator';
-import type { Lead, LeadActivity, Document, Company, WorkLogReminder, ProductLine } from '../lib/types';
-import { documentApi, leadApi, companyApi, reminderApi, userApi, productLineApi } from '../lib/api';
+import type { Lead, ProductLine } from '../lib/types';
+import { leadApi, productLineApi } from '../lib/api';
+import { OverviewTab } from './lead-drawer/OverviewTab';
+import { DocumentsTab } from './lead-drawer/DocumentsTab';
+import { ActivitiesTab } from './lead-drawer/ActivitiesTab';
+import { WorkLogTab } from './lead-drawer/WorkLogTab';
+import { AuditLogTab } from './lead-drawer/AuditLogTab';
+import { AISummaryTab } from './lead-drawer/AISummaryTab';
+import { ProposalTab } from './lead-drawer/ProposalTab';
+import { EnhancedTasksTab } from './EnhancedTasksTab';
 import {
-  X,
-  FileText,
-  Upload,
-  Download,
-  Trash2,
-  Save,
-  Clock,
-  User,
-  Calendar,
-  Pencil,
-  Bell,
-  CheckCircle2,
-  AlertCircle,
-  Plus,
-  Mail,
-  Phone,
-  DollarSign,
-  Building2,
-  Loader2,
-  Folder,
-  List,
-  ArrowLeft,
-  Eye,
-  Sparkles,
-  MessageCircle,
-  Send,
+  ArrowLeft, Loader2, AlertCircle, FileText, Clock, Shield,
+  Sparkles, CheckSquare, MessageSquare, ScrollText
 } from 'lucide-react';
 
 interface LeadDetailsPageProps {
@@ -53,26 +26,13 @@ interface LeadDetailsPageProps {
 
 export function LeadDetailsPage({ leadId, onBack, onUpdate }: LeadDetailsPageProps) {
   const [lead, setLead] = useState<Lead | null>(null);
-  const [editedLead, setEditedLead] = useState<Lead | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [productLines, setProductLines] = useState<ProductLine[]>([]);
+  const [activeTab, setActiveTab] = useState('overview');
 
   useEffect(() => {
     fetchLead();
-    fetchProductLines();
   }, [leadId]);
-
-  const fetchProductLines = async () => {
-    try {
-      const response = await productLineApi.getAll();
-      if (response.success && response.data) {
-        setProductLines(Array.isArray(response.data) ? response.data : response.data.data || []);
-      }
-    } catch (err: any) {
-      console.error('Failed to load product lines:', err.message);
-    }
-  };
 
   const fetchLead = async () => {
     try {
@@ -80,7 +40,6 @@ export function LeadDetailsPage({ leadId, onBack, onUpdate }: LeadDetailsPagePro
       const response = await leadApi.getById(leadId);
       if (response.success && response.data) {
         setLead(response.data);
-        setEditedLead(response.data);
       } else {
         setError(response.error || 'Failed to load lead');
       }
@@ -88,6 +47,20 @@ export function LeadDetailsPage({ leadId, onBack, onUpdate }: LeadDetailsPagePro
       setError(err.message || 'Failed to load lead');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleUpdate = async (updates: Partial<Lead>) => {
+    try {
+      setError(null);
+      const response = await leadApi.update(leadId, updates);
+      if (response.success) {
+        await fetchLead();
+      } else {
+        setError(response.error || 'Failed to update lead');
+      }
+    } catch (err: any) {
+      setError(err.message || 'Failed to update lead');
     }
   };
 
@@ -105,8 +78,7 @@ export function LeadDetailsPage({ leadId, onBack, onUpdate }: LeadDetailsPagePro
         <AlertCircle className="w-12 h-12 text-red-500 mb-4" />
         <p className="text-lg text-gray-700">{error || 'Lead not found'}</p>
         <Button onClick={onBack} className="mt-4">
-          <ArrowLeft className="w-4 h-4 mr-2" />
-          Back to Leads
+          <ArrowLeft className="w-4 h-4 mr-2" />Back to Leads
         </Button>
       </div>
     );
@@ -125,7 +97,7 @@ export function LeadDetailsPage({ leadId, onBack, onUpdate }: LeadDetailsPagePro
               <div>
                 <h1 className="text-xl font-semibold">{lead.title}</h1>
                 <p className="text-sm text-muted-foreground">
-                  Lead Number: {lead.leadNumber || lead.tenderNumber}
+                  {lead.leadNumber || lead.tenderNumber}
                 </p>
               </div>
             </div>
@@ -133,115 +105,78 @@ export function LeadDetailsPage({ leadId, onBack, onUpdate }: LeadDetailsPagePro
               <Button
                 variant="outline"
                 onClick={async () => {
-                  if (confirm('Convert this Lead to a Tender? It will move to the Tender Dashboard.')) {
+                  if (confirm('Convert this Lead to a Tender?')) {
                     try {
-                      const response = await leadApi.update(leadId, { leadTypeId: 1 }); // 1 = Tender
-                      if (response.success) {
-                        alert('Converted to Tender successfully');
-                        onBack(); // Return to dashboard
-                      }
-                    } catch (e) {
-                      alert('Failed to convert');
-                    }
+                      const response = await leadApi.update(leadId, { leadTypeId: 1 });
+                      if (response.success) { alert('Converted to Tender'); onBack(); }
+                    } catch { alert('Failed to convert'); }
                   }
                 }}
               >
                 Convert to Tender
               </Button>
-              <Badge>{lead.status}</Badge>
+              <Badge className={
+                lead.status === 'Won' ? 'bg-green-100 text-green-800' :
+                lead.status === 'Lost' ? 'bg-red-100 text-red-800' :
+                lead.status === 'Draft' ? 'bg-gray-100 text-gray-800' :
+                'bg-blue-100 text-blue-800'
+              }>{lead.status}</Badge>
             </div>
           </div>
         </div>
       </header>
 
-      {/* Main Content */}
-      <main className="flex-1 overflow-y-auto p-6">
-        <div className="max-w-7xl mx-auto">
-          <div className="bg-white rounded-lg border border-gray-200 p-6">
-            <h2 className="text-lg font-semibold mb-4">Lead Information</h2>
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <Label className="text-sm text-muted-foreground">Lead Number</Label>
-                <p className="text-base">{lead.leadNumber || lead.tenderNumber}</p>
-              </div>
-              <div>
-                <Label className="text-sm text-muted-foreground">Status</Label>
-                <p className="text-base">{lead.status}</p>
-              </div>
-              <div>
-                <Label className="text-sm text-muted-foreground">Client</Label>
-                <p className="text-base">{lead.client || 'N/A'}</p>
-              </div>
-              <div>
-                <Label className="text-sm text-muted-foreground">Estimated Value</Label>
-                <p className="text-base">
-                  {lead.estimatedValue
-                    ? `${lead.currency || 'INR'} ${lead.estimatedValue.toLocaleString()}`
-                    : 'N/A'}
-                </p>
-              </div>
-              {lead.dealValue && (
-                <div>
-                  <Label className="text-sm text-muted-foreground">Deal Value</Label>
-                  <p className="text-base">
-                    {lead.currency || 'INR'} {lead.dealValue.toLocaleString()}
-                  </p>
-                </div>
-              )}
-              {lead.probability !== undefined && (
-                <div>
-                  <Label className="text-sm text-muted-foreground">Win Probability</Label>
-                  <p className="text-base">{lead.probability}%</p>
-                </div>
-              )}
-              {lead.source && (
-                <div>
-                  <Label className="text-sm text-muted-foreground">Source</Label>
-                  <p className="text-base">{lead.source}</p>
-                </div>
-              )}
-              <div>
-                <Label className="text-sm text-muted-foreground">Product Line</Label>
-                <p className="text-base">
-                  {lead.productLineId
-                    ? productLines.find(pl => pl.id === lead.productLineId)?.name || `PL-${lead.productLineId}`
-                    : 'N/A'}
-                </p>
-              </div>
-              {lead.subCategory && (
-                <div>
-                  <Label className="text-sm text-muted-foreground">Sub Category</Label>
-                  <p className="text-base">{lead.subCategory}</p>
-                </div>
-              )}
-              {lead.submissionDeadline && (
-                <div>
-                  <Label className="text-sm text-muted-foreground">Submission Deadline</Label>
-                  <p className="text-base">
-                    {new Date(lead.submissionDeadline).toLocaleDateString()}
-                  </p>
-                </div>
-              )}
-            </div>
-            {lead.description && (
-              <div className="mt-4">
-                <Label className="text-sm text-muted-foreground">Description</Label>
-                <p className="text-base mt-1">{lead.description}</p>
-              </div>
-            )}
-          </div>
+      {/* Tabbed Content */}
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1 flex flex-col overflow-hidden">
+        <div className="bg-white border-b px-6">
+          <TabsList className="flex-wrap gap-0">
+            <TabsTrigger value="overview" className="text-xs py-2.5 flex items-center gap-1.5"><FileText className="w-3.5 h-3.5" />Overview</TabsTrigger>
+            <TabsTrigger value="documents" className="text-xs py-2.5 flex items-center gap-1.5"><FileText className="w-3.5 h-3.5" />Documents</TabsTrigger>
+            <TabsTrigger value="proposals" className="text-xs py-2.5 flex items-center gap-1.5"><ScrollText className="w-3.5 h-3.5 text-indigo-500" />Proposals</TabsTrigger>
+            <TabsTrigger value="tasks" className="text-xs py-2.5 flex items-center gap-1.5"><CheckSquare className="w-3.5 h-3.5" />Tasks</TabsTrigger>
+            <TabsTrigger value="worklog" className="text-xs py-2.5 flex items-center gap-1.5"><Clock className="w-3.5 h-3.5" />Work Log</TabsTrigger>
+            <TabsTrigger value="activities" className="text-xs py-2.5 flex items-center gap-1.5"><MessageSquare className="w-3.5 h-3.5" />Activities</TabsTrigger>
+            <TabsTrigger value="audit" className="text-xs py-2.5 flex items-center gap-1.5"><Shield className="w-3.5 h-3.5" />Audit</TabsTrigger>
+            <TabsTrigger value="ai" className="text-xs py-2.5 flex items-center gap-1.5"><Sparkles className="w-3.5 h-3.5 text-indigo-500" />AI</TabsTrigger>
+          </TabsList>
+        </div>
 
-          <div className="mt-6">
-            <p className="text-sm text-muted-foreground">
-              Full lead details page is being developed. This is a basic view.
-              For full functionality, please use the TenderDetailsPage component
-              which works with both tenders and leads.
-            </p>
+        <div className="flex-1 overflow-y-auto">
+          <div className="max-w-7xl mx-auto">
+            <TabsContent value="overview" className="mt-0">
+              <OverviewTab lead={lead} onUpdate={handleUpdate} />
+            </TabsContent>
+
+            <TabsContent value="documents" className="mt-0">
+              <DocumentsTab leadId={lead.id} />
+            </TabsContent>
+
+            <TabsContent value="proposals" className="mt-0">
+              <ProposalTab leadId={lead.id} userRole={(lead as any).userRole} />
+            </TabsContent>
+
+            <TabsContent value="tasks" className="mt-0">
+              <EnhancedTasksTab tender={lead} users={[]} reminders={[]} onRefresh={fetchLead} />
+            </TabsContent>
+
+            <TabsContent value="worklog" className="mt-0">
+              <WorkLogTab leadId={lead.id} />
+            </TabsContent>
+
+            <TabsContent value="activities" className="mt-0">
+              <ActivitiesTab leadId={lead.id} />
+            </TabsContent>
+
+            <TabsContent value="audit" className="mt-0">
+              <AuditLogTab leadId={lead.id} />
+            </TabsContent>
+
+            <TabsContent value="ai" className="mt-0">
+              <AISummaryTab leadId={lead.id} />
+            </TabsContent>
           </div>
         </div>
-      </main>
+      </Tabs>
     </div>
   );
 }
-
-

@@ -24,6 +24,7 @@ import { TeamStructurePage } from './components/TeamStructurePage';
 import { SalesTargetsPage } from './components/SalesTargetsPage';
 import { MyPerformancePage } from './components/MyPerformancePage';
 import { CollateralRepository } from './components/CollateralRepository';
+import { ProductCatalogPage } from './components/ProductCatalogPage';
 import { tokenManager, authApi } from './lib/api';
 import { SessionManager } from './lib/security';
 
@@ -195,6 +196,8 @@ export default function App() {
         return <MyPerformancePage user={currentUser} />;
       case 'collateral':
         return <CollateralRepository />;
+      case 'product-catalog':
+        return <ProductCatalogPage />;
       case 'tender-details':
         return tenderDetailsId ? (
           <TenderDetailsPage
