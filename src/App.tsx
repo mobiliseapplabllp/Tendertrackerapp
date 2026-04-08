@@ -192,7 +192,7 @@ export default function App() {
       case 'sales-targets':
         return <SalesTargetsPage />;
       case 'my-performance':
-        return <MyPerformancePage />;
+        return <MyPerformancePage user={currentUser} />;
       case 'collateral':
         return <CollateralRepository />;
       case 'tender-details':
