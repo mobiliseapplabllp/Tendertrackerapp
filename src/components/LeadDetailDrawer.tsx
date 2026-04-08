@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { X, Loader2 } from 'lucide-react';
+import { X, Loader2, FileText, Clock, Shield, Sparkles, CheckSquare, MessageSquare } from 'lucide-react';
 import { Button } from './ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs';
 import { leadApi } from '../lib/api';
@@ -7,6 +7,10 @@ import type { Lead } from '../lib/types';
 import { OverviewTab } from './lead-drawer/OverviewTab';
 import { DocumentsTab } from './lead-drawer/DocumentsTab';
 import { ActivitiesTab } from './lead-drawer/ActivitiesTab';
+import { WorkLogTab } from './lead-drawer/WorkLogTab';
+import { AuditLogTab } from './lead-drawer/AuditLogTab';
+import { AISummaryTab } from './lead-drawer/AISummaryTab';
+import { EnhancedTasksTab } from './EnhancedTasksTab';
 
 interface LeadDetailDrawerProps {
     leadId: number | null;
@@ -143,11 +147,14 @@ export function LeadDetailDrawer({
                             onValueChange={setActiveTab}
                             className="h-full flex flex-col"
                         >
-                            <TabsList className="px-6 border-b flex-shrink-0">
-                                <TabsTrigger value="overview">Overview</TabsTrigger>
-                                <TabsTrigger value="documents">Documents</TabsTrigger>
-                                <TabsTrigger value="activities">Activities</TabsTrigger>
-                                <TabsTrigger value="ai">AI Features</TabsTrigger>
+                            <TabsList className="px-4 border-b flex-shrink-0 flex-wrap gap-0">
+                                <TabsTrigger value="overview" className="text-xs py-2 flex items-center gap-1"><FileText className="w-3.5 h-3.5" />Overview</TabsTrigger>
+                                <TabsTrigger value="documents" className="text-xs py-2 flex items-center gap-1"><FileText className="w-3.5 h-3.5" />Docs</TabsTrigger>
+                                <TabsTrigger value="tasks" className="text-xs py-2 flex items-center gap-1"><CheckSquare className="w-3.5 h-3.5" />Tasks</TabsTrigger>
+                                <TabsTrigger value="worklog" className="text-xs py-2 flex items-center gap-1"><Clock className="w-3.5 h-3.5" />Log</TabsTrigger>
+                                <TabsTrigger value="activities" className="text-xs py-2 flex items-center gap-1"><MessageSquare className="w-3.5 h-3.5" />Activities</TabsTrigger>
+                                <TabsTrigger value="audit" className="text-xs py-2 flex items-center gap-1"><Shield className="w-3.5 h-3.5" />Audit</TabsTrigger>
+                                <TabsTrigger value="ai" className="text-xs py-2 flex items-center gap-1"><Sparkles className="w-3.5 h-3.5 text-indigo-500" />AI</TabsTrigger>
                             </TabsList>
 
                             <div className="flex-1 overflow-y-auto">
@@ -159,16 +166,29 @@ export function LeadDetailDrawer({
                                     <DocumentsTab leadId={lead.id} />
                                 </TabsContent>
 
+                                <TabsContent value="tasks" className="mt-0 h-full">
+                                    <EnhancedTasksTab
+                                        tender={lead}
+                                        users={[]}
+                                        reminders={[]}
+                                        onRefresh={fetchLeadDetails}
+                                    />
+                                </TabsContent>
+
+                                <TabsContent value="worklog" className="mt-0 h-full">
+                                    <WorkLogTab leadId={lead.id} />
+                                </TabsContent>
+
                                 <TabsContent value="activities" className="mt-0 h-full">
                                     <ActivitiesTab leadId={lead.id} />
                                 </TabsContent>
 
+                                <TabsContent value="audit" className="mt-0 h-full">
+                                    <AuditLogTab leadId={lead.id} />
+                                </TabsContent>
+
                                 <TabsContent value="ai" className="mt-0 h-full">
-                                    <div className="p-6">
-                                        <p className="text-center text-muted-foreground">
-                                            AI Features tab - Coming in Phase 5
-                                        </p>
-                                    </div>
+                                    <AISummaryTab leadId={lead.id} />
                                 </TabsContent>
                             </div>
                         </Tabs>
