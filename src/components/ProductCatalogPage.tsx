@@ -32,6 +32,8 @@ export function ProductCatalogPage() {
   const [bomSearchResults, setBomSearchResults] = useState<any[]>([]);
   const [addingComponent, setAddingComponent] = useState(false);
   const [componentQty, setComponentQty] = useState('1');
+  const [showQuickAdd, setShowQuickAdd] = useState(false);
+  const [quickAddForm, setQuickAddForm] = useState({ name: '', sku: '', unitPrice: '', subCategory: 'Hardware', categoryId: '', qty: '1' });
   const { formatCurrency } = useSettings();
 
   const [form, setForm] = useState({
@@ -168,6 +170,35 @@ export function ProductCatalogPage() {
       if (refreshed.success) setBomData(prev => ({ ...prev, [manageBOM.id]: refreshed.data || [] }));
       fetchProducts();
     }
+  };
+
+  const handleQuickAddComponent = async () => {
+    if (!manageBOM || !quickAddForm.name || !quickAddForm.categoryId) { alert('Name and category are required'); return; }
+    setAddingComponent(true);
+    try {
+      // Step 1: Create the product
+      const createRes = await productCatalogApi.create({
+        name: quickAddForm.name, sku: quickAddForm.sku || null,
+        categoryId: Number(quickAddForm.categoryId),
+        subCategory: quickAddForm.subCategory,
+        unitPrice: Number(quickAddForm.unitPrice) || 0,
+        taxRate: 18, isStandalone: true, isBundle: false,
+      });
+      if (!createRes.success) { alert(createRes.error || 'Failed to create product'); return; }
+
+      // Step 2: Add to BOM
+      const bomRes = await productCatalogApi.addBOMComponent(manageBOM.id, {
+        componentProductId: createRes.data.id,
+        quantity: Number(quickAddForm.qty) || 1,
+      });
+      if (bomRes.success) {
+        setBomData(prev => ({ ...prev, [manageBOM.id]: bomRes.data || [] }));
+        setQuickAddForm({ name: '', sku: '', unitPrice: '', subCategory: 'Hardware', categoryId: '', qty: '1' });
+        setShowQuickAdd(false);
+        fetchProducts();
+      } else { alert(bomRes.error || 'Product created but failed to add to BOM'); }
+    } catch (err: any) { alert(err.message); }
+    finally { setAddingComponent(false); }
   };
 
   const subCatIcon = (type: string) => {
@@ -352,25 +383,63 @@ export function ProductCatalogPage() {
 
             {/* Add Component */}
             <div className="px-5 py-3 bg-blue-50 border-b space-y-2 flex-shrink-0">
-              <Label className="text-xs font-medium">Add Component</Label>
-              <div className="flex gap-2">
-                <Input
-                  placeholder="Search products to add..."
-                  value={bomSearch}
-                  onChange={e => setBomSearch(e.target.value)}
-                  onKeyDown={e => { if (e.key === 'Enter') searchBOMProducts(bomSearch); }}
-                  className="text-sm flex-1"
-                />
-                <Input
-                  type="number" placeholder="Qty" value={componentQty}
-                  onChange={e => setComponentQty(e.target.value)}
-                  className="text-sm w-16"
-                  min="1"
-                />
-                <Button size="sm" onClick={() => searchBOMProducts(bomSearch)}>
-                  <Search className="w-3.5 h-3.5" />
+              <div className="flex items-center justify-between">
+                <Label className="text-xs font-medium">Add Component</Label>
+                <Button size="sm" variant={showQuickAdd ? "default" : "outline"} className="h-6 text-[10px] px-2"
+                  onClick={() => setShowQuickAdd(!showQuickAdd)}>
+                  {showQuickAdd ? 'Search Existing' : '+ Quick Create'}
                 </Button>
               </div>
+
+              {showQuickAdd ? (
+                /* Quick Add Form */
+                <div className="space-y-2 bg-white rounded-lg p-3 border">
+                  <div className="grid grid-cols-2 gap-2">
+                    <div><Label className="text-[10px] text-gray-500">Name *</Label>
+                      <Input value={quickAddForm.name} onChange={e => setQuickAddForm({ ...quickAddForm, name: e.target.value })} className="text-xs h-7" placeholder="e.g., Power Adapter" /></div>
+                    <div><Label className="text-[10px] text-gray-500">SKU</Label>
+                      <Input value={quickAddForm.sku} onChange={e => setQuickAddForm({ ...quickAddForm, sku: e.target.value })} className="text-xs h-7" placeholder="e.g., BIO-PWR-001" /></div>
+                    <div><Label className="text-[10px] text-gray-500">Category *</Label>
+                      <Select value={quickAddForm.categoryId} onValueChange={v => setQuickAddForm({ ...quickAddForm, categoryId: v })}>
+                        <SelectTrigger className="text-xs h-7"><SelectValue placeholder="Select..." /></SelectTrigger>
+                        <SelectContent>{categories.map((c: any) => <SelectItem key={c.id} value={String(c.id)}>{c.name}</SelectItem>)}</SelectContent>
+                      </Select></div>
+                    <div><Label className="text-[10px] text-gray-500">Type</Label>
+                      <Select value={quickAddForm.subCategory} onValueChange={v => setQuickAddForm({ ...quickAddForm, subCategory: v })}>
+                        <SelectTrigger className="text-xs h-7"><SelectValue /></SelectTrigger>
+                        <SelectContent>{['Hardware', 'Software', 'Service', 'Consumable'].map(t => <SelectItem key={t} value={t}>{t}</SelectItem>)}</SelectContent>
+                      </Select></div>
+                    <div><Label className="text-[10px] text-gray-500">Unit Price</Label>
+                      <Input type="number" value={quickAddForm.unitPrice} onChange={e => setQuickAddForm({ ...quickAddForm, unitPrice: e.target.value })} className="text-xs h-7" placeholder="0" /></div>
+                    <div><Label className="text-[10px] text-gray-500">Quantity</Label>
+                      <Input type="number" value={quickAddForm.qty} onChange={e => setQuickAddForm({ ...quickAddForm, qty: e.target.value })} className="text-xs h-7" min="1" /></div>
+                  </div>
+                  <Button size="sm" className="w-full h-7 text-xs" onClick={handleQuickAddComponent} disabled={addingComponent}>
+                    {addingComponent ? <Loader2 className="w-3 h-3 animate-spin mr-1" /> : <Plus className="w-3 h-3 mr-1" />}
+                    Create & Add to BOM
+                  </Button>
+                </div>
+              ) : (
+                /* Search Existing */
+                <div className="flex gap-2">
+                  <Input
+                    placeholder="Search products to add..."
+                    value={bomSearch}
+                    onChange={e => setBomSearch(e.target.value)}
+                    onKeyDown={e => { if (e.key === 'Enter') searchBOMProducts(bomSearch); }}
+                    className="text-sm flex-1"
+                  />
+                  <Input
+                    type="number" placeholder="Qty" value={componentQty}
+                    onChange={e => setComponentQty(e.target.value)}
+                    className="text-sm w-16"
+                    min="1"
+                  />
+                  <Button size="sm" onClick={() => searchBOMProducts(bomSearch)}>
+                    <Search className="w-3.5 h-3.5" />
+                  </Button>
+                </div>
+              )}
               {bomSearchResults.length > 0 && (
                 <div className="max-h-40 overflow-y-auto space-y-1 mt-1">
                   {bomSearchResults.map((p: any) => (
