@@ -17,17 +17,11 @@ export class ReportController {
 
       if (!isAdmin && user) {
         if (isSalesHead && user.salesHeadProductLineIds?.length) {
-          // Sales Head: see their product lines
           const plPlaceholders = user.salesHeadProductLineIds.map(() => '?').join(',');
-          roleFilter = ` AND product_line_id IN (${plPlaceholders})`;
+          roleFilter = ` AND tenders.product_line_id IN (${plPlaceholders})`;
           roleFilterParams.push(...user.salesHeadProductLineIds);
-        } else if (user.productLineIds?.length) {
-          // Team Member: see own created/assigned within product lines
-          roleFilter = ` AND (created_by = ? OR assigned_to = ?)`;
-          roleFilterParams.push(user.userId, user.userId);
         } else {
-          // No product lines assigned, see only own
-          roleFilter = ` AND (created_by = ? OR assigned_to = ?)`;
+          roleFilter = ` AND (tenders.created_by = ? OR tenders.assigned_to = ?)`;
           roleFilterParams.push(user.userId, user.userId);
         }
       }
@@ -43,7 +37,7 @@ export class ReportController {
            AND COLUMN_NAME = 'deleted_at'`
         );
         if ((columnCheck as any[]).length > 0) {
-          deletedFilter = 'WHERE deleted_at IS NULL';
+          deletedFilter = 'WHERE tenders.deleted_at IS NULL';
         }
       } catch (e) {
         // Column doesn't exist, skip filter
