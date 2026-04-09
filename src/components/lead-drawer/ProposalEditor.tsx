@@ -120,10 +120,47 @@ export function ProposalEditor({ leadId, lead, proposalId, approvalMode, onBack,
         clientAddress: lead.company?.address ? `${lead.company.address}, ${lead.company.city || ''}, ${lead.company.state || ''}` : '',
         proposalId: `${new Date().getFullYear()}/MAL/${String(leadId).padStart(5, '0')}`,
       }));
+
+      // Auto-load product line bundle for new proposals
+      if (!proposalId && lead.productLineId) {
+        autoLoadProductLineBundle(lead.productLineId);
+      }
     }
     // Load existing proposal if editing
     if (proposalId) loadProposal(proposalId);
   }, [leadId, proposalId]);
+
+  const autoLoadProductLineBundle = async (productLineId: number) => {
+    try {
+      // Find bundle products for this product line
+      const res = await productCatalogApi.getAll({ productLineId: String(productLineId), isBundle: 'true', pageSize: '5' });
+      if (res.success && res.data?.data?.length > 0) {
+        // Add each bundle and its BOM
+        for (const bundle of res.data.data) {
+          const bomRes = await productCatalogApi.getBOM(bundle.id);
+          const bomItems = bomRes.success ? (bomRes.data || []) : [];
+          const bomTotal = bomItems.reduce((sum: number, c: any) => sum + (c.unit_price || 0) * (c.quantity || 1), 0);
+
+          // Add bundle to one-time items
+          setOneTimeItems(prev => [...prev, {
+            name: bundle.name, quantity: 1, unitPrice: bomTotal || bundle.unit_price,
+            productId: bundle.id, isBundle: true
+          }]);
+
+          // Add BOM to annexure
+          const newAnnexure = bomItems.map((c: any) => ({
+            productId: c.component_product_id, name: c.component_name,
+            unitPrice: c.unit_price || 0, quantity: c.quantity || 1,
+            included: true, parentName: bundle.name, parentProductId: bundle.id,
+            notes: c.notes || '',
+          }));
+          setAnnexureItems(prev => [...prev, ...newAnnexure]);
+        }
+      }
+    } catch (err) {
+      console.error('Error auto-loading product line bundle:', err);
+    }
+  };
 
   const loadProposal = async (id: number) => {
     const res = await proposalApi.getById(id);
@@ -246,9 +283,20 @@ export function ProposalEditor({ leadId, lead, proposalId, approvalMode, onBack,
 
   const searchProducts = async (query: string) => {
     if (!query.trim()) { setSearchResults([]); return; }
-    // Search ALL products (including non-standalone BOM components)
-    const res = await productCatalogApi.getAll({ search: query, pageSize: '20' });
-    if (res.success) setSearchResults(res.data?.data || []);
+    // Search products filtered by lead's product line (if set), plus products with no product line
+    const params: any = { search: query, pageSize: '20' };
+    if (lead?.productLineId) params.productLineId = String(lead.productLineId);
+    const res = await productCatalogApi.getAll(params);
+    // Also search products without product line (generic items)
+    const res2 = lead?.productLineId
+      ? await productCatalogApi.getAll({ search: query, pageSize: '10' })
+      : null;
+    const plResults = res.success ? (res.data?.data || []) : [];
+    const genericResults = res2?.success ? (res2.data?.data || []).filter((p: any) => !p.product_line_id) : [];
+    // Merge, deduplicate
+    const all = [...plResults];
+    genericResults.forEach((g: any) => { if (!all.find((p: any) => p.id === g.id)) all.push(g); });
+    setSearchResults(all);
   };
 
   const [expandingBundle, setExpandingBundle] = useState<any>(null);
