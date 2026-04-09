@@ -1270,11 +1270,29 @@ This is an automated notification from ${companyName}.
         };
       }
 
-      // Get recipients
-      const { recipients } = await this.getEmailAlertSettings();
-      
+      // Build recipient list: creator + sales head
+      const recipients: string[] = [];
+      try {
+        const [creatorRows] = await db.query('SELECT email FROM users WHERE full_name = ? OR id = ?', [createdBy, tender.created_by || 0]);
+        if ((creatorRows as any[]).length > 0) recipients.push((creatorRows as any[])[0].email);
+      } catch { /* skip */ }
+      if (tender.product_line_id) {
+        try {
+          const [headRows] = await db.query(
+            `SELECT u.email FROM user_product_lines upl JOIN users u ON upl.user_id = u.id
+             WHERE upl.product_line_id = ? AND upl.is_sales_head = 1`, [tender.product_line_id]
+          );
+          (headRows as any[]).forEach((r: any) => { if (!recipients.includes(r.email)) recipients.push(r.email); });
+        } catch { /* skip */ }
+      }
+      // Fallback to configured recipients
       if (recipients.length === 0) {
-        logger.warn('No email recipients configured for tender created notification');
+        const alertSettings = await this.getEmailAlertSettings();
+        recipients.push(...alertSettings.recipients);
+      }
+
+      if (recipients.length === 0) {
+        logger.warn('No email recipients found for tender created notification');
         return {
           emailSent: false,
           desktopNotification: preferences.desktopNotifications && preferences.desktopOnTenderCreated,
@@ -1524,10 +1542,112 @@ This is an automated notification from ${companyName}.
   }
 
   /**
-   * Send lead created notification (alias for sendTenderCreatedNotification for backward compatibility)
+   * Send lead created notification — separate content from tender
    */
   static async sendLeadCreatedNotification(lead: any, createdBy: string): Promise<{ emailSent: boolean; desktopNotification: boolean }> {
-    return this.sendTenderCreatedNotification(lead, createdBy);
+    try {
+      const preferences = await this.getNotificationPreferences();
+      if (!preferences.emailNotifications || !preferences.emailOnTenderCreated) {
+        return { emailSent: false, desktopNotification: preferences.desktopNotifications && preferences.desktopOnTenderCreated };
+      }
+
+      const companyName = await getCompanyName();
+
+      // Build recipient list: creator + sales head (instead of all alert recipients)
+      const targetRecipients: string[] = [];
+
+      // 1. Get creator's email
+      try {
+        const [creatorRows] = await db.query('SELECT email FROM users WHERE full_name = ? OR id = ?', [createdBy, lead.created_by || 0]);
+        if ((creatorRows as any[]).length > 0) targetRecipients.push((creatorRows as any[])[0].email);
+      } catch { /* skip */ }
+
+      // 2. Get sales head for this product line
+      if (lead.product_line_id) {
+        try {
+          const [headRows] = await db.query(
+            `SELECT u.email FROM user_product_lines upl
+             JOIN users u ON upl.user_id = u.id
+             WHERE upl.product_line_id = ? AND upl.is_sales_head = 1`, [lead.product_line_id]
+          );
+          (headRows as any[]).forEach((r: any) => { if (!targetRecipients.includes(r.email)) targetRecipients.push(r.email); });
+        } catch { /* skip */ }
+      }
+
+      // 3. Fallback: use configured alert recipients
+      if (targetRecipients.length === 0) {
+        const { recipients } = await this.getEmailAlertSettings();
+        targetRecipients.push(...recipients);
+      }
+
+      if (targetRecipients.length === 0) {
+        return { emailSent: false, desktopNotification: false };
+      }
+
+      const subject = `New Lead Created: ${lead.title || lead.tenderNumber}`;
+
+      const htmlBody = `
+        <!DOCTYPE html>
+        <html>
+        <head><meta charset="utf-8">
+          <style>
+            body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
+            .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+            .header { background-color: #3b82f6; color: white; padding: 20px; text-align: center; border-radius: 8px 8px 0 0; }
+            .content { background-color: #f9fafb; padding: 30px; border: 1px solid #e5e7eb; }
+            .lead-info { background-color: white; padding: 20px; margin: 20px 0; border-left: 4px solid #3b82f6; }
+            .footer { text-align: center; padding: 20px; color: #6b7280; font-size: 12px; }
+          </style>
+        </head>
+        <body>
+          <div class="container">
+            <div class="header">
+              <h1>${companyName}</h1>
+              <p>New Lead Created</p>
+            </div>
+            <div class="content">
+              <h2>A New Lead Has Been Created</h2>
+              <div class="lead-info">
+                <p><strong>Lead Number:</strong> ${lead.tenderNumber || lead.leadNumber || 'Auto-generated'}</p>
+                <p><strong>Title:</strong> ${lead.title || 'N/A'}</p>
+                <p><strong>Client:</strong> ${lead.client || 'N/A'}</p>
+                <p><strong>Status:</strong> ${lead.status || 'Draft'}</p>
+                <p><strong>Priority:</strong> ${lead.priority || 'Medium'}</p>
+                ${lead.estimatedValue ? `<p><strong>Estimated Value:</strong> ${lead.currency || 'INR'} ${Number(lead.estimatedValue).toLocaleString('en-IN')}</p>` : ''}
+                ${lead.dealValue ? `<p><strong>Deal Value:</strong> ${lead.currency || 'INR'} ${Number(lead.dealValue).toLocaleString('en-IN')}</p>` : ''}
+                ${lead.probability ? `<p><strong>Win Probability:</strong> ${lead.probability}%</p>` : ''}
+                ${lead.source ? `<p><strong>Source:</strong> ${lead.source}</p>` : ''}
+                <p><strong>Created By:</strong> ${createdBy}</p>
+              </div>
+              <p style="color: #6b7280; font-size: 14px;">Please review and take necessary action on this lead.</p>
+            </div>
+            <div class="footer">
+              <p>This is an automated notification from ${companyName}.</p>
+              <p>&copy; ${new Date().getFullYear()} ${companyName}. All rights reserved.</p>
+            </div>
+          </div>
+        </body>
+        </html>
+      `;
+
+      const textBody = `${companyName} - New Lead Created\n\nA New Lead Has Been Created\n\nLead Number: ${lead.tenderNumber || 'Auto-generated'}\nTitle: ${lead.title || 'N/A'}\nClient: ${lead.client || 'N/A'}\nStatus: ${lead.status || 'Draft'}\nPriority: ${lead.priority || 'Medium'}\nCreated By: ${createdBy}\n\n---\nThis is an automated notification from ${companyName}.`;
+
+      let emailSent = false;
+      for (const recipient of targetRecipients) {
+        try {
+          await emailService.sendNotification(recipient, subject, textBody, htmlBody);
+          emailSent = true;
+          logger.info({ message: 'Lead created notification sent', recipient, leadId: lead.id });
+        } catch (error: any) {
+          logger.error({ message: 'Failed to send lead created notification', recipient, error: error.message });
+        }
+      }
+
+      return { emailSent, desktopNotification: preferences.desktopNotifications && preferences.desktopOnTenderCreated };
+    } catch (error: any) {
+      logger.error({ message: 'Error sending lead created notification', error: error.message });
+      return { emailSent: false, desktopNotification: false };
+    }
   }
 
   /**
