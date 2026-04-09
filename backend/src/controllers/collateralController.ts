@@ -449,9 +449,10 @@ export class CollateralController {
       // If inline preview requested, serve with Content-Type for browser rendering
       const inline = req.query.inline === 'true' || req.headers.accept?.includes('text/html');
       if (inline || req.query.preview) {
+        const absolutePath = require('path').resolve(filePath);
         res.setHeader('Content-Type', item.mime_type || 'application/octet-stream');
         res.setHeader('Content-Disposition', `inline; filename="${item.original_name}"`);
-        return res.sendFile(filePath);
+        return res.sendFile(absolutePath);
       }
 
       res.download(filePath, item.original_name);
