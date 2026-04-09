@@ -1,12 +1,13 @@
-import sgMail from '@sendgrid/mail';
+import nodemailer from 'nodemailer';
 import logger from '../utils/logger';
 import { getCompanyName, getCompanyEmail } from '../utils/settings';
 
 class EmailService {
   private isInitialized = false;
+  private transporter: any = null;
 
   /**
-   * Initialize SendGrid email service
+   * Initialize SMTP email service
    */
   async initialize() {
     if (this.isInitialized) {
@@ -14,18 +15,31 @@ class EmailService {
     }
 
     try {
-      const apiKey = process.env.SENDGRID_API_KEY;
-      if (!apiKey) {
-        logger.warn('SendGrid API key not configured - email service disabled');
+      const host = process.env.SMTP_HOST;
+      const port = parseInt(process.env.SMTP_PORT || '587');
+      const user = process.env.SMTP_USER;
+      const pass = process.env.SMTP_PASSWORD;
+
+      if (!host || !user || !pass) {
+        logger.warn('SMTP credentials not configured - email service disabled');
         return;
       }
 
-      sgMail.setApiKey(apiKey);
+      this.transporter = nodemailer.createTransport({
+        host,
+        port,
+        secure: port === 465,
+        auth: { user, pass },
+        tls: { rejectUnauthorized: false },
+      });
+
+      // Verify connection
+      await this.transporter.verify();
       this.isInitialized = true;
-      logger.info('SendGrid email service initialized successfully');
+      logger.info(`SMTP email service initialized (${host}:${port})`);
     } catch (error: any) {
       logger.error({
-        message: 'Failed to initialize SendGrid email service',
+        message: 'Failed to initialize SMTP email service',
         error: error.message,
       });
       this.isInitialized = false;
@@ -33,7 +47,20 @@ class EmailService {
   }
 
   /**
-   * Send OTP email via SendGrid
+   * Send email via SMTP
+   */
+  private async sendMail(msg: { to: string; from: { email: string; name: string }; subject: string; html: string; text?: string }) {
+    await this.transporter.sendMail({
+      from: `"${msg.from.name}" <${msg.from.email}>`,
+      to: msg.to,
+      subject: msg.subject,
+      html: msg.html,
+      text: msg.text || '',
+    });
+  }
+
+  /**
+   * Send OTP email via SMTP
    */
   async sendOTP(email: string, otp: string, name?: string): Promise<void> {
     if (!this.isInitialized) {
@@ -41,7 +68,7 @@ class EmailService {
     }
 
     if (!this.isInitialized) {
-      logger.warn('SendGrid email service not available - OTP not sent');
+      logger.warn('SMTP email service not available - OTP not sent');
       return;
     }
 
@@ -50,9 +77,9 @@ class EmailService {
       const companyName = await getCompanyName();
       const companyEmail = await getCompanyEmail();
       
-      // Use verified email address - must be verified in SendGrid
-      const fromEmail = process.env.SENDGRID_FROM_EMAIL || companyEmail;
-      const fromName = process.env.SENDGRID_FROM_NAME || companyName;
+      // Use verified email address - SMTP from address
+      const fromEmail = process.env.SMTP_FROM || companyEmail;
+      const fromName = process.env.SMTP_FROM_NAME || companyName;
 
       const msg = {
         to: email,
@@ -205,15 +232,15 @@ This is an automated security email from Mobilise CRM.
 © ${new Date().getFullYear()} Mobilise CRM. All rights reserved.`,
       };
 
-      await sgMail.send(msg);
+      await this.sendMail(msg);
 
       logger.info({
-        message: 'OTP email sent via SendGrid',
+        message: 'OTP email sent via SMTP',
         email,
       });
     } catch (error: any) {
       logger.error({
-        message: 'Failed to send OTP email via SendGrid',
+        message: 'Failed to send OTP email via SMTP',
         email,
         error: error.message,
         response: error.response?.body,
@@ -231,7 +258,7 @@ This is an automated security email from Mobilise CRM.
     }
 
     if (!this.isInitialized) {
-      logger.warn('SendGrid email service not available - password reset OTP not sent');
+      logger.warn('SMTP email service not available - password reset OTP not sent');
       return;
     }
 
@@ -240,9 +267,9 @@ This is an automated security email from Mobilise CRM.
       const companyName = await getCompanyName();
       const companyEmail = await getCompanyEmail();
       
-      // Use verified email address - must be verified in SendGrid
-      const fromEmail = process.env.SENDGRID_FROM_EMAIL || companyEmail;
-      const fromName = process.env.SENDGRID_FROM_NAME || companyName;
+      // Use verified email address - SMTP from address
+      const fromEmail = process.env.SMTP_FROM || companyEmail;
+      const fromName = process.env.SMTP_FROM_NAME || companyName;
 
       const msg = {
         to: email,
@@ -397,15 +424,15 @@ This is an automated security email from ${companyName}.
 © ${new Date().getFullYear()} ${companyName}. All rights reserved.`,
       };
 
-      await sgMail.send(msg);
+      await this.sendMail(msg);
 
       logger.info({
-        message: 'Password reset OTP email sent via SendGrid',
+        message: 'Password reset OTP email sent via SMTP',
         email,
       });
     } catch (error: any) {
       logger.error({
-        message: 'Failed to send password reset OTP email via SendGrid',
+        message: 'Failed to send password reset OTP email via SMTP',
         email,
         error: error.message,
         response: error.response?.body,
@@ -428,7 +455,7 @@ This is an automated security email from ${companyName}.
     }
 
     if (!this.isInitialized) {
-      logger.warn('SendGrid email service not available - notification not sent');
+      logger.warn('SMTP email service not available - notification not sent');
       return;
     }
 
@@ -437,9 +464,9 @@ This is an automated security email from ${companyName}.
       const companyName = await getCompanyName();
       const companyEmail = await getCompanyEmail();
       
-      // Use verified email address - must be verified in SendGrid
-      const fromEmail = process.env.SENDGRID_FROM_EMAIL || companyEmail;
-      const fromName = process.env.SENDGRID_FROM_NAME || companyName;
+      // Use verified email address - SMTP from address
+      const fromEmail = process.env.SMTP_FROM || companyEmail;
+      const fromName = process.env.SMTP_FROM_NAME || companyName;
 
       const msg = {
         to: email,
@@ -452,16 +479,16 @@ This is an automated security email from ${companyName}.
         html: htmlBody || body,
       };
 
-      await sgMail.send(msg);
+      await this.sendMail(msg);
 
       logger.info({
-        message: 'Notification email sent via SendGrid',
+        message: 'Notification email sent via SMTP',
         email,
         subject,
       });
     } catch (error: any) {
       logger.error({
-        message: 'Failed to send notification email via SendGrid',
+        message: 'Failed to send notification email via SMTP',
         email,
         error: error.message,
         response: error.response?.body,
@@ -478,7 +505,7 @@ This is an automated security email from ${companyName}.
       await this.sendNotification(
         testEmail,
         'Test Email from Mobilise CRM',
-        'This is a test email to verify your SendGrid email configuration is working correctly.',
+        'This is a test email to verify your SMTP email configuration is working correctly.',
         `
 <!DOCTYPE html>
 <html lang="en">
@@ -501,11 +528,11 @@ This is an automated security email from ${companyName}.
             <td style="padding: 50px 40px;">
               <h2 style="margin: 0 0 20px 0; color: #1f2937; font-size: 24px; font-weight: 600;">✅ Email Configuration Successful!</h2>
               <p style="margin: 0 0 20px 0; color: #4b5563; font-size: 16px; line-height: 1.6;">
-                This is a test email to verify your SendGrid email configuration is working correctly.
+                This is a test email to verify your SMTP email configuration is working correctly.
               </p>
               <div style="background-color: #eff6ff; border-left: 4px solid #3b82f6; border-radius: 8px; padding: 20px; margin: 30px 0;">
                 <p style="margin: 0; color: #1e40af; font-size: 14px; line-height: 1.6;">
-                  <strong>✓</strong> SendGrid API is properly configured<br>
+                  <strong>✓</strong> SMTP is properly configured<br>
                   <strong>✓</strong> Email service is operational<br>
                   <strong>✓</strong> You can now receive OTP emails
                 </p>
