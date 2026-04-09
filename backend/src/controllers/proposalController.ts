@@ -679,6 +679,9 @@ export const aiRefineSection = async (req: Request, res: Response) => {
       case 'coverLetter':
         refined = `Dear ${ctx.clientName || 'Sir/Madam'},\n\nThank you for the opportunity to present our proposal for ${ctx.leadTitle || 'your project'}. Mobilise App Lab Limited brings extensive experience in delivering enterprise technology solutions.\n\nWe have carefully analyzed your requirements and designed a solution that addresses your specific needs while ensuring scalability and reliability.\n\nWe are committed to delivering excellence and look forward to building a long-term partnership.\n\nBest regards,\nMobilise App Lab Limited`;
         break;
+      case 'executiveSummary':
+        refined = `${ctx.clientName ? ctx.clientName + ' has' : 'The client has'} identified a strategic need to modernize and strengthen its ${ctx.productLineName || 'operational'} capabilities. Mobilise App Lab Limited brings a proven track record of delivering end-to-end technology solutions that drive operational efficiency, enhance visibility, and reduce costs.\n\nOur approach is guided by three core principles:\n\n1. Business-First Design — Every recommendation is rooted in your operational reality, not just technology capabilities.\n2. Scalable Architecture — Solutions are built to grow with your organization, ensuring long-term value.\n3. Partnership Model — We work as an extension of your team, ensuring knowledge transfer and self-sufficiency.\n\nThis proposal outlines a comprehensive engagement covering solution design, deployment, training, and ongoing support. We are confident in our ability to deliver measurable impact within the agreed timelines.`;
+        break;
       case 'scopeOfWork':
         refined = currentText + '\n\nAdditional Deliverables:\n• Detailed project plan with milestones\n• Weekly progress reports\n• Complete documentation (technical + user manuals)\n• Knowledge transfer sessions';
         break;
