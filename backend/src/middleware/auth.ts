@@ -13,7 +13,11 @@ declare global {
         userId: number;
         email: string;
         role: string;
+        fullName?: string;
         productLineIds?: number[];
+        isSalesHead?: boolean;
+        salesHeadProductLineIds?: number[];
+        teamMemberIds?: number[];
       };
     }
   }
@@ -76,16 +80,41 @@ export const authenticate = async (
       role: decoded.role,
     };
 
+    // Fetch user's full name
+    try {
+      const [userRows] = await db.query('SELECT full_name FROM users WHERE id = ?', [decoded.userId]);
+      if ((userRows as any[]).length > 0) req.user.fullName = (userRows as any[])[0].full_name;
+    } catch { /* skip */ }
+
     // Fetch user's assigned product line IDs for visibility filtering
     try {
       const [plRows] = await db.query(
-        'SELECT product_line_id FROM user_product_lines WHERE user_id = ?',
+        'SELECT product_line_id, is_sales_head FROM user_product_lines WHERE user_id = ?',
         [decoded.userId]
       );
       req.user.productLineIds = (plRows as any[]).map(r => r.product_line_id);
+
+      // Determine if user is a sales head and for which product lines
+      const headPLs = (plRows as any[]).filter(r => r.is_sales_head === 1 || r.is_sales_head === true);
+      req.user.isSalesHead = headPLs.length > 0;
+      req.user.salesHeadProductLineIds = headPLs.map(r => r.product_line_id);
+
+      // If sales head, fetch team member IDs
+      if (req.user.isSalesHead) {
+        const [teamRows] = await db.query(
+          'SELECT DISTINCT team_member_id FROM sales_team_assignments WHERE sales_head_id = ? AND is_active = TRUE',
+          [decoded.userId]
+        );
+        req.user.teamMemberIds = (teamRows as any[]).map(r => r.team_member_id);
+      } else {
+        req.user.teamMemberIds = [];
+      }
     } catch (plError: any) {
       // If table doesn't exist yet (pre-migration), silently skip
       req.user.productLineIds = [];
+      req.user.isSalesHead = false;
+      req.user.salesHeadProductLineIds = [];
+      req.user.teamMemberIds = [];
     }
 
     next();

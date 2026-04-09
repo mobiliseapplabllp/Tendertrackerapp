@@ -6,16 +6,40 @@ export class ReportController {
   /**
    * Get dashboard statistics
    */
-  static async getDashboard(_req: Request, res: Response, next: NextFunction) {
+  static async getDashboard(req: Request, res: Response, next: NextFunction) {
     try {
+      // Build role-based filter
+      const user = req.user;
+      const isAdmin = user?.role === 'Admin';
+      const isSalesHead = user?.isSalesHead;
+      const roleFilterParams: any[] = [];
+      let roleFilter = '';
+
+      if (!isAdmin && user) {
+        if (isSalesHead && user.salesHeadProductLineIds?.length) {
+          // Sales Head: see their product lines
+          const plPlaceholders = user.salesHeadProductLineIds.map(() => '?').join(',');
+          roleFilter = ` AND product_line_id IN (${plPlaceholders})`;
+          roleFilterParams.push(...user.salesHeadProductLineIds);
+        } else if (user.productLineIds?.length) {
+          // Team Member: see own created/assigned within product lines
+          roleFilter = ` AND (created_by = ? OR assigned_to = ?)`;
+          roleFilterParams.push(user.userId, user.userId);
+        } else {
+          // No product lines assigned, see only own
+          roleFilter = ` AND (created_by = ? OR assigned_to = ?)`;
+          roleFilterParams.push(user.userId, user.userId);
+        }
+      }
+
       // Check if deleted_at column exists
       let deletedFilter = '';
       try {
         const [columnCheck] = await db.query(
-          `SELECT COLUMN_NAME 
-           FROM INFORMATION_SCHEMA.COLUMNS 
-           WHERE TABLE_SCHEMA = DATABASE() 
-           AND TABLE_NAME = 'tenders' 
+          `SELECT COLUMN_NAME
+           FROM INFORMATION_SCHEMA.COLUMNS
+           WHERE TABLE_SCHEMA = DATABASE()
+           AND TABLE_NAME = 'tenders'
            AND COLUMN_NAME = 'deleted_at'`
         );
         if ((columnCheck as any[]).length > 0) {
@@ -25,45 +49,48 @@ export class ReportController {
         // Column doesn't exist, skip filter
       }
 
+      // Append role filter to deleted filter
+      const baseFilter = deletedFilter ? `${deletedFilter}${roleFilter}` : (roleFilter ? `WHERE 1=1${roleFilter}` : '');
+
       // Total tenders
       const [totalResult] = await db.query(
-        `SELECT COUNT(*) as total FROM tenders ${deletedFilter}`
+        `SELECT COUNT(*) as total FROM tenders ${baseFilter}`, [...roleFilterParams]
       );
       const totalTenders = (totalResult as any[])[0].total;
 
       // Active tenders (not Won, Lost, or Cancelled)
-      const activeWhere = deletedFilter 
-        ? `${deletedFilter} AND status NOT IN ('Won', 'Lost', 'Cancelled')`
+      const activeWhere = baseFilter
+        ? `${baseFilter} AND status NOT IN ('Won', 'Lost', 'Cancelled')`
         : `WHERE status NOT IN ('Won', 'Lost', 'Cancelled')`;
       const [activeResult] = await db.query(
-        `SELECT COUNT(*) as total FROM tenders ${activeWhere}`
+        `SELECT COUNT(*) as total FROM tenders ${activeWhere}`, [...roleFilterParams]
       );
       const activeTenders = (activeResult as any[])[0].total;
 
       // Won tenders
-      const wonWhere = deletedFilter 
-        ? `${deletedFilter} AND status = 'Won'`
+      const wonWhere = baseFilter
+        ? `${baseFilter} AND status = 'Won'`
         : `WHERE status = 'Won'`;
       const [wonResult] = await db.query(
-        `SELECT COUNT(*) as total, COALESCE(SUM(estimated_value), 0) as total_value 
-         FROM tenders ${wonWhere}`
+        `SELECT COUNT(*) as total, COALESCE(SUM(estimated_value), 0) as total_value
+         FROM tenders ${wonWhere}`, [...roleFilterParams]
       );
       const wonData = (wonResult as any[])[0];
       const wonTenders = wonData.total;
       const wonValue = parseFloat(wonData.total_value) || 0;
 
       // Lost tenders
-      const lostWhere = deletedFilter 
-        ? `${deletedFilter} AND status = 'Lost'`
+      const lostWhere = baseFilter
+        ? `${baseFilter} AND status = 'Lost'`
         : `WHERE status = 'Lost'`;
       const [lostResult] = await db.query(
-        `SELECT COUNT(*) as total FROM tenders ${lostWhere}`
+        `SELECT COUNT(*) as total FROM tenders ${lostWhere}`, [...roleFilterParams]
       );
       const lostTenders = (lostResult as any[])[0].total;
 
       // Total value
       const [totalValueResult] = await db.query(
-        `SELECT COALESCE(SUM(estimated_value), 0) as total FROM tenders ${deletedFilter}`
+        `SELECT COALESCE(SUM(estimated_value), 0) as total FROM tenders ${baseFilter}`, [...roleFilterParams]
       );
       const totalValue = parseFloat((totalValueResult as any[])[0].total) || 0;
 
@@ -87,12 +114,10 @@ export class ReportController {
       if (hasEMDColumns) {
         try {
           const [totalEMDResult] = await db.query(
-            `SELECT COALESCE(SUM(emd_amount), 0) as total FROM tenders ${deletedFilter}`
+            `SELECT COALESCE(SUM(emd_amount), 0) as total FROM tenders ${baseFilter}`, [...roleFilterParams]
           );
           totalEMD = parseFloat((totalEMDResult as any[])[0].total) || 0;
-        } catch (e) {
-          // Column doesn't exist, use default
-        }
+        } catch (e) { /* Column doesn't exist */ }
       }
 
       // Total Tender Fees
@@ -100,12 +125,10 @@ export class ReportController {
       if (hasEMDColumns) {
         try {
           const [totalFeesResult] = await db.query(
-            `SELECT COALESCE(SUM(tender_fees), 0) as total FROM tenders ${deletedFilter}`
+            `SELECT COALESCE(SUM(tender_fees), 0) as total FROM tenders ${baseFilter}`, [...roleFilterParams]
           );
           totalFees = parseFloat((totalFeesResult as any[])[0].total) || 0;
-        } catch (e) {
-          // Column doesn't exist, use default
-        }
+        } catch (e) { /* Column doesn't exist */ }
       }
 
       // Win rate
@@ -113,35 +136,59 @@ export class ReportController {
       const avgWinRate = totalCompleted > 0 ? (wonTenders / totalCompleted) * 100 : 0;
 
       // Upcoming deadlines (next 30 days)
+      const deadlineBase = baseFilter
+        ? `${baseFilter} AND submission_deadline BETWEEN NOW() AND DATE_ADD(NOW(), INTERVAL 30 DAY) AND status NOT IN ('Won', 'Lost', 'Cancelled')`
+        : `WHERE submission_deadline BETWEEN NOW() AND DATE_ADD(NOW(), INTERVAL 30 DAY) AND status NOT IN ('Won', 'Lost', 'Cancelled')`;
       const [deadlineResult] = await db.query(
-        `SELECT COUNT(*) as total FROM tenders 
-         WHERE submission_deadline BETWEEN NOW() AND DATE_ADD(NOW(), INTERVAL 30 DAY)
-         AND status NOT IN ('Won', 'Lost', 'Cancelled')`
+        `SELECT COUNT(*) as total FROM tenders ${deadlineBase}`, [...roleFilterParams]
       );
       const upcomingDeadlines = (deadlineResult as any[])[0].total;
 
-      // Recent activities
+      // Recent activities (filtered by visible tenders)
+      let activityFilter = '';
+      const activityParams: any[] = [];
+      if (!isAdmin && user) {
+        if (isSalesHead && user.salesHeadProductLineIds?.length) {
+          const plPH = user.salesHeadProductLineIds.map(() => '?').join(',');
+          activityFilter = `WHERE t.product_line_id IN (${plPH})`;
+          activityParams.push(...user.salesHeadProductLineIds);
+        } else {
+          activityFilter = `WHERE (t.created_by = ? OR t.assigned_to = ?)`;
+          activityParams.push(user.userId, user.userId);
+        }
+      }
       const [activities] = await db.query(
         `SELECT ta.*, u.full_name as user_name, t.title as tender_title
          FROM tender_activities ta
          LEFT JOIN users u ON ta.user_id = u.id
          LEFT JOIN tenders t ON ta.tender_id = t.id
+         ${activityFilter}
          ORDER BY ta.created_at DESC
-         LIMIT 10`
+         LIMIT 10`, activityParams
       );
 
-      // Tenders by status
+      // Tenders by status (role-filtered)
       const [statusData] = await db.query(
-        `SELECT status, COUNT(*) as count FROM tenders GROUP BY status`
+        `SELECT status, COUNT(*) as count FROM tenders ${baseFilter} GROUP BY status`, [...roleFilterParams]
       );
 
-      // Tenders by category
+      // Tenders by category (role-filtered)
+      const catBase = baseFilter ? baseFilter.replace('WHERE', 'WHERE t.') .replace(' AND ', ' AND t.').replace('deleted_at', 't.deleted_at') : '';
       const [categoryData] = await db.query(
         `SELECT tc.name as category, COUNT(*) as count
          FROM tenders t
          LEFT JOIN tender_categories tc ON t.category_id = tc.id
-         GROUP BY tc.name`
+         ${baseFilter ? baseFilter : ''}
+         GROUP BY tc.name`, [...roleFilterParams]
       );
+
+      // User context for frontend
+      const userContext = {
+        role: user?.role || 'User',
+        isSalesHead: !!isSalesHead,
+        fullName: user?.fullName || '',
+        teamMemberCount: user?.teamMemberIds?.length || 0,
+      };
 
       res.json({
         success: true,
@@ -159,6 +206,7 @@ export class ReportController {
           recentActivities: activities,
           tendersByStatus: statusData,
           tendersByCategory: categoryData,
+          userContext,
         },
       });
     } catch (error: any) {
