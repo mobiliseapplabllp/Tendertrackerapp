@@ -247,7 +247,7 @@ export class ReportController {
 
       return res.json({ success: true, data: members });
     } catch (error: any) {
-      next(error);
+      return next(error);
     }
   }
 
