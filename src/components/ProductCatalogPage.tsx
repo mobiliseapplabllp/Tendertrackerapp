@@ -33,7 +33,7 @@ export function ProductCatalogPage() {
   const [addingComponent, setAddingComponent] = useState(false);
   const [componentQty, setComponentQty] = useState('1');
   const [showQuickAdd, setShowQuickAdd] = useState(false);
-  const [quickAddForm, setQuickAddForm] = useState({ name: '', sku: '', unitPrice: '', subCategory: 'Hardware', categoryId: '', qty: '1' });
+  const [quickAddForm, setQuickAddForm] = useState({ name: '', sku: '', unitPrice: '', subCategory: 'Hardware', categoryId: '', qty: '1', sellSeparately: false });
   const { formatCurrency } = useSettings();
 
   const [form, setForm] = useState({
@@ -182,7 +182,7 @@ export function ProductCatalogPage() {
         categoryId: Number(quickAddForm.categoryId),
         subCategory: quickAddForm.subCategory,
         unitPrice: Number(quickAddForm.unitPrice) || 0,
-        taxRate: 18, isStandalone: false, isBundle: false,
+        taxRate: 18, isStandalone: quickAddForm.sellSeparately, isBundle: false,
       });
       if (!createRes.success) { alert(createRes.error || 'Failed to create product'); return; }
 
@@ -193,7 +193,7 @@ export function ProductCatalogPage() {
       });
       if (bomRes.success) {
         setBomData(prev => ({ ...prev, [manageBOM.id]: bomRes.data || [] }));
-        setQuickAddForm({ name: '', sku: '', unitPrice: '', subCategory: 'Hardware', categoryId: '', qty: '1' });
+        setQuickAddForm({ name: '', sku: '', unitPrice: '', subCategory: 'Hardware', categoryId: '', qty: '1', sellSeparately: false });
         setShowQuickAdd(false);
         fetchProducts();
       } else { alert(bomRes.error || 'Product created but failed to add to BOM'); }
@@ -414,10 +414,18 @@ export function ProductCatalogPage() {
                     <div><Label className="text-[10px] text-gray-500">Quantity</Label>
                       <Input type="number" value={quickAddForm.qty} onChange={e => setQuickAddForm({ ...quickAddForm, qty: e.target.value })} className="text-xs h-7" min="1" /></div>
                   </div>
-                  <Button size="sm" className="w-full h-7 text-xs" onClick={handleQuickAddComponent} disabled={addingComponent}>
-                    {addingComponent ? <Loader2 className="w-3 h-3 animate-spin mr-1" /> : <Plus className="w-3 h-3 mr-1" />}
-                    Create & Add to BOM
-                  </Button>
+                  <div className="flex items-center justify-between">
+                    <label className="flex items-center gap-2 cursor-pointer">
+                      <input type="checkbox" checked={quickAddForm.sellSeparately}
+                        onChange={e => setQuickAddForm({ ...quickAddForm, sellSeparately: e.target.checked })}
+                        className="rounded border-gray-300" />
+                      <span className="text-[10px] text-gray-600">Also sell separately in catalog</span>
+                    </label>
+                    <Button size="sm" className="h-7 text-xs" onClick={handleQuickAddComponent} disabled={addingComponent}>
+                      {addingComponent ? <Loader2 className="w-3 h-3 animate-spin mr-1" /> : <Plus className="w-3 h-3 mr-1" />}
+                      Create & Add
+                    </Button>
+                  </div>
                 </div>
               ) : (
                 /* Search Existing */
