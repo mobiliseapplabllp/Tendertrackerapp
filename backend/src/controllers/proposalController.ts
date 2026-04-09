@@ -634,8 +634,8 @@ export const aiGenerateProposal = async (req: Request, res: Response) => {
     // Build context for AI
     const clientName = lead.client || lead.company_name || 'the client';
     const companyAddress = [lead.address, lead.city, lead.state, lead.country].filter(Boolean).join(', ') || '';
-    const productList = products.map((p: any) => `${p.name} (${p.sku || 'N/A'}) - ₹${p.unit_price}`).join(', ');
-    const dealValue = lead.estimated_value || lead.deal_value || 0;
+    // productList and dealValue available for future AI integration
+    void products; // suppress unused warning
 
     // Generate proposal sections (without external AI - template-based for now)
     const proposalDate = new Date().toLocaleDateString('en-IN', { year: 'numeric', month: 'long', day: 'numeric' });
