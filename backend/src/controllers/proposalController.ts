@@ -503,6 +503,30 @@ async function recalcProposalTotals(proposalId: number) {
   );
 }
 
+// ==================== Pending Approvals (for managers) ====================
+
+export const getPendingApprovals = async (req: Request, res: Response) => {
+  try {
+    const userRole = req.user?.role?.toLowerCase();
+    if (userRole !== 'admin' && userRole !== 'manager') {
+      return res.status(403).json({ success: false, error: 'Only managers can view pending approvals' });
+    }
+    const [rows] = await db.query(
+      `SELECT p.*, t.title as lead_title, t.tender_number as lead_number,
+       u.full_name as created_by_name, u.email as created_by_email
+       FROM proposals p
+       JOIN tenders t ON p.tender_id = t.id
+       LEFT JOIN users u ON p.created_by = u.id
+       WHERE p.status = 'Pending Approval' AND p.deleted_at IS NULL
+       ORDER BY p.created_at DESC`
+    );
+    return res.json({ success: true, data: rows });
+  } catch (error: any) {
+    logger.error({ message: 'Error fetching pending approvals', error: error.message });
+    return res.status(500).json({ success: false, error: 'Failed to fetch pending approvals' });
+  }
+};
+
 // ==================== AI Features ====================
 
 export const aiGenerateProposal = async (req: Request, res: Response) => {

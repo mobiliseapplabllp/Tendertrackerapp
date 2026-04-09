@@ -1658,6 +1658,8 @@ export const proposalApi = {
     }
     return { success: res.ok };
   },
+  // Approvals
+  getPendingApprovals: async () => apiCall<any>('/proposals/pending-approvals'),
   // AI
   aiGenerate: async (leadId: number) =>
     apiCall<any>('/proposals/ai-generate', { method: 'POST', body: JSON.stringify({ leadId }) }),

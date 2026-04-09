@@ -6,7 +6,7 @@ import {
   getTemplates, getByLead, getById, create, update, deleteProposal,
   submitForApproval, approve, reject, markSubmitted, updateOutcome,
   getLineItems, addLineItem, updateLineItem, removeLineItem, addBundleToProposal,
-  getVersions, aiGenerateProposal, aiRefineSection
+  getVersions, aiGenerateProposal, aiRefineSection, getPendingApprovals
 } from '../controllers/proposalController';
 
 const router = Router();
@@ -15,9 +15,10 @@ router.use(authenticate);
 // Templates
 router.get('/templates', getTemplates);
 
-// AI Features (MUST be before /:id routes to avoid route conflict)
+// Static routes (MUST be before /:id routes to avoid route conflict)
 router.post('/ai-generate', aiGenerateProposal);
 router.post('/ai-refine', aiRefineSection);
+router.get('/pending-approvals', getPendingApprovals);
 
 // Proposals by lead
 router.get('/lead/:leadId', validate({ params: Joi.object({ leadId: schemas.id }) }), getByLead);

@@ -25,6 +25,17 @@ export function ProposalTab({ leadId, lead, userRole }: ProposalTabProps) {
   const [showCreate, setShowCreate] = useState(false);
   const [editorMode, setEditorMode] = useState<{ open: boolean; proposalId?: number }>({ open: false });
   const [selectedProposal, setSelectedProposal] = useState<any>(null);
+  const [currentUser, setCurrentUser] = useState<any>(null);
+
+  useEffect(() => {
+    const stored = localStorage.getItem('user');
+    if (stored) try { setCurrentUser(JSON.parse(stored)); } catch {}
+  }, []);
+
+  const isManager = (() => {
+    const role = (userRole || currentUser?.role || '').toLowerCase();
+    return ['admin', 'manager', 'superadmin'].includes(role);
+  })();
   const [templates, setTemplates] = useState<any[]>([]);
   const [products, setProducts] = useState<any[]>([]);
   const [productSearch, setProductSearch] = useState('');
@@ -408,8 +419,37 @@ export function ProposalTab({ leadId, lead, userRole }: ProposalTabProps) {
   }
 
   // ==================== LIST VIEW ====================
+  const pendingApprovals = proposals.filter(p => p.status === 'Pending Approval');
+
   return (
     <div className="p-4 space-y-4">
+      {/* Pending Approvals Banner (visible to managers) */}
+      {isManager && pendingApprovals.length > 0 && (
+        <div className="bg-amber-50 border border-amber-200 rounded-lg p-3">
+          <div className="flex items-center gap-2 mb-2">
+            <div className="w-6 h-6 bg-amber-500 rounded-full flex items-center justify-center">
+              <span className="text-white font-bold text-xs">{pendingApprovals.length}</span>
+            </div>
+            <span className="text-sm font-semibold text-amber-800">Pending Your Approval</span>
+          </div>
+          <div className="space-y-1.5">
+            {pendingApprovals.map((p: any) => (
+              <div key={p.id} className="flex items-center justify-between bg-white rounded p-2 border border-amber-100 cursor-pointer hover:bg-amber-50"
+                onClick={async () => { const detail = await proposalApi.getById(p.id); if (detail.success) setSelectedProposal(detail.data); }}>
+                <div>
+                  <span className="text-xs font-medium">{p.title}</span>
+                  <span className="text-[10px] text-gray-500 ml-2">by {p.created_by_name}</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="text-xs font-medium">{formatCurrency(p.grand_total, undefined, { compact: false })}</span>
+                  <Badge className="bg-amber-100 text-amber-700 text-[10px]">Review</Badge>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
       <div className="flex items-center justify-between">
         <h3 className="font-medium text-sm text-gray-700">{proposals.length} Proposal{proposals.length !== 1 ? 's' : ''}</h3>
         <Button size="sm" onClick={() => setEditorMode({ open: true })}><Plus className="w-3 h-3 mr-1" />New Proposal</Button>
