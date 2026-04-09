@@ -59,6 +59,10 @@ export default function App() {
           if (response.success) {
             setIsAuthenticated(true);
             setCurrentUser(response.data);
+            // Set landing page based on role
+            const userRole = (response.data?.role || '').toLowerCase();
+            if (userRole === 'user') setCurrentView('leads');
+            else setCurrentView('dashboard');
             // Reset session timer
             sessionManagerRef.resetTimer(() => {
               handleLogout();

@@ -35,9 +35,34 @@ export function Sidebar({ currentView, onNavigate, onLogout, user }: SidebarProp
   const [isCollapsed, setIsCollapsed] = useState(false);
   const { appName } = useBranding();
 
-  // Helper to check if user has access to API Playground
-  const canAccessPlayground = user &&
-    ['admin', 'developer', 'senior qa', 'manager', 'superadmin'].includes((user.role || '').toLowerCase());
+  const role = (user?.role || 'User').toLowerCase();
+  const isAdmin = role === 'admin';
+  const isManager = ['manager', 'superadmin'].includes(role);
+  const isUser = role === 'user';
+  const isViewer = role === 'viewer';
+  const isAdminOrManager = isAdmin || isManager;
+
+  // Menu item access control
+  const canAccess = (menuId: string): boolean => {
+    // Admin sees everything
+    if (isAdmin) return true;
+
+    // Manager sees everything except System Settings
+    if (isManager) {
+      const systemOnly = ['users', 'categories', 'email-settings', 'administration', 'scout-config', 'api-playground', 'settings'];
+      return !systemOnly.includes(menuId);
+    }
+
+    // User sees: Dashboard, Leads, Sales Hub, Tenders, Documents, Collateral
+    if (isUser || isViewer) {
+      const allowed = ['dashboard', 'leads', 'sales-hub', 'tenders', 'documents', 'collateral'];
+      return allowed.includes(menuId);
+    }
+
+    return false;
+  };
+
+  const canAccessPlayground = isAdmin;
 
   const menuSections = [
     {
@@ -145,7 +170,10 @@ export function Sidebar({ currentView, onNavigate, onLogout, user }: SidebarProp
 
       {/* Main Navigation */}
       <nav className="flex-1 p-2 overflow-y-auto overflow-x-hidden min-w-0">
-        {menuSections.map((section, idx) => (
+        {menuSections.map((section, idx) => {
+          const visibleItems = section.items.filter(item => canAccess(item.id));
+          if (visibleItems.length === 0) return null;
+          return (
           <div key={section.label} className={idx > 0 ? 'mt-4' : ''}>
             {!isCollapsed && (
               <h2 className="px-2.5 mb-1 text-xs font-semibold text-gray-500 uppercase tracking-wider">
@@ -153,7 +181,7 @@ export function Sidebar({ currentView, onNavigate, onLogout, user }: SidebarProp
               </h2>
             )}
             <div className="space-y-0.5">
-              {section.items.map((item) => (
+              {visibleItems.map((item) => (
                 <button
                   key={item.id}
                   onClick={() => onNavigate(item.id)}
@@ -187,11 +215,15 @@ export function Sidebar({ currentView, onNavigate, onLogout, user }: SidebarProp
               ))}
             </div>
           </div>
-        ))}
+          );
+        })}
 
-        <Separator className="bg-gray-200 my-4" />
+        {/* System Settings - Admin only */}
+        {isAdmin && <Separator className="bg-gray-200 my-4" />}
 
-        {bottomSections.map((section) => (
+        {bottomSections.map((section) => {
+          if (!isAdmin) return null;
+          return (
           <div key={section.label}>
             {!isCollapsed && (
               <h2 className="px-2.5 mb-1 text-xs font-semibold text-gray-500 uppercase tracking-wider">
@@ -238,7 +270,8 @@ export function Sidebar({ currentView, onNavigate, onLogout, user }: SidebarProp
               })}
             </div>
           </div>
-        ))}
+          );
+        })}
       </nav>
 
       {/* User Section */}
