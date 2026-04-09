@@ -162,6 +162,19 @@ export function ProductCatalogPage() {
     finally { setAddingComponent(false); }
   };
 
+  const [editingComponentId, setEditingComponentId] = useState<number | null>(null);
+
+  const handleUpdateProductFromBOM = async (productId: number, updates: any) => {
+    try {
+      const res = await productCatalogApi.update(productId, updates);
+      if (res.success && manageBOM) {
+        // Refresh BOM data to show updated name/price
+        const refreshed = await productCatalogApi.getBOM(manageBOM.id);
+        if (refreshed.success) setBomData(prev => ({ ...prev, [manageBOM.id]: refreshed.data || [] }));
+      }
+    } catch (err: any) { alert(err.message); }
+  };
+
   const handleUpdateBOMComponent = async (bomId: number, updates: { quantity?: number; isOptional?: boolean }) => {
     if (!manageBOM) return;
     try {
@@ -503,8 +516,11 @@ export function ProductCatalogPage() {
                 </div>
               ) : (
                 <div className="space-y-2">
-                  {(bomData[manageBOM.id] || []).map((comp: any, idx: number) => (
+                  {(bomData[manageBOM.id] || []).map((comp: any, idx: number) => {
+                    const isEditing = editingComponentId === comp.component_product_id;
+                    return (
                     <div key={comp.id} className="bg-gray-50 rounded-lg p-3 border space-y-2">
+                      {/* Header Row */}
                       <div className="flex items-center gap-3">
                         <div className="w-8 h-8 bg-indigo-100 rounded-full flex items-center justify-center flex-shrink-0">
                           <span className="text-indigo-700 font-bold text-xs">{idx + 1}</span>
@@ -517,10 +533,17 @@ export function ProductCatalogPage() {
                           <span className="text-xs text-gray-500">{formatCurrency(comp.unit_price, undefined, { compact: false })}/unit</span>
                         </div>
                         <Button variant="ghost" size="icon" className="h-7 w-7 flex-shrink-0"
+                          onClick={() => setEditingComponentId(isEditing ? null : comp.component_product_id)}
+                          title="Edit details">
+                          <Edit2 className="w-3.5 h-3.5 text-blue-500" />
+                        </Button>
+                        <Button variant="ghost" size="icon" className="h-7 w-7 flex-shrink-0"
                           onClick={() => handleRemoveBOMComponent(comp.id)} title="Remove">
                           <Trash2 className="w-3.5 h-3.5 text-red-500" />
                         </Button>
                       </div>
+
+                      {/* BOM Fields (always visible) */}
                       <div className="flex items-center gap-3 pl-11">
                         <div className="flex items-center gap-1.5">
                           <Label className="text-[10px] text-gray-500">Qty:</Label>
@@ -543,8 +566,42 @@ export function ProductCatalogPage() {
                           = {formatCurrency((comp.unit_price || 0) * (comp.quantity || 1), undefined, { compact: false })}
                         </span>
                       </div>
+
+                      {/* Expandable Product Details Edit */}
+                      {isEditing && (
+                        <div className="pl-11 pt-2 border-t mt-2 space-y-2">
+                          <p className="text-[10px] text-indigo-600 font-medium">Edit Product Details</p>
+                          <div className="grid grid-cols-2 gap-2">
+                            <div><Label className="text-[10px] text-gray-500">Name</Label>
+                              <Input defaultValue={comp.component_name} className="text-xs h-6"
+                                onBlur={e => { if (e.target.value !== comp.component_name) handleUpdateProductFromBOM(comp.component_product_id, { name: e.target.value }); }} /></div>
+                            <div><Label className="text-[10px] text-gray-500">SKU</Label>
+                              <Input defaultValue={comp.sku || ''} className="text-xs h-6"
+                                onBlur={e => { if (e.target.value !== (comp.sku || '')) handleUpdateProductFromBOM(comp.component_product_id, { sku: e.target.value || null }); }} /></div>
+                            <div><Label className="text-[10px] text-gray-500">Unit Price</Label>
+                              <Input type="number" defaultValue={comp.unit_price} className="text-xs h-6"
+                                onBlur={e => { const v = Number(e.target.value); if (v !== comp.unit_price) handleUpdateProductFromBOM(comp.component_product_id, { unitPrice: v }); }} /></div>
+                            <div><Label className="text-[10px] text-gray-500">Tax Rate %</Label>
+                              <Input type="number" defaultValue={comp.component_tax_rate || comp.tax_rate || 18} className="text-xs h-6"
+                                onBlur={e => { handleUpdateProductFromBOM(comp.component_product_id, { taxRate: Number(e.target.value) }); }} /></div>
+                            <div><Label className="text-[10px] text-gray-500">HSN Code</Label>
+                              <Input defaultValue={comp.component_hsn || comp.hsn_code || ''} className="text-xs h-6"
+                                onBlur={e => { handleUpdateProductFromBOM(comp.component_product_id, { hsnCode: e.target.value || null }); }} /></div>
+                            <div><Label className="text-[10px] text-gray-500">Unit of Measure</Label>
+                              <Input defaultValue={comp.unit_of_measure || 'Unit'} className="text-xs h-6"
+                                onBlur={e => { handleUpdateProductFromBOM(comp.component_product_id, { unitOfMeasure: e.target.value }); }} /></div>
+                          </div>
+                          <label className="flex items-center gap-1.5 cursor-pointer">
+                            <input type="checkbox" defaultChecked={!!comp.is_active}
+                              onChange={e => handleUpdateProductFromBOM(comp.component_product_id, { isStandalone: e.target.checked })}
+                              className="rounded border-gray-300 h-3 w-3" />
+                            <span className="text-[10px] text-gray-500">Also sell separately in catalog</span>
+                          </label>
+                        </div>
+                      )}
                     </div>
-                  ))}
+                    );
+                  })}
                 </div>
               )}
             </div>
