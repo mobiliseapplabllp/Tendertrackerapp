@@ -220,15 +220,42 @@ export function ProposalEditor({ leadId, lead, proposalId, onBack, onSaved }: Pr
 
   const searchProducts = async (query: string) => {
     if (!query.trim()) { setSearchResults([]); return; }
-    const res = await productCatalogApi.getAll({ search: query, pageSize: '15' });
+    // Search ALL products (including non-standalone BOM components)
+    const res = await productCatalogApi.getAll({ search: query, pageSize: '20' });
     if (res.success) setSearchResults(res.data?.data || []);
   };
 
+  const [expandingBundle, setExpandingBundle] = useState<any>(null);
+  const [bundleBOM, setBundleBOM] = useState<any[]>([]);
+
+  const handleExpandBundle = async (product: any) => {
+    setExpandingBundle(product);
+    const res = await productCatalogApi.getBOM(product.id);
+    if (res.success) setBundleBOM(res.data || []);
+  };
+
   const addItem = (product: any, type: 'one-time' | 'recurring') => {
-    const item = { name: product.name, quantity: 1, unitPrice: product.unit_price, productId: product.id };
+    const item = { name: product.name || product.component_name, quantity: 1, unitPrice: product.unit_price, productId: product.id || product.component_product_id, isBundle: !!product.is_bundle };
     if (type === 'one-time') setOneTimeItems(prev => [...prev, item]);
     else setRecurringItems(prev => [...prev, item]);
     setShowProductPicker(null); setProductSearch(''); setSearchResults([]);
+    setExpandingBundle(null); setBundleBOM([]);
+  };
+
+  const addBOMComponent = (comp: any, type: 'one-time' | 'recurring') => {
+    const item = { name: comp.component_name, quantity: comp.quantity || 1, unitPrice: comp.unit_price, productId: comp.component_product_id };
+    if (type === 'one-time') setOneTimeItems(prev => [...prev, item]);
+    else setRecurringItems(prev => [...prev, item]);
+  };
+
+  const addAllBOMComponents = (type: 'one-time' | 'recurring') => {
+    const items = bundleBOM.map(comp => ({
+      name: comp.component_name, quantity: comp.quantity || 1, unitPrice: comp.unit_price, productId: comp.component_product_id
+    }));
+    if (type === 'one-time') setOneTimeItems(prev => [...prev, ...items]);
+    else setRecurringItems(prev => [...prev, ...items]);
+    setExpandingBundle(null); setBundleBOM([]);
+    setShowProductPicker(null);
   };
 
   const addCustomItem = (type: 'one-time' | 'recurring') => {
@@ -261,6 +288,18 @@ export function ProposalEditor({ leadId, lead, proposalId, onBack, onSaved }: Pr
     </div>
   );
 
+  // Fetch BOM for bundle items in proposal (for annexure)
+  const [annexureBOM, setAnnexureBOM] = useState<Record<number, any[]>>({});
+  useEffect(() => {
+    const bundleItems = [...oneTimeItems, ...recurringItems].filter(i => i.isBundle && i.productId);
+    bundleItems.forEach(async (item) => {
+      if (!annexureBOM[item.productId]) {
+        const res = await productCatalogApi.getBOM(item.productId);
+        if (res.success) setAnnexureBOM(prev => ({ ...prev, [item.productId]: res.data || [] }));
+      }
+    });
+  }, [oneTimeItems, recurringItems]);
+
   // Preview data
   const previewData = {
     ...form,
@@ -273,6 +312,7 @@ export function ProposalEditor({ leadId, lead, proposalId, onBack, onSaved }: Pr
     companyName: form.companyName,
     companyEmail: form.companyEmail,
     companyPhone: form.companyPhone,
+    annexureBOM: annexureBOM,
   };
 
   return (
@@ -403,8 +443,10 @@ export function ProposalEditor({ leadId, lead, proposalId, onBack, onSaved }: Pr
                   <Plus className="w-3 h-3 mr-1" />Custom
                 </Button>
               </div>
-              {showProductPicker === 'one-time' && <ProductPicker onSelect={p => addItem(p, 'one-time')} onClose={() => setShowProductPicker(null)}
-                search={productSearch} setSearch={setProductSearch} results={searchResults} onSearch={searchProducts} />}
+              {showProductPicker === 'one-time' && <ProductPicker onSelect={p => addItem(p, 'one-time')} onClose={() => { setShowProductPicker(null); setExpandingBundle(null); setBundleBOM([]); }}
+                search={productSearch} setSearch={setProductSearch} results={searchResults} onSearch={searchProducts}
+                onExpandBundle={handleExpandBundle} expandingBundle={expandingBundle} bundleBOM={bundleBOM}
+                onAddBOMComponent={c => addBOMComponent(c, 'one-time')} onAddAllBOM={() => addAllBOMComponents('one-time')} chargeType="one-time" />}
             </div>
           )}
 
@@ -434,8 +476,10 @@ export function ProposalEditor({ leadId, lead, proposalId, onBack, onSaved }: Pr
                   <Plus className="w-3 h-3 mr-1" />Custom
                 </Button>
               </div>
-              {showProductPicker === 'recurring' && <ProductPicker onSelect={p => addItem(p, 'recurring')} onClose={() => setShowProductPicker(null)}
-                search={productSearch} setSearch={setProductSearch} results={searchResults} onSearch={searchProducts} />}
+              {showProductPicker === 'recurring' && <ProductPicker onSelect={p => addItem(p, 'recurring')} onClose={() => { setShowProductPicker(null); setExpandingBundle(null); setBundleBOM([]); }}
+                search={productSearch} setSearch={setProductSearch} results={searchResults} onSearch={searchProducts}
+                onExpandBundle={handleExpandBundle} expandingBundle={expandingBundle} bundleBOM={bundleBOM}
+                onAddBOMComponent={c => addBOMComponent(c, 'recurring')} onAddAllBOM={() => addAllBOMComponents('recurring')} chargeType="recurring" />}
             </div>
           )}
 
@@ -491,27 +535,61 @@ export function ProposalEditor({ leadId, lead, proposalId, onBack, onSaved }: Pr
 }
 
 // ==================== Product Picker Sub-Component ====================
-function ProductPicker({ onSelect, onClose, search, setSearch, results, onSearch }: {
+function ProductPicker({ onSelect, onClose, search, setSearch, results, onSearch, onExpandBundle, expandingBundle, bundleBOM, onAddBOMComponent, onAddAllBOM, chargeType }: {
   onSelect: (p: any) => void; onClose: () => void;
   search: string; setSearch: (s: string) => void;
   results: any[]; onSearch: (q: string) => void;
+  onExpandBundle?: (p: any) => void; expandingBundle?: any; bundleBOM?: any[];
+  onAddBOMComponent?: (c: any) => void; onAddAllBOM?: () => void; chargeType?: string;
 }) {
   return (
     <div className="bg-blue-50 rounded-lg p-2 border space-y-1.5">
       <div className="flex gap-1.5">
         <Input value={search} onChange={e => setSearch(e.target.value)}
           onKeyDown={e => { if (e.key === 'Enter') onSearch(search); }}
-          className="text-xs h-6 flex-1" placeholder="Search products..." />
+          className="text-xs h-6 flex-1" placeholder="Search products & components..." />
         <Button size="sm" className="h-6 w-6 p-0" onClick={() => onSearch(search)}><Search className="w-3 h-3" /></Button>
         <Button size="sm" variant="ghost" className="h-6 w-6 p-0" onClick={onClose}><Trash2 className="w-3 h-3" /></Button>
       </div>
-      {results.length > 0 && (
-        <div className="max-h-32 overflow-y-auto space-y-0.5">
+
+      {/* Bundle BOM Expansion */}
+      {expandingBundle && (bundleBOM || []).length > 0 && (
+        <div className="bg-white rounded border p-2 space-y-1">
+          <div className="flex items-center justify-between">
+            <span className="text-[10px] font-semibold text-indigo-700">{expandingBundle.name} — Components:</span>
+            <Button size="sm" className="h-5 text-[9px] px-1.5" onClick={onAddAllBOM}>Add All Components</Button>
+          </div>
+          {(bundleBOM || []).map((c: any, i: number) => (
+            <div key={i} className="flex items-center justify-between px-2 py-0.5 rounded text-[10px] hover:bg-indigo-50 cursor-pointer"
+              onClick={() => onAddBOMComponent?.(c)}>
+              <span>↳ {c.component_name} <span className="text-gray-400">x{c.quantity}</span></span>
+              <span className="font-medium">₹{c.unit_price?.toLocaleString('en-IN')}</span>
+            </div>
+          ))}
+          <Button size="sm" variant="ghost" className="h-5 text-[9px] w-full" onClick={() => { /* clear */ }}>Back to search</Button>
+        </div>
+      )}
+
+      {/* Search Results */}
+      {!expandingBundle && results.length > 0 && (
+        <div className="max-h-40 overflow-y-auto space-y-0.5">
           {results.map((p: any) => (
-            <div key={p.id} className="flex items-center justify-between bg-white px-2 py-1 rounded text-[10px] cursor-pointer hover:bg-indigo-50"
-              onClick={() => onSelect(p)}>
-              <span>{p.name} {p.sku && <span className="text-gray-400">({p.sku})</span>}</span>
-              <span className="font-medium">₹{p.unit_price?.toLocaleString('en-IN')}</span>
+            <div key={p.id} className="flex items-center justify-between bg-white px-2 py-1 rounded text-[10px]">
+              <div className="flex items-center gap-1 flex-1 cursor-pointer hover:text-indigo-600" onClick={() => onSelect(p)}>
+                <span>{p.name}</span>
+                {p.sku && <span className="text-gray-400">({p.sku})</span>}
+                {!!p.is_bundle && <span className="bg-purple-600 text-white px-1 rounded text-[8px]">Bundle</span>}
+                {!p.is_standalone && <span className="bg-gray-200 text-gray-600 px-1 rounded text-[8px]">Component</span>}
+              </div>
+              <div className="flex items-center gap-1.5">
+                <span className="font-medium">₹{p.unit_price?.toLocaleString('en-IN')}</span>
+                {!!p.is_bundle && p.component_count > 0 && onExpandBundle && (
+                  <button onClick={(e) => { e.stopPropagation(); onExpandBundle(p); }}
+                    className="text-[8px] bg-indigo-100 text-indigo-700 px-1.5 py-0.5 rounded hover:bg-indigo-200" title="View & add individual components">
+                    BOM ({p.component_count})
+                  </button>
+                )}
+              </div>
             </div>
           ))}
         </div>

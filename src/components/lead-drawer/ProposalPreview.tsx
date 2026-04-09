@@ -20,6 +20,7 @@ interface ProposalPreviewProps {
     paymentTerms?: string;
     warrantyTerms?: string;
     validityDays?: number;
+    annexureBOM?: Record<number, any[]>;
     submitterName?: string;
     submitterEmail?: string;
     submitterPhone?: string;
@@ -226,6 +227,57 @@ export function ProposalPreview({ data }: ProposalPreviewProps) {
           <div className="mb-4">
             <p className="font-semibold text-gray-800 mb-1 pl-2 border-l-2 border-blue-500">Warranty & Support</p>
             <div className="text-gray-700 whitespace-pre-wrap leading-relaxed">{data.warrantyTerms}</div>
+          </div>
+        )}
+
+        {/* Annexure - BOM Breakdown */}
+        {data.annexureBOM && Object.keys(data.annexureBOM).length > 0 && (
+          <div className="mt-6 pt-4 border-t border-gray-200">
+            <div className="mb-3">
+              <p className="text-[9px] uppercase tracking-[0.2em] text-indigo-500 font-semibold mb-0.5">Annexure</p>
+              <h3 className="text-sm font-bold text-gray-900">Product & Module Details</h3>
+            </div>
+            {Object.entries(data.annexureBOM).map(([productId, components]) => {
+              const parentItem = [...(data.oneTimeItems || []), ...(data.recurringItems || [])].find(i => i.productId === Number(productId));
+              if (!parentItem || !components?.length) return null;
+              return (
+                <div key={productId} className="mb-4">
+                  <div className="bg-indigo-50 rounded-t-lg px-3 py-2 border border-indigo-100 border-b-0">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <div className="w-6 h-6 bg-indigo-600 rounded flex items-center justify-center">
+                          <span className="text-white text-[9px] font-bold">{(components as any[]).length}</span>
+                        </div>
+                        <div>
+                          <p className="font-semibold text-xs text-indigo-900">{parentItem.name}</p>
+                          <p className="text-[9px] text-indigo-600">{(components as any[]).length} modules / components included</p>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                  <table className="w-full border border-indigo-100 text-[10px]">
+                    <thead className="bg-gray-50">
+                      <tr>
+                        <th className="border-b border-indigo-100 px-3 py-1.5 text-left w-8 text-gray-500">#</th>
+                        <th className="border-b border-indigo-100 px-3 py-1.5 text-left text-gray-500">Module / Component</th>
+                        <th className="border-b border-indigo-100 px-3 py-1.5 text-left text-gray-500">Description</th>
+                        <th className="border-b border-indigo-100 px-3 py-1.5 text-center w-12 text-gray-500">Qty</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {(components as any[]).map((comp: any, idx: number) => (
+                        <tr key={idx} className={idx % 2 === 0 ? 'bg-white' : 'bg-gray-50/50'}>
+                          <td className="px-3 py-1.5 text-gray-400 font-medium">{idx + 1}</td>
+                          <td className="px-3 py-1.5 font-medium text-gray-800">{comp.component_name}</td>
+                          <td className="px-3 py-1.5 text-gray-500">{comp.notes || '—'}</td>
+                          <td className="px-3 py-1.5 text-center">{comp.quantity}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              );
+            })}
           </div>
         )}
 
