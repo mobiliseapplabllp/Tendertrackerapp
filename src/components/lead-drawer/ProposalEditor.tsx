@@ -58,6 +58,30 @@ export function ProposalEditor({ leadId, lead, proposalId, approvalMode, onBack,
   const [productSearch, setProductSearch] = useState('');
   const [searchResults, setSearchResults] = useState<any[]>([]);
 
+  // Annexure items: { productId, name, unitPrice, quantity, included: boolean, parentName, parentProductId }
+  const [annexureItems, setAnnexureItems] = useState<any[]>([]);
+
+  // Recalculate bundle prices when annexure items are toggled
+  const toggleAnnexureItem = (index: number) => {
+    const updated = [...annexureItems];
+    updated[index].included = !updated[index].included;
+    setAnnexureItems(updated);
+
+    // Recalculate parent bundle price
+    const parentId = updated[index].parentProductId;
+    const includedTotal = updated
+      .filter(a => a.parentProductId === parentId && a.included)
+      .reduce((sum, a) => sum + (a.unitPrice * a.quantity), 0);
+
+    // Update the bundle item price in oneTimeItems or recurringItems
+    setOneTimeItems(prev => prev.map(item =>
+      item.productId === parentId && item.isBundle ? { ...item, unitPrice: includedTotal } : item
+    ));
+    setRecurringItems(prev => prev.map(item =>
+      item.productId === parentId && item.isBundle ? { ...item, unitPrice: includedTotal } : item
+    ));
+  };
+
   // Collapsed sections
   const [collapsed, setCollapsed] = useState<Set<string>>(new Set());
 
@@ -236,10 +260,41 @@ export function ProposalEditor({ leadId, lead, proposalId, approvalMode, onBack,
     if (res.success) setBundleBOM(res.data || []);
   };
 
-  const addItem = (product: any, type: 'one-time' | 'recurring') => {
-    const item = { name: product.name || product.component_name, quantity: 1, unitPrice: product.unit_price, productId: product.id || product.component_product_id, isBundle: !!product.is_bundle };
-    if (type === 'one-time') setOneTimeItems(prev => [...prev, item]);
-    else setRecurringItems(prev => [...prev, item]);
+  const addItem = async (product: any, type: 'one-time' | 'recurring') => {
+    const isBundle = !!product.is_bundle || (product.component_count && product.component_count > 0);
+
+    if (isBundle) {
+      // Fetch BOM and auto-populate annexure
+      const bomRes = await productCatalogApi.getBOM(product.id);
+      const bomItems = bomRes.success ? (bomRes.data || []) : [];
+
+      // Calculate bundle price from BOM components
+      const bomTotal = bomItems.reduce((sum: number, c: any) => sum + (c.unit_price || 0) * (c.quantity || 1), 0);
+
+      // Add bundle to pricing with calculated price
+      const item = { name: product.name, quantity: 1, unitPrice: bomTotal || product.unit_price, productId: product.id, isBundle: true };
+      if (type === 'one-time') setOneTimeItems(prev => [...prev, item]);
+      else setRecurringItems(prev => [...prev, item]);
+
+      // Add BOM items to annexure (all included by default)
+      const newAnnexure = bomItems.map((c: any) => ({
+        productId: c.component_product_id,
+        name: c.component_name,
+        unitPrice: c.unit_price || 0,
+        quantity: c.quantity || 1,
+        included: true,
+        parentName: product.name,
+        parentProductId: product.id,
+        notes: c.notes || '',
+      }));
+      setAnnexureItems(prev => [...prev, ...newAnnexure]);
+    } else {
+      // Regular product — just add to pricing
+      const item = { name: product.name || product.component_name, quantity: 1, unitPrice: product.unit_price, productId: product.id || product.component_product_id, isBundle: false };
+      if (type === 'one-time') setOneTimeItems(prev => [...prev, item]);
+      else setRecurringItems(prev => [...prev, item]);
+    }
+
     setShowProductPicker(null); setProductSearch(''); setSearchResults([]);
     setExpandingBundle(null); setBundleBOM([]);
   };
@@ -327,17 +382,7 @@ export function ProposalEditor({ leadId, lead, proposalId, approvalMode, onBack,
     finally { setSaving(false); }
   };
 
-  // Fetch BOM for bundle items in proposal (for annexure)
-  const [annexureBOM, setAnnexureBOM] = useState<Record<number, any[]>>({});
-  useEffect(() => {
-    const bundleItems = [...oneTimeItems, ...recurringItems].filter(i => i.isBundle && i.productId);
-    bundleItems.forEach(async (item) => {
-      if (!annexureBOM[item.productId]) {
-        const res = await productCatalogApi.getBOM(item.productId);
-        if (res.success) setAnnexureBOM(prev => ({ ...prev, [item.productId]: res.data || [] }));
-      }
-    });
-  }, [oneTimeItems, recurringItems]);
+  // Annexure items are now managed directly in state (populated when bundle is added)
 
   // Preview data
   const previewData = {
@@ -351,7 +396,7 @@ export function ProposalEditor({ leadId, lead, proposalId, approvalMode, onBack,
     companyName: form.companyName,
     companyEmail: form.companyEmail,
     companyPhone: form.companyPhone,
-    annexureBOM: annexureBOM,
+    annexureItems: annexureItems.filter(a => a.included),
     annexureNotes: (form as any).annexureNotes,
   };
 
@@ -615,13 +660,50 @@ export function ProposalEditor({ leadId, lead, proposalId, approvalMode, onBack,
             </div>
           )}
 
-          {/* Annexure Notes */}
-          <SectionHeader name="annexure" label="Annexure / Additional Notes" showAI={false} />
+          {/* Annexure — Modules/Components from BOM */}
+          <SectionHeader name="annexure" label={`Annexure — Modules (${annexureItems.filter(a => a.included).length}/${annexureItems.length})`} showAI={false} />
           {!collapsed.has('annexure') && (
-            <div className="pl-5 space-y-2">
-              <p className="text-xs text-gray-500">Bundle products added to the proposal will automatically show their BOM breakdown in the Annexure section of the preview. You can also add custom notes below.</p>
-              <Textarea value={form.annexureNotes || ''} onChange={e => setForm({ ...form, annexureNotes: e.target.value } as any)}
-                className="text-xs min-h-[60px]" placeholder="Additional annexure notes, special instructions, configuration details..." />
+            <div className="pl-5 space-y-3">
+              {annexureItems.length === 0 ? (
+                <p className="text-xs text-gray-500 italic">Add a bundle product to One-Time or Recurring charges — its modules will auto-populate here.</p>
+              ) : (
+                <>
+                  {/* Group by parent product */}
+                  {[...new Set(annexureItems.map(a => a.parentName))].map(parentName => {
+                    const items = annexureItems.filter(a => a.parentName === parentName);
+                    const includedCount = items.filter(a => a.included).length;
+                    const includedTotal = items.filter(a => a.included).reduce((s, a) => s + a.unitPrice * a.quantity, 0);
+                    return (
+                      <div key={parentName} className="border rounded-lg overflow-hidden">
+                        <div className="bg-indigo-50 px-3 py-2 flex items-center justify-between">
+                          <span className="text-xs font-semibold text-indigo-800">{parentName}</span>
+                          <span className="text-xs text-indigo-600">{includedCount}/{items.length} selected · ₹{includedTotal.toLocaleString('en-IN')}</span>
+                        </div>
+                        <div className="divide-y">
+                          {items.map((item, _) => {
+                            const globalIdx = annexureItems.indexOf(item);
+                            return (
+                              <label key={globalIdx} className={`flex items-center gap-3 px-3 py-2 cursor-pointer hover:bg-gray-50 ${!item.included ? 'opacity-50' : ''}`}>
+                                <input type="checkbox" checked={item.included} onChange={() => toggleAnnexureItem(globalIdx)}
+                                  className="rounded border-gray-300 h-3.5 w-3.5" />
+                                <div className="flex-1 min-w-0">
+                                  <p className="text-xs font-medium truncate">{item.name}</p>
+                                  {item.notes && <p className="text-xs text-gray-500 truncate">{item.notes}</p>}
+                                </div>
+                                <span className="text-xs text-gray-600 whitespace-nowrap">
+                                  {item.quantity > 1 ? `${item.quantity} × ` : ''}₹{item.unitPrice.toLocaleString('en-IN')}
+                                </span>
+                              </label>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </>
+              )}
+              <Textarea value={(form as any).annexureNotes || ''} onChange={e => setForm({ ...form, annexureNotes: e.target.value } as any)}
+                className="text-xs min-h-[40px]" placeholder="Additional notes for annexure (optional)..." />
             </div>
           )}
         </div>
