@@ -21,6 +21,7 @@ interface ProposalPreviewProps {
     warrantyTerms?: string;
     validityDays?: number;
     annexureBOM?: Record<number, any[]>;
+    annexureNotes?: string;
     submitterName?: string;
     submitterEmail?: string;
     submitterPhone?: string;
@@ -278,6 +279,14 @@ export function ProposalPreview({ data }: ProposalPreviewProps) {
                 </div>
               );
             })}
+          </div>
+        )}
+
+        {/* Annexure Notes */}
+        {data.annexureNotes && (
+          <div className="mt-4 p-3 bg-gray-50 rounded-lg border border-gray-100">
+            <p className="font-semibold text-gray-800 mb-1 pl-2 border-l-2 border-indigo-500 text-xs">Additional Notes</p>
+            <div className="text-gray-700 whitespace-pre-wrap leading-relaxed text-xs">{data.annexureNotes}</div>
           </div>
         )}
 

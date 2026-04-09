@@ -28,6 +28,7 @@ export function ProposalEditor({ leadId, lead, proposalId, approvalMode, onBack,
   const [generating, setGenerating] = useState(false);
   const [refiningSection, setRefiningSection] = useState<string | null>(null);
   const [showPreview, setShowPreview] = useState(true);
+  const [fullScreenPreview, setFullScreenPreview] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const { appName } = useBranding();
   const { settings } = useSettings();
@@ -351,10 +352,44 @@ export function ProposalEditor({ leadId, lead, proposalId, approvalMode, onBack,
     companyEmail: form.companyEmail,
     companyPhone: form.companyPhone,
     annexureBOM: annexureBOM,
+    annexureNotes: (form as any).annexureNotes,
   };
 
   return (
     <div className="h-full flex flex-col">
+      {/* Full Screen Preview Modal */}
+      {fullScreenPreview && (
+        <>
+          <div className="fixed inset-0 bg-black/70 z-[60]" onClick={() => setFullScreenPreview(false)} />
+          <div className="fixed inset-4 z-[61] bg-gray-100 rounded-xl overflow-hidden flex flex-col shadow-2xl">
+            <div className="flex items-center justify-between px-6 py-3 bg-white border-b">
+              <h2 className="font-semibold">Proposal Preview — {form.title || 'Untitled'}</h2>
+              <div className="flex items-center gap-2">
+                {proposalId && (
+                  <Button size="sm" variant="outline" onClick={() => proposalApi.generatePDF(proposalId)}>
+                    <Save className="w-3.5 h-3.5 mr-1" />Download PDF
+                  </Button>
+                )}
+                <Button size="sm" variant="outline" onClick={() => window.print()}>
+                  Print
+                </Button>
+                <Button size="sm" variant="ghost" onClick={() => setFullScreenPreview(false)}>
+                  Close
+                </Button>
+              </div>
+            </div>
+            <div className="flex-1 overflow-y-auto p-8 flex justify-center">
+              <div className="w-full max-w-3xl">
+                <ProposalPreview data={{
+                  ...previewData,
+                  annexureNotes: (form as any).annexureNotes,
+                }} />
+              </div>
+            </div>
+          </div>
+        </>
+      )}
+
       {/* Toolbar */}
       <div className="flex items-center justify-between px-4 py-2 bg-white border-b flex-shrink-0">
         <Button variant="ghost" size="sm" onClick={onBack}><ArrowLeft className="w-3.5 h-3.5 mr-1" />Back</Button>
@@ -366,6 +401,14 @@ export function ProposalEditor({ leadId, lead, proposalId, approvalMode, onBack,
           <Button size="sm" variant="outline" onClick={() => setShowPreview(!showPreview)}>
             <Eye className="w-3.5 h-3.5 mr-1" />{showPreview ? 'Hide' : 'Show'} Preview
           </Button>
+          <Button size="sm" variant="outline" onClick={() => setFullScreenPreview(true)}>
+            Full Screen
+          </Button>
+          {proposalId && (
+            <Button size="sm" variant="outline" onClick={() => proposalApi.generatePDF(proposalId)}>
+              <Save className="w-3.5 h-3.5 mr-1" />PDF
+            </Button>
+          )}
           {approvalMode ? (
             <>
               <Button size="sm" className="bg-green-600 hover:bg-green-700" onClick={handleApproveAsIs} disabled={saving}>
@@ -569,6 +612,16 @@ export function ProposalEditor({ leadId, lead, proposalId, approvalMode, onBack,
             <div className="pl-5">
               <Textarea value={form.warrantyTerms} onChange={e => setForm({ ...form, warrantyTerms: e.target.value })}
                 className="text-xs min-h-[60px]" placeholder="Warranty terms..." />
+            </div>
+          )}
+
+          {/* Annexure Notes */}
+          <SectionHeader name="annexure" label="Annexure / Additional Notes" showAI={false} />
+          {!collapsed.has('annexure') && (
+            <div className="pl-5 space-y-2">
+              <p className="text-xs text-gray-500">Bundle products added to the proposal will automatically show their BOM breakdown in the Annexure section of the preview. You can also add custom notes below.</p>
+              <Textarea value={form.annexureNotes || ''} onChange={e => setForm({ ...form, annexureNotes: e.target.value } as any)}
+                className="text-xs min-h-[60px]" placeholder="Additional annexure notes, special instructions, configuration details..." />
             </div>
           )}
         </div>
