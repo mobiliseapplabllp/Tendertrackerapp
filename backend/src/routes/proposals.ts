@@ -15,6 +15,10 @@ router.use(authenticate);
 // Templates
 router.get('/templates', getTemplates);
 
+// AI Features (MUST be before /:id routes to avoid route conflict)
+router.post('/ai-generate', aiGenerateProposal);
+router.post('/ai-refine', aiRefineSection);
+
 // Proposals by lead
 router.get('/lead/:leadId', validate({ params: Joi.object({ leadId: schemas.id }) }), getByLead);
 
@@ -92,9 +96,5 @@ router.post('/:proposalId/add-bundle', validate({
 
 // Versions
 router.get('/:proposalId/versions', validate({ params: Joi.object({ proposalId: schemas.id }) }), getVersions);
-
-// AI Features
-router.post('/ai-generate', aiGenerateProposal);
-router.post('/ai-refine', aiRefineSection);
 
 export default router;
