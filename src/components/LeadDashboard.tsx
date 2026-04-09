@@ -37,6 +37,9 @@ import {
   RotateCcw,
   AlertTriangle,
   ChevronDown,
+  ChevronLeft,
+  ChevronRight,
+  Download,
 } from 'lucide-react';
 
 interface LeadDashboardProps {
@@ -126,7 +129,7 @@ export function LeadDashboard({ onLogout, onNavigate }: LeadDashboardProps) {
       setLoading(true);
       const filters: any = {
         page,
-        pageSize: 10,
+        pageSize: 25,
         leadTypeId: 2, // Strictly filter for Leads
       };
 
@@ -780,6 +783,69 @@ export function LeadDashboard({ onLogout, onNavigate }: LeadDashboardProps) {
         </div>
       </main>
 
+
+      {/* Pagination */}
+      {totalPages > 1 && (
+        <div className="flex items-center justify-between px-6 py-3 border-t bg-white">
+          <span className="text-sm text-gray-500">
+            Page {page} of {totalPages}
+          </span>
+          <div className="flex items-center gap-2">
+            <Button
+              variant="outline" size="sm"
+              disabled={page <= 1}
+              onClick={() => setPage(p => Math.max(1, p - 1))}
+            >
+              <ChevronLeft className="w-4 h-4 mr-1" />Previous
+            </Button>
+            <Button
+              variant="outline" size="sm"
+              disabled={page >= totalPages}
+              onClick={() => setPage(p => p + 1)}
+            >
+              Next<ChevronRight className="w-4 h-4 ml-1" />
+            </Button>
+          </div>
+          <Button variant="outline" size="sm" onClick={() => {
+            // Export leads to CSV
+            const headers = ['Lead ID', 'Title', 'Client', 'Status', 'Priority', 'Product Line', 'Value', 'Created By', 'Created At'];
+            const rows = leads.map(l => [
+              l.leadNumber || l.tenderNumber || '', l.title || '', l.client || '',
+              l.status || '', l.priority || '', (l as any).productLineName || '',
+              l.estimatedValue || '', (l as any).createdByName || '', l.createdAt || ''
+            ]);
+            const csv = [headers.join(','), ...rows.map(r => r.map(v => `"${v}"`).join(','))].join('\n');
+            const blob = new Blob([csv], { type: 'text/csv' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url; a.download = `leads-export-${new Date().toISOString().split('T')[0]}.csv`;
+            a.click(); URL.revokeObjectURL(url);
+          }}>
+            <Download className="w-4 h-4 mr-1" />Export CSV
+          </Button>
+        </div>
+      )}
+
+      {/* Single page export (when no pagination) */}
+      {totalPages <= 1 && leads.length > 0 && (
+        <div className="flex justify-end px-6 py-3 border-t bg-white">
+          <Button variant="outline" size="sm" onClick={() => {
+            const headers = ['Lead ID', 'Title', 'Client', 'Status', 'Priority', 'Value', 'Created By'];
+            const rows = leads.map(l => [
+              l.leadNumber || l.tenderNumber || '', l.title || '', l.client || '',
+              l.status || '', l.priority || '', l.estimatedValue || '', (l as any).createdByName || ''
+            ]);
+            const csv = [headers.join(','), ...rows.map(r => r.map(v => `"${v}"`).join(','))].join('\n');
+            const blob = new Blob([csv], { type: 'text/csv' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url; a.download = `leads-export-${new Date().toISOString().split('T')[0]}.csv`;
+            a.click(); URL.revokeObjectURL(url);
+          }}>
+            <Download className="w-4 h-4 mr-1" />Export CSV
+          </Button>
+        </div>
+      )}
 
       {/* Create Lead Dialog */}
       <CreateLeadDialog

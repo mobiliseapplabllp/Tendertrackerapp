@@ -146,16 +146,28 @@ export class LeadController {
         params.push(subCategory);
       }
 
-      // Product line visibility filtering based on user's assigned product lines
-      // Admin users with no assigned product lines see everything
-      // Users with assigned product lines only see leads from those lines (+ leads with NULL product_line_id)
+      // RBAC visibility filtering
       const userProductLineIds = req.user?.productLineIds || [];
       const isAdmin = req.user?.role === 'Admin';
+      const isSalesHead = req.user?.isSalesHead;
 
-      if (userProductLineIds.length > 0 && !isAdmin) {
-        const placeholders = userProductLineIds.map(() => '?').join(',');
-        whereClause += ` AND (t.product_line_id IN (${placeholders}) OR t.product_line_id IS NULL)`;
-        params.push(...userProductLineIds);
+      if (!isAdmin) {
+        if (isSalesHead && req.user?.salesHeadProductLineIds?.length) {
+          // Sales Head: sees all leads in their product lines
+          const plPH = req.user.salesHeadProductLineIds.map(() => '?').join(',');
+          whereClause += ` AND (t.product_line_id IN (${plPH}) OR t.product_line_id IS NULL)`;
+          params.push(...req.user.salesHeadProductLineIds);
+        } else if (userProductLineIds.length > 0) {
+          // Team Member: sees only their own created/assigned within product lines
+          const plPH = userProductLineIds.map(() => '?').join(',');
+          whereClause += ` AND (t.product_line_id IN (${plPH}) OR t.product_line_id IS NULL)`;
+          whereClause += ` AND (t.created_by = ? OR t.assigned_to = ?)`;
+          params.push(...userProductLineIds, req.user!.userId, req.user!.userId);
+        } else {
+          // No product lines: see only own
+          whereClause += ` AND (t.created_by = ? OR t.assigned_to = ?)`;
+          params.push(req.user!.userId, req.user!.userId);
+        }
       }
 
       // Get total count - use tenders table (will be leads after migration)
