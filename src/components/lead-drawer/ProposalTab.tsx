@@ -44,8 +44,6 @@ export function ProposalTab({ leadId, lead, userRole }: ProposalTabProps) {
   const [error, setError] = useState<string | null>(null);
   const { formatCurrency } = useSettings();
 
-  const isManager = userRole?.toLowerCase() === 'admin' || userRole?.toLowerCase() === 'manager';
-
   const [createForm, setCreateForm] = useState({
     title: '', description: '', proposalType: 'Software' as string,
     templateId: '', coverLetter: '', executiveSummary: '', scopeOfWork: '',
