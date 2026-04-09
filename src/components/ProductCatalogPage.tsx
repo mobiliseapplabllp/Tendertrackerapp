@@ -51,7 +51,7 @@ export function ProductCatalogPage() {
   const fetchProducts = async () => {
     setLoading(true);
     try {
-      const params: any = { page: String(page), pageSize: '25' };
+      const params: any = { page: String(page), pageSize: '25', isStandalone: 'true' };
       if (search) params.search = search;
       if (categoryFilter) params.categoryId = categoryFilter;
       if (productLineFilter) params.productLineId = productLineFilter;
@@ -182,7 +182,7 @@ export function ProductCatalogPage() {
         categoryId: Number(quickAddForm.categoryId),
         subCategory: quickAddForm.subCategory,
         unitPrice: Number(quickAddForm.unitPrice) || 0,
-        taxRate: 18, isStandalone: true, isBundle: false,
+        taxRate: 18, isStandalone: false, isBundle: false,
       });
       if (!createRes.success) { alert(createRes.error || 'Failed to create product'); return; }
 

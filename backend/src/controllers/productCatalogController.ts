@@ -80,7 +80,7 @@ export const deleteCategory = async (req: Request, res: Response) => {
 
 export const getProducts = async (req: Request, res: Response) => {
   try {
-    const { search, categoryId, productLineId, subCategory, isBundle, isActive, page = 1, pageSize = 50 } = req.query;
+    const { search, categoryId, productLineId, subCategory, isBundle, isActive, isStandalone, page = 1, pageSize = 50 } = req.query;
     const pageNum = Math.max(1, Math.min(Number(page) || 1, 10000));
     const pageSizeNum = Math.max(1, Math.min(Number(pageSize) || 50, 200));
     let where = 'p.deleted_at IS NULL';
@@ -91,6 +91,7 @@ export const getProducts = async (req: Request, res: Response) => {
     if (productLineId) { where += ' AND p.product_line_id = ?'; params.push(productLineId); }
     if (subCategory) { where += ' AND p.sub_category = ?'; params.push(subCategory); }
     if (isBundle !== undefined) { where += ' AND p.is_bundle = ?'; params.push(isBundle === 'true'); }
+    if (isStandalone !== undefined) { where += ' AND p.is_standalone = ?'; params.push(isStandalone === 'true'); }
     if (isActive !== undefined) { where += ' AND p.is_active = ?'; params.push(isActive === 'true'); }
     else { where += ' AND p.is_active = TRUE'; }
 
