@@ -18,33 +18,29 @@ export class ReportController {
       if (!isAdmin && user) {
         if (isSalesHead && user.salesHeadProductLineIds?.length) {
           const plPlaceholders = user.salesHeadProductLineIds.map(() => '?').join(',');
-          roleFilter = ` AND tenders.product_line_id IN (${plPlaceholders})`;
+          roleFilter = ` AND product_line_id IN (${plPlaceholders})`;
           roleFilterParams.push(...user.salesHeadProductLineIds);
         } else {
-          roleFilter = ` AND (tenders.created_by = ? OR tenders.assigned_to = ?)`;
+          roleFilter = ` AND (created_by = ? OR assigned_to = ?)`;
           roleFilterParams.push(user.userId, user.userId);
         }
       }
 
       // Check if deleted_at column exists
-      let deletedFilter = '';
+      let hasDeletedAt = false;
       try {
         const [columnCheck] = await db.query(
-          `SELECT COLUMN_NAME
-           FROM INFORMATION_SCHEMA.COLUMNS
-           WHERE TABLE_SCHEMA = DATABASE()
-           AND TABLE_NAME = 'tenders'
-           AND COLUMN_NAME = 'deleted_at'`
+          `SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS
+           WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'tenders' AND COLUMN_NAME = 'deleted_at'`
         );
-        if ((columnCheck as any[]).length > 0) {
-          deletedFilter = 'WHERE tenders.deleted_at IS NULL';
-        }
-      } catch (e) {
-        // Column doesn't exist, skip filter
-      }
+        hasDeletedAt = (columnCheck as any[]).length > 0;
+      } catch (e) { /* skip */ }
 
-      // Append role filter to deleted filter
-      const baseFilter = deletedFilter ? `${deletedFilter}${roleFilter}` : (roleFilter ? `WHERE 1=1${roleFilter}` : '');
+      const deletedFilter = hasDeletedAt ? 'deleted_at IS NULL' : '1=1';
+      const baseFilter = `WHERE ${deletedFilter}${roleFilter}`;
+
+      // For activity join queries (need table prefix to avoid ambiguity)
+      const actRoleFilter = roleFilter.replace(/created_by/g, 't.created_by').replace(/assigned_to/g, 't.assigned_to').replace(/product_line_id/g, 't.product_line_id');
 
       // Total tenders
       const [totalResult] = await db.query(
@@ -166,12 +162,14 @@ export class ReportController {
         `SELECT status, COUNT(*) as count FROM tenders ${baseFilter} GROUP BY status`, [...roleFilterParams]
       );
 
-      // Tenders by category (role-filtered)
+      // Tenders by category (role-filtered) — uses alias 't' so need prefixed filter
+      const aliasedDeletedFilter = hasDeletedAt ? 't.deleted_at IS NULL' : '1=1';
+      const aliasedBaseFilter = `WHERE ${aliasedDeletedFilter}${actRoleFilter}`;
       const [categoryData] = await db.query(
         `SELECT tc.name as category, COUNT(*) as count
          FROM tenders t
          LEFT JOIN tender_categories tc ON t.category_id = tc.id
-         ${baseFilter ? baseFilter : ''}
+         ${aliasedBaseFilter}
          GROUP BY tc.name`, [...roleFilterParams]
       );
 
