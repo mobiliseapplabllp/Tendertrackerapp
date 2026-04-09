@@ -173,7 +173,6 @@ export class ReportController {
       );
 
       // Tenders by category (role-filtered)
-      const catBase = baseFilter ? baseFilter.replace('WHERE', 'WHERE t.') .replace(' AND ', ' AND t.').replace('deleted_at', 't.deleted_at') : '';
       const [categoryData] = await db.query(
         `SELECT tc.name as category, COUNT(*) as count
          FROM tenders t
