@@ -106,7 +106,7 @@ export const getProducts = async (req: Request, res: Response) => {
        LEFT JOIN product_categories pc ON p.category_id = pc.id
        LEFT JOIN product_lines pl ON p.product_line_id = pl.id
        WHERE ${where}
-       ORDER BY p.name
+       ORDER BY p.sub_category, p.name
        LIMIT ? OFFSET ?`,
       [...params, pageSizeNum, offset]
     );
