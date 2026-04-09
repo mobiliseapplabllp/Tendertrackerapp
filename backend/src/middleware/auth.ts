@@ -37,11 +37,14 @@ export const authenticate = async (
   try {
     const authHeader = req.headers.authorization;
 
-    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    // Support token via query param (for media previews in <video>, <img>, <iframe>)
+    const queryToken = req.query.token as string | undefined;
+
+    if (!authHeader?.startsWith('Bearer ') && !queryToken) {
       throw new CustomError('No token provided', 401);
     }
 
-    const token = authHeader.split(' ')[1];
+    const token = queryToken || authHeader!.split(' ')[1];
 
     if (!token) {
       throw new CustomError('No token provided', 401);

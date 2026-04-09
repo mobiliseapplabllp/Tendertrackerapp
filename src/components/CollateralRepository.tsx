@@ -676,16 +676,22 @@ function CreateTagDialog({
 }
 
 // ==================== Item Card ====================
+function canPreview(fileType: string): boolean {
+  return fileType?.startsWith('video/') || fileType?.startsWith('image/') || fileType?.includes('pdf');
+}
+
 function CollateralCard({
   item,
   onEdit,
   onDelete,
   onDownload,
+  onPreview,
 }: {
   item: CollateralItem;
   onEdit: (item: CollateralItem) => void;
   onDelete: (item: CollateralItem) => void;
   onDownload: (item: CollateralItem) => void;
+  onPreview: (item: CollateralItem) => void;
 }) {
   return (
     <Card className="p-4 hover:shadow-md transition-shadow">
@@ -705,6 +711,11 @@ function CollateralCard({
               </p>
             </div>
             <div className="flex items-center gap-1 flex-shrink-0">
+              {canPreview(item.file_type) && (
+                <Button variant="ghost" size="sm" className="h-7 w-7 p-0" onClick={() => onPreview(item)} title="Preview" aria-label={`Preview ${item.title}`}>
+                  <Eye className="h-3.5 w-3.5 text-indigo-500" />
+                </Button>
+              )}
               <Button variant="ghost" size="sm" className="h-7 w-7 p-0" onClick={() => onDownload(item)} title="Download" aria-label={`Download ${item.title}`}>
                 <Download className="h-3.5 w-3.5" />
               </Button>
@@ -760,6 +771,7 @@ export function CollateralRepository() {
   const [isUploadOpen, setIsUploadOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<CollateralItem | null>(null);
   const [isCreateTagOpen, setIsCreateTagOpen] = useState(false);
+  const [previewItem, setPreviewItem] = useState<CollateralItem | null>(null);
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [totalItems, setTotalItems] = useState(0);
@@ -948,6 +960,7 @@ export function CollateralRepository() {
                 onEdit={setEditingItem}
                 onDelete={handleDelete}
                 onDownload={handleDownload}
+                onPreview={(item: any) => setPreviewItem(item)}
               />
             ))}
           </div>
@@ -1172,6 +1185,7 @@ export function CollateralRepository() {
                       onEdit={setEditingItem}
                       onDelete={handleDelete}
                       onDownload={handleDownload}
+                onPreview={(item: any) => setPreviewItem(item)}
                     />
                   ))}
                 </div>
@@ -1280,6 +1294,55 @@ export function CollateralRepository() {
         onClose={() => setIsCreateTagOpen(false)}
         onCreated={loadTags}
       />
+
+      {/* Preview Modal */}
+      {previewItem && (
+        <>
+          <div className="fixed inset-0 bg-black/80 z-[60]" onClick={() => setPreviewItem(null)} />
+          <div className="fixed inset-4 z-[61] bg-white rounded-xl overflow-hidden flex flex-col shadow-2xl">
+            <div className="flex items-center justify-between px-6 py-3 bg-gray-50 border-b flex-shrink-0">
+              <div>
+                <h2 className="font-semibold text-sm">{previewItem.title}</h2>
+                <p className="text-xs text-gray-500">{previewItem.file_extension?.toUpperCase()} · {formatFileSize(previewItem.file_size)}</p>
+              </div>
+              <div className="flex items-center gap-2">
+                <Button size="sm" variant="outline" onClick={() => { handleDownload(previewItem); }}>
+                  <Download className="w-3.5 h-3.5 mr-1" />Download
+                </Button>
+                <Button size="sm" variant="ghost" onClick={() => setPreviewItem(null)}>Close</Button>
+              </div>
+            </div>
+            <div className="flex-1 overflow-auto flex items-center justify-center bg-gray-900 p-4">
+              {(() => {
+                const token = localStorage.getItem('auth_token');
+                const baseUrl = `/api/v1/collateral/${previewItem.id}/download?inline=true&token=${token}`;
+                return (
+                  <>
+                    {previewItem.file_type?.startsWith('video/') && (
+                      <video controls autoPlay className="max-w-full max-h-full rounded-lg" src={baseUrl}>
+                        Your browser does not support video playback.
+                      </video>
+                    )}
+                    {previewItem.file_type?.startsWith('image/') && (
+                      <img src={baseUrl} alt={previewItem.title} className="max-w-full max-h-full object-contain rounded-lg" />
+                    )}
+                    {previewItem.file_type?.includes('pdf') && (
+                      <iframe src={`${baseUrl}#toolbar=1`} className="w-full h-full rounded-lg bg-white" title={previewItem.title} />
+                    )}
+                  </>
+                );
+              })()}
+              {!previewItem.file_type?.startsWith('video/') && !previewItem.file_type?.startsWith('image/') && !previewItem.file_type?.includes('pdf') && (
+                <div className="text-center text-white">
+                  <FileText className="w-16 h-16 mx-auto mb-4 text-gray-500" />
+                  <p className="text-lg">Preview not available for this file type</p>
+                  <p className="text-sm text-gray-500 mt-1">Click Download to view the file</p>
+                </div>
+              )}
+            </div>
+          </div>
+        </>
+      )}
     </div>
   );
 }

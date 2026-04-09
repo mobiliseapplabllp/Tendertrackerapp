@@ -446,6 +446,14 @@ export class CollateralController {
       // Increment download count
       await db.query('UPDATE collateral_items SET download_count = download_count + 1 WHERE id = ?', [id]);
 
+      // If inline preview requested, serve with Content-Type for browser rendering
+      const inline = req.query.inline === 'true' || req.headers.accept?.includes('text/html');
+      if (inline || req.query.preview) {
+        res.setHeader('Content-Type', item.mime_type || 'application/octet-stream');
+        res.setHeader('Content-Disposition', `inline; filename="${item.original_name}"`);
+        return res.sendFile(filePath);
+      }
+
       res.download(filePath, item.original_name);
     } catch (error: any) {
       next(error);
