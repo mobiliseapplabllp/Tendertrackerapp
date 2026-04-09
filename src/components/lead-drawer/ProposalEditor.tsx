@@ -11,18 +11,19 @@ import { useBranding } from '../../hooks/useBranding';
 import { useSettings } from '../../hooks/useSettings';
 import {
   Loader2, Sparkles, Save, ArrowLeft, Plus, Trash2, Search,
-  ChevronDown, ChevronRight, Package, RefreshCw, Eye
+  ChevronDown, ChevronRight, Package, RefreshCw, Eye, CheckCircle2, XCircle
 } from 'lucide-react';
 
 interface ProposalEditorProps {
   leadId: number;
   lead: any;
-  proposalId?: number; // null for new, ID for edit
+  proposalId?: number;
+  approvalMode?: boolean; // true when manager is reviewing for approval
   onBack: () => void;
   onSaved: () => void;
 }
 
-export function ProposalEditor({ leadId, lead, proposalId, onBack, onSaved }: ProposalEditorProps) {
+export function ProposalEditor({ leadId, lead, proposalId, approvalMode, onBack, onSaved }: ProposalEditorProps) {
   const [saving, setSaving] = useState(false);
   const [generating, setGenerating] = useState(false);
   const [refiningSection, setRefiningSection] = useState<string | null>(null);
@@ -288,6 +289,43 @@ export function ProposalEditor({ leadId, lead, proposalId, onBack, onSaved }: Pr
     </div>
   );
 
+  const handleApproveAsIs = async () => {
+    if (!proposalId) return;
+    setSaving(true);
+    try {
+      const res = await proposalApi.approve(proposalId);
+      if (res.success) { onSaved(); } else { setError(res.error || 'Failed to approve'); }
+    } catch (err: any) { setError(err.message); }
+    finally { setSaving(false); }
+  };
+
+  const handleApproveWithChanges = async () => {
+    if (!proposalId) return;
+    const changeNote = prompt('Describe your changes (optional):') || 'Approved with modifications';
+    setSaving(true);
+    try {
+      const res = await proposalApi.approveWithChanges(proposalId, {
+        title: form.title, coverLetter: form.coverLetter, executiveSummary: form.executiveSummary,
+        scopeOfWork: form.scopeOfWork, termsConditions: form.termsConditions,
+        paymentTerms: form.paymentTerms, warrantyTerms: form.warrantyTerms, changeNote,
+      });
+      if (res.success) { onSaved(); } else { setError(res.error || 'Failed to approve'); }
+    } catch (err: any) { setError(err.message); }
+    finally { setSaving(false); }
+  };
+
+  const handleReject = async () => {
+    if (!proposalId) return;
+    const reason = prompt('Rejection reason:');
+    if (!reason) return;
+    setSaving(true);
+    try {
+      const res = await proposalApi.reject(proposalId, reason);
+      if (res.success) { onSaved(); } else { setError(res.error || 'Failed to reject'); }
+    } catch (err: any) { setError(err.message); }
+    finally { setSaving(false); }
+  };
+
   // Fetch BOM for bundle items in proposal (for annexure)
   const [annexureBOM, setAnnexureBOM] = useState<Record<number, any[]>>({});
   useEffect(() => {
@@ -328,10 +366,25 @@ export function ProposalEditor({ leadId, lead, proposalId, onBack, onSaved }: Pr
           <Button size="sm" variant="outline" onClick={() => setShowPreview(!showPreview)}>
             <Eye className="w-3.5 h-3.5 mr-1" />{showPreview ? 'Hide' : 'Show'} Preview
           </Button>
-          <Button size="sm" onClick={handleSave} disabled={saving}>
-            {saving ? <Loader2 className="w-3.5 h-3.5 animate-spin mr-1" /> : <Save className="w-3.5 h-3.5 mr-1" />}
-            Save Draft
-          </Button>
+          {approvalMode ? (
+            <>
+              <Button size="sm" className="bg-green-600 hover:bg-green-700" onClick={handleApproveAsIs} disabled={saving}>
+                <CheckCircle2 className="w-3.5 h-3.5 mr-1" />Approve As-Is
+              </Button>
+              <Button size="sm" className="bg-blue-600 hover:bg-blue-700" onClick={handleApproveWithChanges} disabled={saving}>
+                {saving ? <Loader2 className="w-3.5 h-3.5 animate-spin mr-1" /> : <Save className="w-3.5 h-3.5 mr-1" />}
+                Approve with Changes
+              </Button>
+              <Button size="sm" variant="destructive" onClick={handleReject} disabled={saving}>
+                <XCircle className="w-3.5 h-3.5 mr-1" />Reject
+              </Button>
+            </>
+          ) : (
+            <Button size="sm" onClick={handleSave} disabled={saving}>
+              {saving ? <Loader2 className="w-3.5 h-3.5 animate-spin mr-1" /> : <Save className="w-3.5 h-3.5 mr-1" />}
+              Save Draft
+            </Button>
+          )}
         </div>
       </div>
 

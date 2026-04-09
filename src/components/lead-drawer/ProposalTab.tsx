@@ -23,7 +23,7 @@ export function ProposalTab({ leadId, lead, userRole }: ProposalTabProps) {
   const [proposals, setProposals] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [showCreate, setShowCreate] = useState(false);
-  const [editorMode, setEditorMode] = useState<{ open: boolean; proposalId?: number }>({ open: false });
+  const [editorMode, setEditorMode] = useState<{ open: boolean; proposalId?: number; approvalMode?: boolean }>({ open: false });
   const [selectedProposal, setSelectedProposal] = useState<any>(null);
   const [currentUser, setCurrentUser] = useState<any>(null);
 
@@ -201,6 +201,7 @@ export function ProposalTab({ leadId, lead, userRole }: ProposalTabProps) {
         leadId={leadId}
         lead={lead}
         proposalId={editorMode.proposalId}
+        approvalMode={editorMode.approvalMode}
         onBack={() => setEditorMode({ open: false })}
         onSaved={() => { setEditorMode({ open: false }); fetchProposals(); }}
       />
@@ -433,7 +434,7 @@ export function ProposalTab({ leadId, lead, userRole }: ProposalTabProps) {
           <div className="space-y-1.5">
             {pendingApprovals.map((p: any) => (
               <div key={p.id} className="flex items-center justify-between bg-white rounded p-2 border border-amber-100 cursor-pointer hover:bg-amber-50"
-                onClick={async () => { const detail = await proposalApi.getById(p.id); if (detail.success) setSelectedProposal(detail.data); }}>
+                onClick={() => setEditorMode({ open: true, proposalId: p.id, approvalMode: true })}>
                 <div>
                   <span className="text-xs font-medium">{p.title}</span>
                   <span className="text-[10px] text-gray-500 ml-2">by {p.created_by_name}</span>

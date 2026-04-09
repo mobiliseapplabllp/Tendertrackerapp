@@ -503,6 +503,72 @@ async function recalcProposalTotals(proposalId: number) {
   );
 }
 
+// ==================== Approve with Changes ====================
+
+export const approveWithChanges = async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    const userRole = req.user?.role?.toLowerCase();
+    if (userRole !== 'admin' && userRole !== 'manager') {
+      return res.status(403).json({ success: false, error: 'Only Managers and Admins can approve proposals' });
+    }
+
+    const [rows] = await db.query('SELECT * FROM proposals WHERE id = ? AND deleted_at IS NULL', [id]);
+    if ((rows as any[]).length === 0) return res.status(404).json({ success: false, error: 'Proposal not found' });
+    const proposal = (rows as any[])[0];
+
+    if (proposal.status !== 'Pending Approval') {
+      return res.status(400).json({ success: false, error: 'Only proposals pending approval can be approved' });
+    }
+
+    // Step 1: Snapshot current state as a version
+    await db.query(
+      `INSERT INTO proposal_versions (proposal_id, version_number, file_path, file_name, original_name, change_note, grand_total, uploaded_by)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+      [id, proposal.current_version, proposal.file_path || '', proposal.file_name || `v${proposal.current_version}`,
+       proposal.original_name || '', `Original submission by creator`, proposal.grand_total, proposal.created_by]
+    );
+
+    // Step 2: Apply changes from request body
+    const { title, coverLetter, executiveSummary, scopeOfWork, termsConditions, paymentTerms, warrantyTerms, changeNote } = req.body;
+    const newVersion = (proposal.current_version || 1) + 1;
+
+    const updates: string[] = ['current_version = ?', 'status = ?', 'approved_by = ?', 'approved_at = NOW()'];
+    const params: any[] = [newVersion, 'Approved', req.user!.userId];
+
+    if (title !== undefined) { updates.push('title = ?'); params.push(title); }
+    if (coverLetter !== undefined) { updates.push('cover_letter = ?'); params.push(coverLetter); }
+    if (executiveSummary !== undefined) { updates.push('executive_summary = ?'); params.push(executiveSummary); }
+    if (scopeOfWork !== undefined) { updates.push('scope_of_work = ?'); params.push(scopeOfWork); }
+    if (termsConditions !== undefined) { updates.push('terms_conditions = ?'); params.push(termsConditions); }
+    if (paymentTerms !== undefined) { updates.push('payment_terms = ?'); params.push(paymentTerms); }
+    if (warrantyTerms !== undefined) { updates.push('warranty_terms = ?'); params.push(warrantyTerms); }
+
+    params.push(id);
+    await db.query(`UPDATE proposals SET ${updates.join(', ')} WHERE id = ?`, params);
+
+    // Step 3: Create version entry for the approved version
+    await db.query(
+      `INSERT INTO proposal_versions (proposal_id, version_number, file_path, file_name, change_note, grand_total, uploaded_by)
+       VALUES (?, ?, '', ?, ?, ?, ?)`,
+      [id, newVersion, `v${newVersion}`, changeNote || `Approved with changes by ${req.user!.fullName || 'Manager'}`,
+       proposal.grand_total, req.user!.userId]
+    );
+
+    // Log activity
+    await db.query(
+      `INSERT INTO tender_activities (tender_id, user_id, activity_type, description) VALUES (?, ?, 'Updated', ?)`,
+      [proposal.tender_id, req.user!.userId, `Proposal "${proposal.title}" approved with changes (v${newVersion})`]
+    );
+
+    logger.info({ message: 'Proposal approved with changes', proposalId: id, newVersion, approvedBy: req.user!.userId });
+    return res.json({ success: true, message: `Proposal approved as version ${newVersion}` });
+  } catch (error: any) {
+    logger.error({ message: 'Error approving with changes', error: error.message });
+    return res.status(500).json({ success: false, error: 'Failed to approve proposal' });
+  }
+};
+
 // ==================== Pending Approvals (for managers) ====================
 
 export const getPendingApprovals = async (req: Request, res: Response) => {

@@ -21,6 +21,8 @@ export function Dashboard() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState('combined');
+  const [teamMembers, setTeamMembers] = useState<any[]>([]);
+  const [expandedMembers, setExpandedMembers] = useState(false);
   const { formatCurrency } = useSettings();
 
   useEffect(() => {
@@ -30,6 +32,11 @@ export function Dashboard() {
         const response = await dashboardApi.getStats();
         if (response.success && response.data) {
           setStats(response.data);
+          // Fetch team performance if sales head
+          if (response.data.userContext?.isSalesHead) {
+            const teamRes = await dashboardApi.getTeamPerformance();
+            if (teamRes.success) setTeamMembers(teamRes.data || []);
+          }
         } else {
           setError(response.error || 'Failed to load dashboard data');
         }
@@ -185,13 +192,65 @@ export function Dashboard() {
               </Card>
             </div>
 
-            {/* Team Section (Sales Head only) */}
-            {isSalesHead && userCtx.teamMemberCount > 0 && (
+            {/* Team Performance (Sales Head only) */}
+            {isSalesHead && teamMembers.length > 0 && (
               <Card className="p-6">
-                <h3 className="mb-3 font-medium flex items-center gap-2">
-                  <Crown className="w-4 h-4 text-amber-500" />My Team ({userCtx.teamMemberCount} members)
-                </h3>
-                <p className="text-sm text-gray-500">Team performance details available in Sales Hub → My Performance</p>
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="font-medium flex items-center gap-2">
+                    <Crown className="w-4 h-4 text-amber-500" />My Team Performance
+                  </h3>
+                  <button onClick={() => setExpandedMembers(!expandedMembers)}
+                    className="text-xs text-indigo-600 hover:underline">
+                    {expandedMembers ? 'Collapse' : `Show all ${teamMembers.length} members`}
+                  </button>
+                </div>
+                {/* Summary row */}
+                <div className="grid grid-cols-5 gap-3 mb-3 text-center">
+                  <div className="bg-blue-50 rounded-lg p-2"><p className="text-lg font-bold text-blue-700">{teamMembers.reduce((s, m) => s + (m.tender_count || 0), 0)}</p><p className="text-[10px] text-blue-600">Tenders</p></div>
+                  <div className="bg-green-50 rounded-lg p-2"><p className="text-lg font-bold text-green-700">{teamMembers.reduce((s, m) => s + (m.lead_count || 0), 0)}</p><p className="text-[10px] text-green-600">Leads</p></div>
+                  <div className="bg-emerald-50 rounded-lg p-2"><p className="text-lg font-bold text-emerald-700">{teamMembers.reduce((s, m) => s + (m.won_count || 0), 0)}</p><p className="text-[10px] text-emerald-600">Won</p></div>
+                  <div className="bg-purple-50 rounded-lg p-2"><p className="text-lg font-bold text-purple-700">{formatCurrency(teamMembers.reduce((s, m) => s + parseFloat(m.total_value || 0), 0))}</p><p className="text-[10px] text-purple-600">Total Value</p></div>
+                  <div className="bg-amber-50 rounded-lg p-2"><p className="text-lg font-bold text-amber-700">{formatCurrency(teamMembers.reduce((s, m) => s + parseFloat(m.won_value || 0), 0))}</p><p className="text-[10px] text-amber-600">Won Value</p></div>
+                </div>
+                {/* Individual members */}
+                {expandedMembers && (
+                  <div className="border rounded-lg overflow-hidden">
+                    <table className="w-full text-sm">
+                      <thead className="bg-gray-50 text-xs text-gray-500">
+                        <tr>
+                          <th className="px-3 py-2 text-left">Member</th>
+                          <th className="px-3 py-2 text-right">Tenders</th>
+                          <th className="px-3 py-2 text-right">Leads</th>
+                          <th className="px-3 py-2 text-right">Won</th>
+                          <th className="px-3 py-2 text-right">Total Value</th>
+                          <th className="px-3 py-2 text-right">Won Value</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {teamMembers.map((m: any) => (
+                          <tr key={m.id} className="border-t hover:bg-gray-50">
+                            <td className="px-3 py-2">
+                              <div className="flex items-center gap-2">
+                                <div className="w-7 h-7 bg-indigo-100 rounded-full flex items-center justify-center text-[10px] font-bold text-indigo-700">
+                                  {(m.full_name || '').split(' ').map((n: string) => n[0]).join('').slice(0, 2)}
+                                </div>
+                                <div>
+                                  <p className="font-medium text-xs">{m.full_name}</p>
+                                  <p className="text-[10px] text-gray-400">{m.email}</p>
+                                </div>
+                              </div>
+                            </td>
+                            <td className="px-3 py-2 text-right">{m.tender_count || 0}</td>
+                            <td className="px-3 py-2 text-right">{m.lead_count || 0}</td>
+                            <td className="px-3 py-2 text-right font-medium text-green-600">{m.won_count || 0}</td>
+                            <td className="px-3 py-2 text-right">{formatCurrency(parseFloat(m.total_value || 0))}</td>
+                            <td className="px-3 py-2 text-right font-medium">{formatCurrency(parseFloat(m.won_value || 0))}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
               </Card>
             )}
 

@@ -942,6 +942,9 @@ export const dashboardApi = {
   getStats: async () => {
     return apiCall<DashboardStats>('/reports/dashboard');
   },
+  getTeamPerformance: async () => {
+    return apiCall<any>('/reports/team-performance');
+  },
 };
 
 // ============================================
@@ -1602,6 +1605,8 @@ export const proposalApi = {
     apiCall<any>(`/proposals/${id}/submit-for-approval`, { method: 'POST' }),
   approve: async (id: number) =>
     apiCall<any>(`/proposals/${id}/approve`, { method: 'POST' }),
+  approveWithChanges: async (id: number, data: any) =>
+    apiCall<any>(`/proposals/${id}/approve-with-changes`, { method: 'POST', body: JSON.stringify(data) }),
   reject: async (id: number, reason: string) =>
     apiCall<any>(`/proposals/${id}/reject`, { method: 'POST', body: JSON.stringify({ reason }) }),
   markSubmitted: async (id: number, data: { submittedTo: string; submittedToEmail?: string }) =>

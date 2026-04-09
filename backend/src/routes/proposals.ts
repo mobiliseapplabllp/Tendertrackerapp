@@ -6,7 +6,7 @@ import {
   getTemplates, getByLead, getById, create, update, deleteProposal,
   submitForApproval, approve, reject, markSubmitted, updateOutcome,
   getLineItems, addLineItem, updateLineItem, removeLineItem, addBundleToProposal,
-  getVersions, aiGenerateProposal, aiRefineSection, getPendingApprovals
+  getVersions, aiGenerateProposal, aiRefineSection, getPendingApprovals, approveWithChanges
 } from '../controllers/proposalController';
 
 const router = Router();
@@ -48,6 +48,7 @@ router.delete('/:id', validate({ params: Joi.object({ id: schemas.id }) }), dele
 // Workflow
 router.post('/:id/submit-for-approval', validate({ params: Joi.object({ id: schemas.id }) }), submitForApproval);
 router.post('/:id/approve', validate({ params: Joi.object({ id: schemas.id }) }), approve);
+router.post('/:id/approve-with-changes', validate({ params: Joi.object({ id: schemas.id }) }), approveWithChanges);
 router.post('/:id/reject', validate({
   params: Joi.object({ id: schemas.id }),
   body: Joi.object({ reason: Joi.string().allow(null, '') })

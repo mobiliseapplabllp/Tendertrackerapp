@@ -214,6 +214,44 @@ export class ReportController {
   }
 
   /**
+   * Get team performance stats (for sales heads)
+   */
+  static async getTeamPerformance(req: Request, res: Response, next: NextFunction) {
+    try {
+      const user = req.user;
+      if (!user?.isSalesHead) {
+        return res.json({ success: true, data: [] });
+      }
+
+      const teamMemberIds = user.teamMemberIds || [];
+      if (teamMemberIds.length === 0) {
+        return res.json({ success: true, data: [] });
+      }
+
+      // Include the sales head themselves
+      const allIds = [user.userId, ...teamMemberIds];
+      const placeholders = allIds.map(() => '?').join(',');
+
+      const [members] = await db.query(
+        `SELECT
+          u.id, u.full_name, u.email, u.department,
+          (SELECT COUNT(*) FROM tenders WHERE (created_by = u.id OR assigned_to = u.id) AND deleted_at IS NULL AND lead_type_id = 1) as tender_count,
+          (SELECT COUNT(*) FROM tenders WHERE (created_by = u.id OR assigned_to = u.id) AND deleted_at IS NULL AND lead_type_id = 2) as lead_count,
+          (SELECT COUNT(*) FROM tenders WHERE (created_by = u.id OR assigned_to = u.id) AND deleted_at IS NULL AND status = 'Won') as won_count,
+          (SELECT COALESCE(SUM(estimated_value), 0) FROM tenders WHERE (created_by = u.id OR assigned_to = u.id) AND deleted_at IS NULL) as total_value,
+          (SELECT COALESCE(SUM(estimated_value), 0) FROM tenders WHERE (created_by = u.id OR assigned_to = u.id) AND deleted_at IS NULL AND status = 'Won') as won_value
+        FROM users u
+        WHERE u.id IN (${placeholders})
+        ORDER BY won_value DESC`, allIds
+      );
+
+      return res.json({ success: true, data: members });
+    } catch (error: any) {
+      next(error);
+    }
+  }
+
+  /**
    * Get tender reports
    */
   static async getTenderReports(req: Request, res: Response, next: NextFunction) {
