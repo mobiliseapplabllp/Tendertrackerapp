@@ -40,55 +40,60 @@ export function ProposalPreview({ data }: ProposalPreviewProps) {
   const recurringTax = recurringTotal * (taxRate / 100);
 
   return (
-    <div className="bg-white border rounded-lg shadow-sm overflow-y-auto text-xs" style={{ fontFamily: 'Inter, sans-serif' }}>
+    <div className="bg-white border rounded-lg shadow-md overflow-y-auto text-xs" style={{ fontFamily: 'Inter, sans-serif' }}>
+      {/* Top accent bar */}
+      <div className="h-1.5 bg-gradient-to-r from-indigo-600 via-indigo-500 to-blue-500 rounded-t-lg" />
+
       {/* Page 1 - Proposal Document */}
       <div className="p-6 min-h-[600px]">
         {/* Header */}
-        <div className="border-b-2 border-indigo-600 pb-3 mb-4">
-          <h1 className="text-lg font-bold text-indigo-900">PROPOSAL DOCUMENT</h1>
-          <div className="flex justify-between mt-2 text-[10px] text-gray-600">
-            <span>Dated: {data.date || new Date().toLocaleDateString('en-IN', { year: 'numeric', month: 'long', day: 'numeric' })}</span>
-            <span>Proposal ID: {data.proposalId || '---'}</span>
-            <span>Version: {data.version || '01'}</span>
+        <div className="pb-4 mb-5 border-b border-gray-200">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-[9px] uppercase tracking-[0.2em] text-indigo-500 font-semibold mb-1">Proposal Document</p>
+              <h1 className="text-base font-bold text-gray-900">{data.title || 'Untitled Proposal'}</h1>
+            </div>
+            <div className="text-right">
+              <div className="w-10 h-10 bg-indigo-600 rounded-lg flex items-center justify-center mb-1 ml-auto">
+                <span className="text-white font-bold text-sm">M</span>
+              </div>
+              <p className="text-[9px] text-gray-500">{data.companyName || appName}</p>
+            </div>
+          </div>
+          <div className="flex gap-6 mt-3 text-[10px] text-gray-500">
+            <span className="flex items-center gap-1"><span className="w-1 h-1 bg-indigo-400 rounded-full"></span>Dated: {data.date || new Date().toLocaleDateString('en-IN', { year: 'numeric', month: 'long', day: 'numeric' })}</span>
+            <span className="flex items-center gap-1"><span className="w-1 h-1 bg-indigo-400 rounded-full"></span>ID: {data.proposalId || '---'}</span>
+            <span className="flex items-center gap-1"><span className="w-1 h-1 bg-indigo-400 rounded-full"></span>Version: {data.version || '01'}</span>
           </div>
         </div>
 
-        {/* Client */}
-        {(data.clientName || data.clientCompany) && (
-          <div className="mb-4">
-            <p className="text-[10px] text-gray-500 uppercase font-semibold mb-1">Submitted To:</p>
-            <p className="font-semibold">{data.clientName || '---'}</p>
-            {data.clientCompany && <p>{data.clientCompany}</p>}
-            {data.clientAddress && <p className="text-gray-500">{data.clientAddress}</p>}
-          </div>
-        )}
-
-        {/* Submitted By / From */}
-        {(data.submitterName || data.companyName) && (
-          <div className="mb-4 flex gap-6">
-            {data.submitterName && (
-              <div className="flex-1">
-                <p className="text-[10px] text-gray-500 uppercase font-semibold mb-1">Submitted By:</p>
-                <p className="font-semibold">{data.submitterName}</p>
-                {data.submitterEmail && <p className="text-gray-600">{data.submitterEmail}</p>}
-                {data.submitterPhone && <p className="text-gray-600">{data.submitterPhone}</p>}
+        {/* Client + Submitter Cards */}
+        <div className="grid grid-cols-2 gap-3 mb-5">
+          {(data.clientName || data.clientCompany) && (
+            <div className="bg-gray-50 rounded-lg p-3 border border-gray-100">
+              <p className="text-[9px] uppercase tracking-wider text-indigo-500 font-semibold mb-1.5">Submitted To</p>
+              <p className="font-semibold text-gray-900">{data.clientName || '---'}</p>
+              {data.clientCompany && <p className="text-gray-600">{data.clientCompany}</p>}
+              {data.clientAddress && <p className="text-gray-400 text-[10px] mt-0.5">{data.clientAddress}</p>}
+            </div>
+          )}
+          {(data.submitterName || data.companyName) && (
+            <div className="bg-indigo-50/50 rounded-lg p-3 border border-indigo-100">
+              <p className="text-[9px] uppercase tracking-wider text-indigo-500 font-semibold mb-1.5">Submitted By</p>
+              {data.submitterName && <p className="font-semibold text-gray-900">{data.submitterName}</p>}
+              {data.companyName && <p className="text-gray-600">{data.companyName}</p>}
+              <div className="text-[10px] text-gray-400 mt-0.5">
+                {data.submitterEmail && <span>{data.submitterEmail}</span>}
+                {data.submitterPhone && <span> | {data.submitterPhone}</span>}
               </div>
-            )}
-            {data.companyName && (
-              <div className="flex-1">
-                <p className="text-[10px] text-gray-500 uppercase font-semibold mb-1">From:</p>
-                <p className="font-semibold">{data.companyName}</p>
-                {data.companyEmail && <p className="text-gray-600">{data.companyEmail}</p>}
-                {data.companyPhone && <p className="text-gray-600">{data.companyPhone}</p>}
-              </div>
-            )}
-          </div>
-        )}
+            </div>
+          )}
+        </div>
 
         {/* Cover Letter */}
         {data.coverLetter && (
           <div className="mb-4">
-            <p className="font-semibold text-indigo-800 mb-1">Cover Letter</p>
+            <p className="font-semibold text-gray-800 mb-1 pl-2 border-l-2 border-indigo-500">Cover Letter</p>
             <div className="text-gray-700 whitespace-pre-wrap leading-relaxed">{data.coverLetter}</div>
           </div>
         )}
@@ -96,7 +101,7 @@ export function ProposalPreview({ data }: ProposalPreviewProps) {
         {/* Executive Summary */}
         {data.executiveSummary && (
           <div className="mb-4">
-            <p className="font-semibold text-indigo-800 mb-1">Executive Summary</p>
+            <p className="font-semibold text-gray-800 mb-1 pl-2 border-l-2 border-indigo-500">Executive Summary</p>
             <div className="text-gray-700 whitespace-pre-wrap leading-relaxed">{data.executiveSummary}</div>
           </div>
         )}
@@ -104,7 +109,7 @@ export function ProposalPreview({ data }: ProposalPreviewProps) {
         {/* Scope of Work */}
         {data.scopeOfWork && (
           <div className="mb-4">
-            <p className="font-semibold text-indigo-800 mb-1">Scope of Work</p>
+            <p className="font-semibold text-gray-800 mb-1 pl-2 border-l-2 border-indigo-500">Scope of Work</p>
             <div className="text-gray-700 whitespace-pre-wrap leading-relaxed">{data.scopeOfWork}</div>
           </div>
         )}
@@ -112,15 +117,18 @@ export function ProposalPreview({ data }: ProposalPreviewProps) {
         {/* Notes */}
         {data.notes && (
           <div className="mb-4">
-            <p className="font-semibold text-indigo-800 mb-1">Notes</p>
+            <p className="font-semibold text-gray-800 mb-1 pl-2 border-l-2 border-amber-500">Notes</p>
             <div className="text-gray-700 whitespace-pre-wrap leading-relaxed">{data.notes}</div>
           </div>
         )}
       </div>
 
       {/* Page 2 - Cost Proposal */}
-      <div className="p-6 border-t-2 border-gray-200">
-        <h2 className="text-base font-bold text-indigo-900 mb-3">COST PROPOSAL</h2>
+      <div className="p-6 border-t border-gray-200">
+        <div className="mb-4">
+          <p className="text-[9px] uppercase tracking-[0.2em] text-indigo-500 font-semibold mb-0.5">Commercial</p>
+          <h2 className="text-base font-bold text-gray-900">Cost Proposal</h2>
+        </div>
 
         {/* [A] One-Time Charges */}
         {(data.oneTimeItems || []).length > 0 && (
@@ -200,7 +208,7 @@ export function ProposalPreview({ data }: ProposalPreviewProps) {
         {/* T&C */}
         {data.termsConditions && (
           <div className="mb-4">
-            <p className="font-semibold text-indigo-800 mb-1">Terms & Conditions</p>
+            <p className="font-semibold text-gray-800 mb-1 pl-2 border-l-2 border-gray-400">Terms & Conditions</p>
             <div className="text-gray-700 whitespace-pre-wrap leading-relaxed">{data.termsConditions}</div>
           </div>
         )}
@@ -208,7 +216,7 @@ export function ProposalPreview({ data }: ProposalPreviewProps) {
         {/* Payment Terms */}
         {data.paymentTerms && (
           <div className="mb-4">
-            <p className="font-semibold text-indigo-800 mb-1">Payment Terms</p>
+            <p className="font-semibold text-gray-800 mb-1 pl-2 border-l-2 border-green-500">Payment Terms</p>
             <div className="text-gray-700 whitespace-pre-wrap leading-relaxed">{data.paymentTerms}</div>
           </div>
         )}
@@ -216,21 +224,26 @@ export function ProposalPreview({ data }: ProposalPreviewProps) {
         {/* Warranty */}
         {data.warrantyTerms && (
           <div className="mb-4">
-            <p className="font-semibold text-indigo-800 mb-1">Warranty & Support</p>
+            <p className="font-semibold text-gray-800 mb-1 pl-2 border-l-2 border-blue-500">Warranty & Support</p>
             <div className="text-gray-700 whitespace-pre-wrap leading-relaxed">{data.warrantyTerms}</div>
           </div>
         )}
 
         {/* Footer */}
-        <div className="mt-6 pt-3 border-t border-gray-300 text-center text-[9px] text-gray-500">
-          <p className="font-semibold">{data.companyName || appName}</p>
-          <p>62B, HSIIDC, Sector 31, Faridabad, Haryana, INDIA</p>
-          <div className="flex justify-center gap-4 mt-0.5">
-            {data.companyEmail && <span>Email: {data.companyEmail}</span>}
-            {data.companyPhone && <span>Phone: {data.companyPhone}</span>}
+        <div className="mt-8 pt-4 border-t border-gray-200">
+          <div className="bg-gray-50 rounded-lg p-4 text-center text-[9px] text-gray-500">
+            <p className="font-bold text-gray-700 text-[10px]">{data.companyName || appName}</p>
+            <p className="mt-0.5">62B, HSIIDC, Sector 31, Faridabad, Haryana, INDIA</p>
+            <div className="flex justify-center gap-4 mt-1">
+              {data.companyEmail && <span>Email: {data.companyEmail}</span>}
+              {data.companyPhone && <span>Phone: {data.companyPhone}</span>}
+            </div>
+            <div className="mt-2 pt-2 border-t border-gray-200 flex justify-between text-[9px]">
+              <span>Valid for {data.validityDays || 30} days from date of issue</span>
+              {data.submitterName && <span>Prepared by: <strong>{data.submitterName}</strong></span>}
+            </div>
           </div>
-          <p className="mt-1">This proposal is valid for {data.validityDays || 30} days from the date of issue.</p>
-          {data.submitterName && <p className="mt-1">Prepared by: {data.submitterName} | {data.submitterEmail}</p>}
+          <div className="h-1 bg-gradient-to-r from-indigo-600 via-indigo-500 to-blue-500 rounded-b-lg mt-4" />
         </div>
       </div>
     </div>
