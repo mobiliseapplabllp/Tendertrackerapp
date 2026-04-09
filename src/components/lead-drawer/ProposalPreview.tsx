@@ -20,6 +20,12 @@ interface ProposalPreviewProps {
     paymentTerms?: string;
     warrantyTerms?: string;
     validityDays?: number;
+    submitterName?: string;
+    submitterEmail?: string;
+    submitterPhone?: string;
+    companyName?: string;
+    companyEmail?: string;
+    companyPhone?: string;
   };
 }
 
@@ -54,6 +60,28 @@ export function ProposalPreview({ data }: ProposalPreviewProps) {
             <p className="font-semibold">{data.clientName || '---'}</p>
             {data.clientCompany && <p>{data.clientCompany}</p>}
             {data.clientAddress && <p className="text-gray-500">{data.clientAddress}</p>}
+          </div>
+        )}
+
+        {/* Submitted By / From */}
+        {(data.submitterName || data.companyName) && (
+          <div className="mb-4 flex gap-6">
+            {data.submitterName && (
+              <div className="flex-1">
+                <p className="text-[10px] text-gray-500 uppercase font-semibold mb-1">Submitted By:</p>
+                <p className="font-semibold">{data.submitterName}</p>
+                {data.submitterEmail && <p className="text-gray-600">{data.submitterEmail}</p>}
+                {data.submitterPhone && <p className="text-gray-600">{data.submitterPhone}</p>}
+              </div>
+            )}
+            {data.companyName && (
+              <div className="flex-1">
+                <p className="text-[10px] text-gray-500 uppercase font-semibold mb-1">From:</p>
+                <p className="font-semibold">{data.companyName}</p>
+                {data.companyEmail && <p className="text-gray-600">{data.companyEmail}</p>}
+                {data.companyPhone && <p className="text-gray-600">{data.companyPhone}</p>}
+              </div>
+            )}
           </div>
         )}
 
@@ -195,9 +223,14 @@ export function ProposalPreview({ data }: ProposalPreviewProps) {
 
         {/* Footer */}
         <div className="mt-6 pt-3 border-t border-gray-300 text-center text-[9px] text-gray-500">
-          <p className="font-semibold">{appName}</p>
+          <p className="font-semibold">{data.companyName || appName}</p>
           <p>62B, HSIIDC, Sector 31, Faridabad, Haryana, INDIA</p>
-          <p>This proposal is valid for {data.validityDays || 30} days from the date of issue.</p>
+          <div className="flex justify-center gap-4 mt-0.5">
+            {data.companyEmail && <span>Email: {data.companyEmail}</span>}
+            {data.companyPhone && <span>Phone: {data.companyPhone}</span>}
+          </div>
+          <p className="mt-1">This proposal is valid for {data.validityDays || 30} days from the date of issue.</p>
+          {data.submitterName && <p className="mt-1">Prepared by: {data.submitterName} | {data.submitterEmail}</p>}
         </div>
       </div>
     </div>

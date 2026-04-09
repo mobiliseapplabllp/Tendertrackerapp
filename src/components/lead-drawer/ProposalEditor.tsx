@@ -6,7 +6,9 @@ import { Textarea } from '../ui/textarea';
 import { Badge } from '../ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select';
 import { ProposalPreview } from './ProposalPreview';
-import { proposalApi, productCatalogApi } from '../../lib/api';
+import { proposalApi, productCatalogApi, authApi } from '../../lib/api';
+import { useBranding } from '../../hooks/useBranding';
+import { useSettings } from '../../hooks/useSettings';
 import {
   Loader2, Sparkles, Save, ArrowLeft, Plus, Trash2, Search,
   ChevronDown, ChevronRight, Package, RefreshCw, Eye
@@ -26,6 +28,13 @@ export function ProposalEditor({ leadId, lead, proposalId, onBack, onSaved }: Pr
   const [refiningSection, setRefiningSection] = useState<string | null>(null);
   const [showPreview, setShowPreview] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const { appName } = useBranding();
+  const { settings } = useSettings();
+  const [currentUser, setCurrentUser] = useState<any>(null);
+
+  useEffect(() => {
+    authApi.getCurrentUser().then(res => { if (res.success && res.data) setCurrentUser(res.data); });
+  }, []);
 
   // Proposal data
   const [form, setForm] = useState({
@@ -33,6 +42,8 @@ export function ProposalEditor({ leadId, lead, proposalId, onBack, onSaved }: Pr
     date: new Date().toISOString().split('T')[0],
     proposalId: '',
     clientName: '', clientCompany: '', clientAddress: '',
+    submitterName: '', submitterEmail: '', submitterPhone: '',
+    companyName: '', companyEmail: '', companyPhone: '',
     coverLetter: '', executiveSummary: '', scopeOfWork: '',
     notes: '', termsConditions: '', paymentTerms: '', warrantyTerms: '',
     validityPeriodDays: 30,
@@ -47,6 +58,30 @@ export function ProposalEditor({ leadId, lead, proposalId, onBack, onSaved }: Pr
 
   // Collapsed sections
   const [collapsed, setCollapsed] = useState<Set<string>>(new Set());
+
+  // Auto-fill submitter from logged-in user
+  useEffect(() => {
+    if (currentUser) {
+      setForm(prev => ({
+        ...prev,
+        submitterName: prev.submitterName || currentUser.fullName || currentUser.full_name || '',
+        submitterEmail: prev.submitterEmail || currentUser.email || '',
+        submitterPhone: prev.submitterPhone || currentUser.phone || '',
+      }));
+    }
+  }, [currentUser]);
+
+  // Auto-fill company from settings
+  useEffect(() => {
+    if (settings) {
+      setForm(prev => ({
+        ...prev,
+        companyName: prev.companyName || settings.companyName || appName || 'Mobilise App Lab Limited',
+        companyEmail: prev.companyEmail || settings.companyEmail || '',
+        companyPhone: prev.companyPhone || settings.company_phone || '',
+      }));
+    }
+  }, [settings, appName]);
 
   useEffect(() => {
     // Pre-fill from lead
@@ -232,6 +267,12 @@ export function ProposalEditor({ leadId, lead, proposalId, onBack, onSaved }: Pr
     oneTimeItems: oneTimeItems,
     recurringItems: recurringItems,
     validityDays: form.validityPeriodDays,
+    submitterName: form.submitterName,
+    submitterEmail: form.submitterEmail,
+    submitterPhone: form.submitterPhone,
+    companyName: form.companyName,
+    companyEmail: form.companyEmail,
+    companyPhone: form.companyPhone,
   };
 
   return (
@@ -280,6 +321,32 @@ export function ProposalEditor({ leadId, lead, proposalId, onBack, onSaved }: Pr
               </div>
               <div><Label className="text-[10px]">Client Address</Label>
                 <Input value={form.clientAddress} onChange={e => setForm({ ...form, clientAddress: e.target.value })} className="text-xs h-7" /></div>
+            </div>
+          )}
+
+          {/* Submitted By */}
+          <SectionHeader name="submitter" label="Submitted By" showAI={false} />
+          {!collapsed.has('submitter') && (
+            <div className="space-y-2 pl-5">
+              <div className="grid grid-cols-3 gap-2">
+                <div><Label className="text-[10px]">Name</Label>
+                  <Input value={form.submitterName} onChange={e => setForm({ ...form, submitterName: e.target.value })} className="text-xs h-7" /></div>
+                <div><Label className="text-[10px]">Email</Label>
+                  <Input value={form.submitterEmail} onChange={e => setForm({ ...form, submitterEmail: e.target.value })} className="text-xs h-7" /></div>
+                <div><Label className="text-[10px]">Phone</Label>
+                  <Input value={form.submitterPhone} onChange={e => setForm({ ...form, submitterPhone: e.target.value })} className="text-xs h-7" /></div>
+              </div>
+              <div className="border-t pt-2 mt-1">
+                <p className="text-[10px] text-gray-500 mb-1">Company Details</p>
+                <div className="grid grid-cols-3 gap-2">
+                  <div><Label className="text-[10px]">Company Name</Label>
+                    <Input value={form.companyName} onChange={e => setForm({ ...form, companyName: e.target.value })} className="text-xs h-7" /></div>
+                  <div><Label className="text-[10px]">Company Email</Label>
+                    <Input value={form.companyEmail} onChange={e => setForm({ ...form, companyEmail: e.target.value })} className="text-xs h-7" /></div>
+                  <div><Label className="text-[10px]">Company Phone</Label>
+                    <Input value={form.companyPhone} onChange={e => setForm({ ...form, companyPhone: e.target.value })} className="text-xs h-7" /></div>
+                </div>
+              </div>
             </div>
           )}
 
