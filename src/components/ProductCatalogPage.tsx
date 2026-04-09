@@ -342,7 +342,7 @@ export function ProductCatalogPage() {
                             </button>
                           )}
                           {p.name}
-                          {!!p.is_bundle && <Badge className="text-[10px] bg-purple-100 text-purple-700">Bundle</Badge>}
+                          {!!p.is_bundle && <Badge className="text-[10px] bg-purple-600 text-white">Bundle</Badge>}
                         </div>
                       </td>
                       <td className="px-4 py-3 text-gray-500">{p.sku || '-'}</td>
