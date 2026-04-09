@@ -67,21 +67,37 @@ export function ProductCatalogPage() {
     if (res.success) setProductLines(Array.isArray(res.data) ? res.data : res.data?.data || []);
   };
 
+  const resetForm = () => setForm({ sku: '', name: '', description: '', categoryId: '', productLineId: '',
+    subCategory: 'Hardware', unitPrice: '', currency: 'INR', unitOfMeasure: 'Unit',
+    taxRate: '18', hsnCode: '', isStandalone: true, isBundle: false });
+
   const handleCreate = async () => {
     if (!form.name || !form.categoryId) { setError('Name and category required'); return; }
     setError(null);
-    const res = await productCatalogApi.create({
+    const payload = {
       ...form, categoryId: Number(form.categoryId),
       productLineId: form.productLineId ? Number(form.productLineId) : null,
       unitPrice: Number(form.unitPrice) || 0, taxRate: Number(form.taxRate) || 18,
-    });
+    };
+    const res = editingProduct
+      ? await productCatalogApi.update(editingProduct.id, payload)
+      : await productCatalogApi.create(payload);
     if (res.success) {
-      setShowCreate(false);
-      setForm({ sku: '', name: '', description: '', categoryId: '', productLineId: '',
-        subCategory: 'Hardware', unitPrice: '', currency: 'INR', unitOfMeasure: 'Unit',
-        taxRate: '18', hsnCode: '', isStandalone: true, isBundle: false });
-      fetchProducts();
-    } else { setError(res.error || 'Failed to create'); }
+      setShowCreate(false); setEditingProduct(null); resetForm(); fetchProducts();
+    } else { setError(res.error || 'Failed to save'); }
+  };
+
+  const handleEdit = (p: any) => {
+    setEditingProduct(p);
+    setForm({
+      sku: p.sku || '', name: p.name || '', description: p.description || '',
+      categoryId: String(p.category_id || ''), productLineId: String(p.product_line_id || ''),
+      subCategory: p.sub_category || 'Hardware', unitPrice: String(p.unit_price || ''),
+      currency: p.currency || 'INR', unitOfMeasure: p.unit_of_measure || 'Unit',
+      taxRate: String(p.tax_rate || '18'), hsnCode: p.hsn_code || '',
+      isStandalone: p.is_standalone ?? true, isBundle: p.is_bundle ?? false,
+    });
+    setShowCreate(true);
   };
 
   const handleDelete = async (id: number) => {
@@ -156,8 +172,8 @@ export function ProductCatalogPage() {
       {showCreate && (
         <div className="bg-blue-50 border-b px-6 py-4">
           <div className="flex items-center justify-between mb-3">
-            <h3 className="font-medium text-sm">New Product</h3>
-            <Button variant="ghost" size="sm" onClick={() => setShowCreate(false)}><X className="w-4 h-4" /></Button>
+            <h3 className="font-medium text-sm">{editingProduct ? `Edit: ${editingProduct.name}` : 'New Product'}</h3>
+            <Button variant="ghost" size="sm" onClick={() => { setShowCreate(false); setEditingProduct(null); resetForm(); }}><X className="w-4 h-4" /></Button>
           </div>
           {error && <div className="bg-red-50 border border-red-200 rounded p-2 text-sm text-red-700 mb-3">{error}</div>}
           <div className="grid grid-cols-4 gap-3">
@@ -184,7 +200,7 @@ export function ProductCatalogPage() {
             <div><Label className="text-xs">Unit</Label><Input value={form.unitOfMeasure} onChange={e => setForm({ ...form, unitOfMeasure: e.target.value })} className="text-sm" /></div>
           </div>
           <div className="mt-3"><Label className="text-xs">Description</Label><Textarea value={form.description} onChange={e => setForm({ ...form, description: e.target.value })} className="text-sm" rows={2} /></div>
-          <Button className="mt-3" onClick={handleCreate}><Plus className="w-3 h-3 mr-1" />Create Product</Button>
+          <Button className="mt-3" onClick={handleCreate}><Plus className="w-3 h-3 mr-1" />{editingProduct ? 'Save Changes' : 'Create Product'}</Button>
         </div>
       )}
 
@@ -233,7 +249,10 @@ export function ProductCatalogPage() {
                       <td className="px-4 py-3 text-right">{p.tax_rate}%</td>
                       <td className="px-4 py-3 text-center">{p.component_count > 0 ? <Badge variant="outline" className="text-xs">{p.component_count}</Badge> : '-'}</td>
                       <td className="px-4 py-3 text-right">
-                        <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => handleDelete(p.id)}><Trash2 className="w-3.5 h-3.5 text-red-500" /></Button>
+                        <div className="flex items-center justify-end gap-1">
+                          <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => handleEdit(p)} title="Edit"><Edit2 className="w-3.5 h-3.5 text-blue-500" /></Button>
+                          <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => handleDelete(p.id)} title="Delete"><Trash2 className="w-3.5 h-3.5 text-red-500" /></Button>
+                        </div>
                       </td>
                     </tr>
                     {expandedBOM.has(p.id) && bomData[p.id]?.map((comp: any) => (
