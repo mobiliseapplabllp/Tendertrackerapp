@@ -232,13 +232,13 @@ export function ProductCatalogPage() {
                     <tr key={p.id} className="border-t hover:bg-gray-50">
                       <td className="px-4 py-3 font-medium">
                         <div className="flex items-center gap-2">
-                          {p.is_bundle && (
+                          {!!p.is_bundle && (
                             <button onClick={() => toggleBOM(p.id)} className="text-gray-400 hover:text-gray-600">
                               {expandedBOM.has(p.id) ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
                             </button>
                           )}
                           {p.name}
-                          {p.is_bundle && <Badge className="text-[10px] bg-purple-100 text-purple-700">Bundle</Badge>}
+                          {!!p.is_bundle && <Badge className="text-[10px] bg-purple-100 text-purple-700">Bundle</Badge>}
                         </div>
                       </td>
                       <td className="px-4 py-3 text-gray-500">{p.sku || '-'}</td>
