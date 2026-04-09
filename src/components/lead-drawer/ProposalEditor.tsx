@@ -1,0 +1,454 @@
+import { useState, useEffect } from 'react';
+import { Button } from '../ui/button';
+import { Input } from '../ui/input';
+import { Label } from '../ui/label';
+import { Textarea } from '../ui/textarea';
+import { Badge } from '../ui/badge';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select';
+import { ProposalPreview } from './ProposalPreview';
+import { proposalApi, productCatalogApi } from '../../lib/api';
+import {
+  Loader2, Sparkles, Save, ArrowLeft, Plus, Trash2, Search,
+  ChevronDown, ChevronRight, Package, RefreshCw, Eye
+} from 'lucide-react';
+
+interface ProposalEditorProps {
+  leadId: number;
+  lead: any;
+  proposalId?: number; // null for new, ID for edit
+  onBack: () => void;
+  onSaved: () => void;
+}
+
+export function ProposalEditor({ leadId, lead, proposalId, onBack, onSaved }: ProposalEditorProps) {
+  const [saving, setSaving] = useState(false);
+  const [generating, setGenerating] = useState(false);
+  const [refiningSection, setRefiningSection] = useState<string | null>(null);
+  const [showPreview, setShowPreview] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  // Proposal data
+  const [form, setForm] = useState({
+    title: '', proposalType: 'Software' as string, version: '01',
+    date: new Date().toISOString().split('T')[0],
+    proposalId: '',
+    clientName: '', clientCompany: '', clientAddress: '',
+    coverLetter: '', executiveSummary: '', scopeOfWork: '',
+    notes: '', termsConditions: '', paymentTerms: '', warrantyTerms: '',
+    validityPeriodDays: 30,
+  });
+
+  // Line items
+  const [oneTimeItems, setOneTimeItems] = useState<any[]>([]);
+  const [recurringItems, setRecurringItems] = useState<any[]>([]);
+  const [showProductPicker, setShowProductPicker] = useState<'one-time' | 'recurring' | null>(null);
+  const [productSearch, setProductSearch] = useState('');
+  const [searchResults, setSearchResults] = useState<any[]>([]);
+
+  // Collapsed sections
+  const [collapsed, setCollapsed] = useState<Set<string>>(new Set());
+
+  useEffect(() => {
+    // Pre-fill from lead
+    if (lead) {
+      setForm(prev => ({
+        ...prev,
+        title: `Proposal for ${lead.title || ''}`,
+        clientName: lead.client || '',
+        clientCompany: lead.company?.companyName || lead.client || '',
+        clientAddress: lead.company?.address ? `${lead.company.address}, ${lead.company.city || ''}, ${lead.company.state || ''}` : '',
+        proposalId: `${new Date().getFullYear()}/MAL/${String(leadId).padStart(5, '0')}`,
+      }));
+    }
+    // Load existing proposal if editing
+    if (proposalId) loadProposal(proposalId);
+  }, [leadId, proposalId]);
+
+  const loadProposal = async (id: number) => {
+    const res = await proposalApi.getById(id);
+    if (res.success && res.data) {
+      const p = res.data;
+      setForm({
+        title: p.title || '', proposalType: p.proposal_type || 'Software',
+        version: String(p.current_version || '01'),
+        date: p.created_at?.split('T')[0] || new Date().toISOString().split('T')[0],
+        proposalId: `${new Date(p.created_at).getFullYear()}/MAL/${String(p.tender_id).padStart(5, '0')}`,
+        clientName: p.submitted_to || '', clientCompany: '', clientAddress: '',
+        coverLetter: p.cover_letter || '', executiveSummary: p.executive_summary || '',
+        scopeOfWork: p.scope_of_work || '', notes: '', termsConditions: p.terms_conditions || '',
+        paymentTerms: p.payment_terms || '', warrantyTerms: p.warranty_terms || '',
+        validityPeriodDays: p.validity_period_days || 30,
+      });
+      // Split line items by charge_type
+      const items = p.lineItems || [];
+      setOneTimeItems(items.filter((i: any) => i.charge_type !== 'recurring').map((i: any) => ({
+        id: i.id, name: i.item_name, quantity: i.quantity, unitPrice: i.unit_price, productId: i.product_id
+      })));
+      setRecurringItems(items.filter((i: any) => i.charge_type === 'recurring').map((i: any) => ({
+        id: i.id, name: i.item_name, quantity: i.quantity, unitPrice: i.unit_price, productId: i.product_id
+      })));
+    }
+  };
+
+  const handleAIGenerate = async () => {
+    setGenerating(true); setError(null);
+    try {
+      const res = await proposalApi.aiGenerate(leadId);
+      if (res.success && res.data) {
+        const d = res.data;
+        setForm(prev => ({
+          ...prev,
+          title: d.title || prev.title,
+          proposalType: d.proposalType || prev.proposalType,
+          coverLetter: d.coverLetter || '', executiveSummary: d.executiveSummary || '',
+          scopeOfWork: d.scopeOfWork || '', notes: d.notes || '',
+          termsConditions: d.termsConditions || '', paymentTerms: d.paymentTerms || '',
+          warrantyTerms: d.warrantyTerms || '', validityPeriodDays: d.validityPeriodDays || 30,
+          proposalId: d.metadata?.proposalId || prev.proposalId,
+          clientName: d.metadata?.clientName || prev.clientName,
+          clientAddress: d.metadata?.companyAddress || prev.clientAddress,
+        }));
+        // Add suggested items as one-time
+        if (d.suggestedItems?.length) {
+          setOneTimeItems(d.suggestedItems.map((i: any) => ({
+            name: i.name, quantity: 1, unitPrice: i.unitPrice, productId: i.productId
+          })));
+        }
+      } else { setError(res.error || 'AI generation failed'); }
+    } catch (err: any) { setError(err.message); }
+    finally { setGenerating(false); }
+  };
+
+  const handleAIRefine = async (section: string) => {
+    setRefiningSection(section);
+    try {
+      const currentText = (form as any)[section] || '';
+      const res = await proposalApi.aiRefine(section, currentText, {
+        clientName: form.clientName, leadTitle: lead?.title, productLineName: lead?.productLine?.name
+      });
+      if (res.success && res.data?.refined) {
+        setForm(prev => ({ ...prev, [section]: res.data.refined }));
+      }
+    } catch (err: any) { console.error(err); }
+    finally { setRefiningSection(null); }
+  };
+
+  const handleSave = async () => {
+    if (!form.title.trim()) { setError('Title is required'); return; }
+    setSaving(true); setError(null);
+    try {
+      let savedId = proposalId;
+      if (!savedId) {
+        // Create new
+        const res = await proposalApi.create({
+          tenderId: leadId, title: form.title, proposalType: form.proposalType,
+          coverLetter: form.coverLetter, executiveSummary: form.executiveSummary,
+          scopeOfWork: form.scopeOfWork, termsConditions: form.termsConditions,
+          paymentTerms: form.paymentTerms, warrantyTerms: form.warrantyTerms,
+          validityPeriodDays: form.validityPeriodDays,
+        });
+        if (!res.success) { setError(res.error || 'Failed to save'); return; }
+        savedId = res.data?.id;
+      } else {
+        // Update existing
+        await proposalApi.update(savedId, {
+          title: form.title, proposalType: form.proposalType,
+          coverLetter: form.coverLetter, executiveSummary: form.executiveSummary,
+          scopeOfWork: form.scopeOfWork, termsConditions: form.termsConditions,
+          paymentTerms: form.paymentTerms, warrantyTerms: form.warrantyTerms,
+          validityPeriodDays: form.validityPeriodDays,
+        });
+      }
+      // Save line items
+      if (savedId) {
+        for (const item of oneTimeItems) {
+          if (!item.id) {
+            await proposalApi.addLineItem(savedId, {
+              itemName: item.name, quantity: item.quantity, unitPrice: item.unitPrice,
+              productId: item.productId || null, itemType: 'Product', chargeType: 'one-time', taxRate: 18,
+            });
+          }
+        }
+        for (const item of recurringItems) {
+          if (!item.id) {
+            await proposalApi.addLineItem(savedId, {
+              itemName: item.name, quantity: item.quantity, unitPrice: item.unitPrice,
+              productId: item.productId || null, itemType: 'Service', chargeType: 'recurring', taxRate: 18,
+            });
+          }
+        }
+      }
+      onSaved();
+    } catch (err: any) { setError(err.message); }
+    finally { setSaving(false); }
+  };
+
+  const searchProducts = async (query: string) => {
+    if (!query.trim()) { setSearchResults([]); return; }
+    const res = await productCatalogApi.getAll({ search: query, pageSize: '15' });
+    if (res.success) setSearchResults(res.data?.data || []);
+  };
+
+  const addItem = (product: any, type: 'one-time' | 'recurring') => {
+    const item = { name: product.name, quantity: 1, unitPrice: product.unit_price, productId: product.id };
+    if (type === 'one-time') setOneTimeItems(prev => [...prev, item]);
+    else setRecurringItems(prev => [...prev, item]);
+    setShowProductPicker(null); setProductSearch(''); setSearchResults([]);
+  };
+
+  const addCustomItem = (type: 'one-time' | 'recurring') => {
+    const item = { name: 'Custom Item', quantity: 1, unitPrice: 0 };
+    if (type === 'one-time') setOneTimeItems(prev => [...prev, item]);
+    else setRecurringItems(prev => [...prev, item]);
+  };
+
+  const toggleSection = (name: string) => {
+    const next = new Set(collapsed);
+    next.has(name) ? next.delete(name) : next.add(name);
+    setCollapsed(next);
+  };
+
+  const SectionHeader = ({ name, label, showAI = true }: { name: string; label: string; showAI?: boolean }) => (
+    <div className="flex items-center justify-between cursor-pointer py-2 border-b border-gray-100"
+      onClick={() => toggleSection(name)}>
+      <div className="flex items-center gap-1.5">
+        {collapsed.has(name) ? <ChevronRight className="w-3.5 h-3.5 text-gray-400" /> : <ChevronDown className="w-3.5 h-3.5 text-gray-400" />}
+        <span className="text-xs font-semibold text-gray-700 uppercase">{label}</span>
+      </div>
+      {showAI && !collapsed.has(name) && (
+        <Button size="sm" variant="ghost" className="h-5 text-[10px] px-1.5 text-indigo-600"
+          onClick={e => { e.stopPropagation(); handleAIRefine(name); }}
+          disabled={refiningSection === name}>
+          {refiningSection === name ? <Loader2 className="w-3 h-3 animate-spin" /> : <Sparkles className="w-3 h-3" />}
+          <span className="ml-0.5">AI</span>
+        </Button>
+      )}
+    </div>
+  );
+
+  // Preview data
+  const previewData = {
+    ...form,
+    oneTimeItems: oneTimeItems,
+    recurringItems: recurringItems,
+    validityDays: form.validityPeriodDays,
+  };
+
+  return (
+    <div className="h-full flex flex-col">
+      {/* Toolbar */}
+      <div className="flex items-center justify-between px-4 py-2 bg-white border-b flex-shrink-0">
+        <Button variant="ghost" size="sm" onClick={onBack}><ArrowLeft className="w-3.5 h-3.5 mr-1" />Back</Button>
+        <div className="flex items-center gap-2">
+          <Button size="sm" variant="outline" onClick={handleAIGenerate} disabled={generating}>
+            {generating ? <Loader2 className="w-3.5 h-3.5 animate-spin mr-1" /> : <Sparkles className="w-3.5 h-3.5 mr-1" />}
+            AI Generate All
+          </Button>
+          <Button size="sm" variant="outline" onClick={() => setShowPreview(!showPreview)}>
+            <Eye className="w-3.5 h-3.5 mr-1" />{showPreview ? 'Hide' : 'Show'} Preview
+          </Button>
+          <Button size="sm" onClick={handleSave} disabled={saving}>
+            {saving ? <Loader2 className="w-3.5 h-3.5 animate-spin mr-1" /> : <Save className="w-3.5 h-3.5 mr-1" />}
+            Save Draft
+          </Button>
+        </div>
+      </div>
+
+      {error && <div className="mx-4 mt-2 p-2 bg-red-50 border border-red-200 rounded text-xs text-red-700">{error}</div>}
+
+      {/* Split Pane */}
+      <div className="flex-1 flex overflow-hidden">
+        {/* Left: Editor */}
+        <div className={`${showPreview ? 'w-1/2' : 'w-full'} overflow-y-auto p-4 space-y-3 border-r`}>
+
+          {/* Header */}
+          <SectionHeader name="header" label="Header & Client" showAI={false} />
+          {!collapsed.has('header') && (
+            <div className="space-y-2 pl-5">
+              <div className="grid grid-cols-2 gap-2">
+                <div><Label className="text-[10px]">Title *</Label>
+                  <Input value={form.title} onChange={e => setForm({ ...form, title: e.target.value })} className="text-xs h-7" /></div>
+                <div><Label className="text-[10px]">Type</Label>
+                  <Select value={form.proposalType} onValueChange={v => setForm({ ...form, proposalType: v })}>
+                    <SelectTrigger className="text-xs h-7"><SelectValue /></SelectTrigger>
+                    <SelectContent>{['Software', 'Hardware', 'Custom Development', 'Other'].map(t => <SelectItem key={t} value={t}>{t}</SelectItem>)}</SelectContent>
+                  </Select></div>
+                <div><Label className="text-[10px]">Client Name</Label>
+                  <Input value={form.clientName} onChange={e => setForm({ ...form, clientName: e.target.value })} className="text-xs h-7" /></div>
+                <div><Label className="text-[10px]">Company</Label>
+                  <Input value={form.clientCompany} onChange={e => setForm({ ...form, clientCompany: e.target.value })} className="text-xs h-7" /></div>
+              </div>
+              <div><Label className="text-[10px]">Client Address</Label>
+                <Input value={form.clientAddress} onChange={e => setForm({ ...form, clientAddress: e.target.value })} className="text-xs h-7" /></div>
+            </div>
+          )}
+
+          {/* Cover Letter */}
+          <SectionHeader name="coverLetter" label="Cover Letter" />
+          {!collapsed.has('coverLetter') && (
+            <div className="pl-5">
+              <Textarea value={form.coverLetter} onChange={e => setForm({ ...form, coverLetter: e.target.value })}
+                className="text-xs min-h-[80px]" placeholder="Dear Sir/Madam, ..." />
+            </div>
+          )}
+
+          {/* Executive Summary */}
+          <SectionHeader name="executiveSummary" label="Executive Summary" />
+          {!collapsed.has('executiveSummary') && (
+            <div className="pl-5">
+              <Textarea value={form.executiveSummary} onChange={e => setForm({ ...form, executiveSummary: e.target.value })}
+                className="text-xs min-h-[60px]" placeholder="Project overview..." />
+            </div>
+          )}
+
+          {/* Scope of Work */}
+          <SectionHeader name="scopeOfWork" label="Scope of Work" />
+          {!collapsed.has('scopeOfWork') && (
+            <div className="pl-5">
+              <Textarea value={form.scopeOfWork} onChange={e => setForm({ ...form, scopeOfWork: e.target.value })}
+                className="text-xs min-h-[80px]" placeholder="Scope details..." />
+            </div>
+          )}
+
+          {/* One-Time Line Items */}
+          <SectionHeader name="oneTime" label="[A] One-Time Charges" showAI={false} />
+          {!collapsed.has('oneTime') && (
+            <div className="pl-5 space-y-2">
+              {oneTimeItems.map((item, i) => (
+                <div key={i} className="flex items-center gap-2 bg-gray-50 rounded p-2">
+                  <Input value={item.name} onChange={e => { const n = [...oneTimeItems]; n[i].name = e.target.value; setOneTimeItems(n); }}
+                    className="text-xs h-6 flex-1" />
+                  <Input type="number" value={item.quantity} onChange={e => { const n = [...oneTimeItems]; n[i].quantity = Number(e.target.value); setOneTimeItems(n); }}
+                    className="text-xs h-6 w-14" placeholder="Qty" />
+                  <Input type="number" value={item.unitPrice} onChange={e => { const n = [...oneTimeItems]; n[i].unitPrice = Number(e.target.value); setOneTimeItems(n); }}
+                    className="text-xs h-6 w-20" placeholder="Rate" />
+                  <span className="text-[10px] font-medium w-16 text-right">
+                    {(item.quantity * item.unitPrice).toLocaleString('en-IN')}
+                  </span>
+                  <button onClick={() => setOneTimeItems(prev => prev.filter((_, j) => j !== i))}><Trash2 className="w-3 h-3 text-red-400" /></button>
+                </div>
+              ))}
+              <div className="flex gap-2">
+                <Button size="sm" variant="outline" className="h-6 text-[10px]" onClick={() => setShowProductPicker('one-time')}>
+                  <Package className="w-3 h-3 mr-1" />From Catalog
+                </Button>
+                <Button size="sm" variant="outline" className="h-6 text-[10px]" onClick={() => addCustomItem('one-time')}>
+                  <Plus className="w-3 h-3 mr-1" />Custom
+                </Button>
+              </div>
+              {showProductPicker === 'one-time' && <ProductPicker onSelect={p => addItem(p, 'one-time')} onClose={() => setShowProductPicker(null)}
+                search={productSearch} setSearch={setProductSearch} results={searchResults} onSearch={searchProducts} />}
+            </div>
+          )}
+
+          {/* Recurring Line Items */}
+          <SectionHeader name="recurring" label="[B] Recurring Charges (Annual)" showAI={false} />
+          {!collapsed.has('recurring') && (
+            <div className="pl-5 space-y-2">
+              {recurringItems.map((item, i) => (
+                <div key={i} className="flex items-center gap-2 bg-amber-50 rounded p-2">
+                  <Input value={item.name} onChange={e => { const n = [...recurringItems]; n[i].name = e.target.value; setRecurringItems(n); }}
+                    className="text-xs h-6 flex-1" />
+                  <Input type="number" value={item.quantity} onChange={e => { const n = [...recurringItems]; n[i].quantity = Number(e.target.value); setRecurringItems(n); }}
+                    className="text-xs h-6 w-14" placeholder="Qty" />
+                  <Input type="number" value={item.unitPrice} onChange={e => { const n = [...recurringItems]; n[i].unitPrice = Number(e.target.value); setRecurringItems(n); }}
+                    className="text-xs h-6 w-20" placeholder="Rate" />
+                  <span className="text-[10px] font-medium w-16 text-right">
+                    {(item.quantity * item.unitPrice).toLocaleString('en-IN')}
+                  </span>
+                  <button onClick={() => setRecurringItems(prev => prev.filter((_, j) => j !== i))}><Trash2 className="w-3 h-3 text-red-400" /></button>
+                </div>
+              ))}
+              <div className="flex gap-2">
+                <Button size="sm" variant="outline" className="h-6 text-[10px]" onClick={() => setShowProductPicker('recurring')}>
+                  <Package className="w-3 h-3 mr-1" />From Catalog
+                </Button>
+                <Button size="sm" variant="outline" className="h-6 text-[10px]" onClick={() => addCustomItem('recurring')}>
+                  <Plus className="w-3 h-3 mr-1" />Custom
+                </Button>
+              </div>
+              {showProductPicker === 'recurring' && <ProductPicker onSelect={p => addItem(p, 'recurring')} onClose={() => setShowProductPicker(null)}
+                search={productSearch} setSearch={setProductSearch} results={searchResults} onSearch={searchProducts} />}
+            </div>
+          )}
+
+          {/* Notes */}
+          <SectionHeader name="notes" label="Notes" />
+          {!collapsed.has('notes') && (
+            <div className="pl-5">
+              <Textarea value={form.notes} onChange={e => setForm({ ...form, notes: e.target.value })}
+                className="text-xs min-h-[60px]" placeholder="Additional notes..." />
+            </div>
+          )}
+
+          {/* T&C */}
+          <SectionHeader name="termsConditions" label="Terms & Conditions" />
+          {!collapsed.has('termsConditions') && (
+            <div className="pl-5">
+              <Textarea value={form.termsConditions} onChange={e => setForm({ ...form, termsConditions: e.target.value })}
+                className="text-xs min-h-[80px]" placeholder="Terms..." />
+            </div>
+          )}
+
+          {/* Payment Terms */}
+          <SectionHeader name="paymentTerms" label="Payment Terms" />
+          {!collapsed.has('paymentTerms') && (
+            <div className="pl-5">
+              <Textarea value={form.paymentTerms} onChange={e => setForm({ ...form, paymentTerms: e.target.value })}
+                className="text-xs min-h-[60px]" placeholder="Payment terms..." />
+            </div>
+          )}
+
+          {/* Warranty */}
+          <SectionHeader name="warrantyTerms" label="Warranty & Support" />
+          {!collapsed.has('warrantyTerms') && (
+            <div className="pl-5">
+              <Textarea value={form.warrantyTerms} onChange={e => setForm({ ...form, warrantyTerms: e.target.value })}
+                className="text-xs min-h-[60px]" placeholder="Warranty terms..." />
+            </div>
+          )}
+        </div>
+
+        {/* Right: Live Preview */}
+        {showPreview && (
+          <div className="w-1/2 overflow-y-auto bg-gray-100 p-4">
+            <div className="sticky top-0 bg-gray-100 pb-2 z-10">
+              <Badge variant="outline" className="text-[10px]">Live Preview</Badge>
+            </div>
+            <ProposalPreview data={previewData} />
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ==================== Product Picker Sub-Component ====================
+function ProductPicker({ onSelect, onClose, search, setSearch, results, onSearch }: {
+  onSelect: (p: any) => void; onClose: () => void;
+  search: string; setSearch: (s: string) => void;
+  results: any[]; onSearch: (q: string) => void;
+}) {
+  return (
+    <div className="bg-blue-50 rounded-lg p-2 border space-y-1.5">
+      <div className="flex gap-1.5">
+        <Input value={search} onChange={e => setSearch(e.target.value)}
+          onKeyDown={e => { if (e.key === 'Enter') onSearch(search); }}
+          className="text-xs h-6 flex-1" placeholder="Search products..." />
+        <Button size="sm" className="h-6 w-6 p-0" onClick={() => onSearch(search)}><Search className="w-3 h-3" /></Button>
+        <Button size="sm" variant="ghost" className="h-6 w-6 p-0" onClick={onClose}><Trash2 className="w-3 h-3" /></Button>
+      </div>
+      {results.length > 0 && (
+        <div className="max-h-32 overflow-y-auto space-y-0.5">
+          {results.map((p: any) => (
+            <div key={p.id} className="flex items-center justify-between bg-white px-2 py-1 rounded text-[10px] cursor-pointer hover:bg-indigo-50"
+              onClick={() => onSelect(p)}>
+              <span>{p.name} {p.sku && <span className="text-gray-400">({p.sku})</span>}</span>
+              <span className="font-medium">₹{p.unit_price?.toLocaleString('en-IN')}</span>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}

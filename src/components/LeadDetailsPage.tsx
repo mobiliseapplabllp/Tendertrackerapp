@@ -152,7 +152,7 @@ export function LeadDetailsPage({ leadId, onBack, onUpdate }: LeadDetailsPagePro
             </TabsContent>
 
             <TabsContent value="proposals" className="mt-0">
-              <ProposalTab leadId={lead.id} userRole={(lead as any).userRole} />
+              <ProposalTab leadId={lead.id} lead={lead} userRole={(lead as any).userRole} />
             </TabsContent>
 
             <TabsContent value="tasks" className="mt-0">

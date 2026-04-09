@@ -502,3 +502,106 @@ async function recalcProposalTotals(proposalId: number) {
     [t.subtotal, t.total_tax, t.total_discount, t.grand_total, proposalId]
   );
 }
+
+// ==================== AI Features ====================
+
+export const aiGenerateProposal = async (req: Request, res: Response) => {
+  try {
+    const { leadId } = req.body;
+    if (!leadId) return res.status(400).json({ success: false, error: 'Lead ID required' });
+
+    // Fetch lead details
+    const [leads] = await db.query(
+      `SELECT t.*, c.company_name, c.address, c.city, c.state, c.country,
+       pl.name as product_line_name
+       FROM tenders t
+       LEFT JOIN companies c ON t.company_id = c.id
+       LEFT JOIN product_lines pl ON t.product_line_id = pl.id
+       WHERE t.id = ?`, [leadId]
+    );
+    if ((leads as any[]).length === 0) return res.status(404).json({ success: false, error: 'Lead not found' });
+    const lead = (leads as any[])[0];
+
+    // Fetch relevant products from product line
+    let products: any[] = [];
+    if (lead.product_line_id) {
+      const [prods] = await db.query(
+        `SELECT p.*, (SELECT COUNT(*) FROM product_bom WHERE parent_product_id = p.id) as component_count
+         FROM products p WHERE p.product_line_id = ? AND p.is_active = TRUE AND p.deleted_at IS NULL
+         ORDER BY p.is_bundle DESC, p.name`, [lead.product_line_id]
+      );
+      products = prods as any[];
+    }
+    if (products.length === 0) {
+      const [prods] = await db.query(
+        `SELECT p.*, (SELECT COUNT(*) FROM product_bom WHERE parent_product_id = p.id) as component_count
+         FROM products p WHERE p.is_standalone = TRUE AND p.is_active = TRUE AND p.deleted_at IS NULL
+         ORDER BY p.sub_category, p.name LIMIT 20`
+      );
+      products = prods as any[];
+    }
+
+    // Build context for AI
+    const clientName = lead.client || lead.company_name || 'the client';
+    const companyAddress = [lead.address, lead.city, lead.state, lead.country].filter(Boolean).join(', ') || '';
+    const productList = products.map((p: any) => `${p.name} (${p.sku || 'N/A'}) - ₹${p.unit_price}`).join(', ');
+    const dealValue = lead.estimated_value || lead.deal_value || 0;
+
+    // Generate proposal sections (without external AI - template-based for now)
+    const proposalDate = new Date().toLocaleDateString('en-IN', { year: 'numeric', month: 'long', day: 'numeric' });
+    const proposalId = `${new Date().getFullYear()}/MAL/${String(leadId).padStart(5, '0')}`;
+
+    const generated = {
+      title: `Proposal for ${lead.title}`,
+      proposalType: lead.sub_category === 'Software' ? 'Software' : lead.sub_category === 'Hardware' ? 'Hardware' : 'Custom Development',
+      coverLetter: `Dear ${clientName},\n\nWe are pleased to submit our proposal for ${lead.title}. Mobilise App Lab Limited is a leading technology solutions provider specializing in ${lead.product_line_name || 'enterprise solutions'}.\n\nThis proposal outlines our comprehensive solution, scope of work, and commercial terms for your consideration. We are confident that our solution will meet your requirements and deliver significant value.\n\nWe look forward to the opportunity to partner with you on this initiative.`,
+      executiveSummary: `This proposal presents a complete ${lead.product_line_name || 'technology'} solution for ${clientName}. The solution includes ${productList ? 'the following components: ' + productList : 'hardware, software, and implementation services'}.\n\nEstimated project value: ₹${dealValue.toLocaleString('en-IN')}\nExpected timeline: 2-4 weeks from order confirmation`,
+      scopeOfWork: `The scope of work for this project includes:\n\n1. Supply and delivery of all specified hardware/software components\n2. Installation and configuration at the client site\n3. System integration and testing\n4. User training and handover documentation\n5. Post-implementation support during warranty period\n\nClient responsibilities:\n• Provide site access and necessary infrastructure (power, network)\n• Designate a project coordinator for timely communication\n• Provide user data for system enrollment`,
+      notes: `• Installation will be completed within 2-3 working days after order confirmation and payment.\n• All hardware comes with standard manufacturer warranty.\n• Power supply and internet connectivity to be provided by the client.\n• Year 2 onwards, AMC/CMC available at additional cost.`,
+      termsConditions: `• Order confirmation against Purchase Order and advance payment.\n• Prices are exclusive of applicable taxes (GST @ 18%).\n• Procurement and implementation shall commence post PO and payment.\n• Termination notice of 30 days from either party shall be applicable.\n• In case of special requirements (VAPT certification, etc.), additional charges may apply.\n• All intellectual property of standard products remains with Mobilise App Lab Limited.`,
+      paymentTerms: `Payment Terms:\n• 50% advance with Purchase Order\n• 30% on delivery and installation\n• 20% post go-live and acceptance\n\nPayment due within 15 days of invoice.\nAll payments to be made via NEFT/RTGS to Mobilise App Lab Limited.`,
+      warrantyTerms: `Warranty & Support:\n• Hardware: 12 months manufacturer warranty from date of installation\n• Software: 12 months from go-live date (includes bug fixes and minor updates)\n• On-site support during warranty period for critical issues\n• Post-warranty AMC/CMC available at mutually agreed rates`,
+      validityPeriodDays: 30,
+      suggestedItems: products.filter((p: any) => p.is_standalone).slice(0, 10).map((p: any) => ({
+        productId: p.id, name: p.name, sku: p.sku, unitPrice: p.unit_price,
+        taxRate: p.tax_rate, isBundle: !!p.is_bundle, componentCount: p.component_count
+      })),
+      metadata: { proposalDate, proposalId, clientName, companyAddress, leadTitle: lead.title, productLineName: lead.product_line_name }
+    };
+
+    return res.json({ success: true, data: generated });
+  } catch (error: any) {
+    logger.error({ message: 'Error generating proposal', error: error.message });
+    return res.status(500).json({ success: false, error: 'Failed to generate proposal' });
+  }
+};
+
+export const aiRefineSection = async (req: Request, res: Response) => {
+  try {
+    const { section, currentText, leadContext } = req.body;
+    if (!section || !currentText) return res.status(400).json({ success: false, error: 'Section and current text required' });
+
+    // Template-based refinement (can be enhanced with actual AI API later)
+    let refined = currentText;
+    const ctx = leadContext || {};
+
+    switch (section) {
+      case 'coverLetter':
+        refined = `Dear ${ctx.clientName || 'Sir/Madam'},\n\nThank you for the opportunity to present our proposal for ${ctx.leadTitle || 'your project'}. Mobilise App Lab Limited brings extensive experience in delivering enterprise technology solutions.\n\nWe have carefully analyzed your requirements and designed a solution that addresses your specific needs while ensuring scalability and reliability.\n\nWe are committed to delivering excellence and look forward to building a long-term partnership.\n\nBest regards,\nMobilise App Lab Limited`;
+        break;
+      case 'scopeOfWork':
+        refined = currentText + '\n\nAdditional Deliverables:\n• Detailed project plan with milestones\n• Weekly progress reports\n• Complete documentation (technical + user manuals)\n• Knowledge transfer sessions';
+        break;
+      case 'termsConditions':
+        refined = `• This proposal is valid for 30 days from the date of issue.\n• Order confirmation against Purchase Order and 100% advance payment including GST.\n• Prices are exclusive of applicable taxes.\n• No minimum order commitment with retail rates.\n• Procurement & Implementation shall commence post PO and advance payment.\n• Termination or Discontinuation Notice of six (6) months from either party.\n• All disputes subject to jurisdiction of Faridabad, Haryana courts.`;
+        break;
+      default:
+        refined = currentText;
+    }
+
+    return res.json({ success: true, data: { section, refined } });
+  } catch (error: any) {
+    logger.error({ message: 'Error refining section', error: error.message });
+    return res.status(500).json({ success: false, error: 'Failed to refine section' });
+  }
+};

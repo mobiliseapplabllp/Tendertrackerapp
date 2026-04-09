@@ -6,7 +6,7 @@ import {
   getTemplates, getByLead, getById, create, update, deleteProposal,
   submitForApproval, approve, reject, markSubmitted, updateOutcome,
   getLineItems, addLineItem, updateLineItem, removeLineItem, addBundleToProposal,
-  getVersions
+  getVersions, aiGenerateProposal, aiRefineSection
 } from '../controllers/proposalController';
 
 const router = Router();
@@ -92,5 +92,9 @@ router.post('/:proposalId/add-bundle', validate({
 
 // Versions
 router.get('/:proposalId/versions', validate({ params: Joi.object({ proposalId: schemas.id }) }), getVersions);
+
+// AI Features
+router.post('/ai-generate', aiGenerateProposal);
+router.post('/ai-refine', aiRefineSection);
 
 export default router;

@@ -11,16 +11,19 @@ import {
 } from 'lucide-react';
 import { proposalApi, productCatalogApi } from '../../lib/api';
 import { useSettings } from '../../hooks/useSettings';
+import { ProposalEditor } from './ProposalEditor';
 
 interface ProposalTabProps {
   leadId: number;
+  lead?: any;
   userRole?: string;
 }
 
-export function ProposalTab({ leadId, userRole }: ProposalTabProps) {
+export function ProposalTab({ leadId, lead, userRole }: ProposalTabProps) {
   const [proposals, setProposals] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [showCreate, setShowCreate] = useState(false);
+  const [editorMode, setEditorMode] = useState<{ open: boolean; proposalId?: number }>({ open: false });
   const [selectedProposal, setSelectedProposal] = useState<any>(null);
   const [templates, setTemplates] = useState<any[]>([]);
   const [products, setProducts] = useState<any[]>([]);
@@ -181,6 +184,19 @@ export function ProposalTab({ leadId, userRole }: ProposalTabProps) {
       default: return 'bg-gray-100 text-gray-700';
     }
   };
+
+  // ==================== EDITOR VIEW ====================
+  if (editorMode.open) {
+    return (
+      <ProposalEditor
+        leadId={leadId}
+        lead={lead}
+        proposalId={editorMode.proposalId}
+        onBack={() => setEditorMode({ open: false })}
+        onSaved={() => { setEditorMode({ open: false }); fetchProposals(); }}
+      />
+    );
+  }
 
   // ==================== DETAIL VIEW ====================
   if (selectedProposal) {
@@ -396,7 +412,7 @@ export function ProposalTab({ leadId, userRole }: ProposalTabProps) {
     <div className="p-4 space-y-4">
       <div className="flex items-center justify-between">
         <h3 className="font-medium text-sm text-gray-700">{proposals.length} Proposal{proposals.length !== 1 ? 's' : ''}</h3>
-        <Button size="sm" onClick={() => { setShowCreate(true); fetchTemplates(); }}><Plus className="w-3 h-3 mr-1" />New Proposal</Button>
+        <Button size="sm" onClick={() => setEditorMode({ open: true })}><Plus className="w-3 h-3 mr-1" />New Proposal</Button>
       </div>
 
       {loading ? (

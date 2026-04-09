@@ -1658,5 +1658,10 @@ export const proposalApi = {
     }
     return { success: res.ok };
   },
+  // AI
+  aiGenerate: async (leadId: number) =>
+    apiCall<any>('/proposals/ai-generate', { method: 'POST', body: JSON.stringify({ leadId }) }),
+  aiRefine: async (section: string, currentText: string, leadContext?: any) =>
+    apiCall<any>('/proposals/ai-refine', { method: 'POST', body: JSON.stringify({ section, currentText, leadContext }) }),
 };
 

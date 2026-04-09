@@ -194,7 +194,7 @@ export function LeadDetailDrawer({
                                 </TabsContent>
 
                                 <TabsContent value="proposals" className="mt-0 h-full">
-                                    <ProposalTab leadId={lead.id} />
+                                    <ProposalTab leadId={lead.id} lead={lead} />
                                 </TabsContent>
                             </div>
                         </Tabs>
