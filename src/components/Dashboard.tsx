@@ -206,11 +206,11 @@ export function Dashboard() {
                 </div>
                 {/* Summary row */}
                 <div className="grid grid-cols-5 gap-3 mb-3 text-center">
-                  <div className="bg-blue-50 rounded-lg p-2"><p className="text-lg font-bold text-blue-700">{teamMembers.reduce((s, m) => s + (m.tender_count || 0), 0)}</p><p className="text-[10px] text-blue-600">Tenders</p></div>
-                  <div className="bg-green-50 rounded-lg p-2"><p className="text-lg font-bold text-green-700">{teamMembers.reduce((s, m) => s + (m.lead_count || 0), 0)}</p><p className="text-[10px] text-green-600">Leads</p></div>
-                  <div className="bg-emerald-50 rounded-lg p-2"><p className="text-lg font-bold text-emerald-700">{teamMembers.reduce((s, m) => s + (m.won_count || 0), 0)}</p><p className="text-[10px] text-emerald-600">Won</p></div>
-                  <div className="bg-purple-50 rounded-lg p-2"><p className="text-lg font-bold text-purple-700">{formatCurrency(teamMembers.reduce((s, m) => s + parseFloat(m.total_value || 0), 0))}</p><p className="text-[10px] text-purple-600">Total Value</p></div>
-                  <div className="bg-amber-50 rounded-lg p-2"><p className="text-lg font-bold text-amber-700">{formatCurrency(teamMembers.reduce((s, m) => s + parseFloat(m.won_value || 0), 0))}</p><p className="text-[10px] text-amber-600">Won Value</p></div>
+                  <div className="bg-blue-50 rounded-lg p-2"><p className="text-lg font-bold text-blue-700">{teamMembers.reduce((s, m) => s + (m.tender_count || 0), 0)}</p><p className="text-xs text-blue-600">Tenders</p></div>
+                  <div className="bg-green-50 rounded-lg p-2"><p className="text-lg font-bold text-green-700">{teamMembers.reduce((s, m) => s + (m.lead_count || 0), 0)}</p><p className="text-xs text-green-600">Leads</p></div>
+                  <div className="bg-emerald-50 rounded-lg p-2"><p className="text-lg font-bold text-emerald-700">{teamMembers.reduce((s, m) => s + (m.won_count || 0), 0)}</p><p className="text-xs text-emerald-600">Won</p></div>
+                  <div className="bg-purple-50 rounded-lg p-2"><p className="text-lg font-bold text-purple-700">{formatCurrency(teamMembers.reduce((s, m) => s + parseFloat(m.total_value || 0), 0))}</p><p className="text-xs text-purple-600">Total Value</p></div>
+                  <div className="bg-amber-50 rounded-lg p-2"><p className="text-lg font-bold text-amber-700">{formatCurrency(teamMembers.reduce((s, m) => s + parseFloat(m.won_value || 0), 0))}</p><p className="text-xs text-amber-600">Won Value</p></div>
                 </div>
                 {/* Individual members */}
                 {expandedMembers && (
@@ -231,12 +231,12 @@ export function Dashboard() {
                           <tr key={m.id} className="border-t hover:bg-gray-50">
                             <td className="px-3 py-2">
                               <div className="flex items-center gap-2">
-                                <div className="w-7 h-7 bg-indigo-100 rounded-full flex items-center justify-center text-[10px] font-bold text-indigo-700">
+                                <div className="w-7 h-7 bg-indigo-100 rounded-full flex items-center justify-center text-xs font-bold text-indigo-700">
                                   {(m.full_name || '').split(' ').map((n: string) => n[0]).join('').slice(0, 2)}
                                 </div>
                                 <div>
                                   <p className="font-medium text-xs">{m.full_name}</p>
-                                  <p className="text-[10px] text-gray-400">{m.email}</p>
+                                  <p className="text-xs text-gray-500">{m.email}</p>
                                 </div>
                               </div>
                             </td>
@@ -264,10 +264,10 @@ export function Dashboard() {
                       <div className="flex-1">
                         <div className="flex items-center gap-2 mb-0.5">
                           <p className="text-sm font-medium">{activity.user_name || activity.user?.fullName || 'System'}</p>
-                          <Badge variant="outline" className="text-[10px]">{activity.activity_type || activity.activityType}</Badge>
+                          <Badge variant="outline" className="text-xs">{activity.activity_type || activity.activityType}</Badge>
                         </div>
                         <p className="text-sm text-gray-600">{activity.description || activity.tender_title || 'Activity'}</p>
-                        <p className="text-xs text-gray-400 mt-0.5">
+                        <p className="text-xs text-gray-500 mt-0.5">
                           {new Date(activity.created_at || activity.createdAt).toLocaleString()}
                         </p>
                       </div>

@@ -99,11 +99,11 @@ export function AuditLogTab({ leadId }: AuditLogTabProps) {
           </div>
           <div className="flex-1 pb-4">
             <div className="flex items-center gap-2 flex-wrap">
-              <Badge variant="outline" className="text-[10px]">{log.activityType}</Badge>
+              <Badge variant="outline" className="text-xs">{log.activityType}</Badge>
               {log.performedByName && (
                 <span className="text-xs text-gray-500">{log.performedByName}</span>
               )}
-              <span className="text-xs text-gray-400">{formatDate(log.createdAt)}</span>
+              <span className="text-xs text-gray-500">{formatDate(log.createdAt)}</span>
             </div>
             {log.description && (
               <p className="text-sm text-gray-700 mt-1">{log.description}</p>

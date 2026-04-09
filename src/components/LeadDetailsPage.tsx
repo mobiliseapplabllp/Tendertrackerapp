@@ -91,7 +91,7 @@ export function LeadDetailsPage({ leadId, onBack, onUpdate }: LeadDetailsPagePro
         <div className="px-6 py-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
-              <Button variant="ghost" size="icon" onClick={onBack}>
+              <Button variant="ghost" size="icon" onClick={onBack} aria-label="Back to leads">
                 <ArrowLeft className="w-5 h-5" />
               </Button>
               <div>

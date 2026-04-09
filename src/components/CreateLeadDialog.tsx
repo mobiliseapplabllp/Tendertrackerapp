@@ -534,7 +534,7 @@ export function CreateLeadDialog({
                     accept=".pdf,.doc,.docx,.xls,.xlsx,.jpg,.jpeg,.png"
                   />
                   <div className="flex flex-col items-center justify-center gap-2">
-                    <Upload className="w-8 h-8 text-gray-400" />
+                    <Upload className="w-8 h-8 text-gray-500" />
                     <div className="text-center">
                       <Button
                         type="button"

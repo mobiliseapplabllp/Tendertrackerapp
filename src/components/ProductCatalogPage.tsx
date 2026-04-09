@@ -337,12 +337,12 @@ export function ProductCatalogPage() {
                       <td className="px-4 py-3 font-medium">
                         <div className="flex items-center gap-2">
                           {!!p.is_bundle && (
-                            <button onClick={() => toggleBOM(p.id)} className="text-gray-400 hover:text-gray-600">
+                            <button onClick={() => toggleBOM(p.id)} className="text-gray-500 hover:text-gray-600">
                               {expandedBOM.has(p.id) ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
                             </button>
                           )}
                           {p.name}
-                          {!!p.is_bundle && <Badge className="text-[10px] bg-purple-600 text-white">Bundle</Badge>}
+                          {!!p.is_bundle && <Badge className="text-xs bg-purple-600 text-white">Bundle</Badge>}
                         </div>
                       </td>
                       <td className="px-4 py-3 text-gray-500">{p.sku || '-'}</td>
@@ -407,7 +407,7 @@ export function ProductCatalogPage() {
             <div className="px-5 py-3 bg-blue-50 border-b space-y-2 flex-shrink-0">
               <div className="flex items-center justify-between">
                 <Label className="text-xs font-medium">Add Component</Label>
-                <Button size="sm" variant={showQuickAdd ? "default" : "outline"} className="h-6 text-[10px] px-2"
+                <Button size="sm" variant={showQuickAdd ? "default" : "outline"} className="h-6 text-xs px-2"
                   onClick={() => setShowQuickAdd(!showQuickAdd)}>
                   {showQuickAdd ? 'Search Existing' : '+ Quick Create'}
                 </Button>
@@ -417,23 +417,23 @@ export function ProductCatalogPage() {
                 /* Quick Add Form */
                 <div className="space-y-2 bg-white rounded-lg p-3 border">
                   <div className="grid grid-cols-2 gap-2">
-                    <div><Label className="text-[10px] text-gray-500">Name *</Label>
+                    <div><Label className="text-xs text-gray-500">Name *</Label>
                       <Input value={quickAddForm.name} onChange={e => setQuickAddForm({ ...quickAddForm, name: e.target.value })} className="text-xs h-7" placeholder="e.g., Power Adapter" /></div>
-                    <div><Label className="text-[10px] text-gray-500">SKU</Label>
+                    <div><Label className="text-xs text-gray-500">SKU</Label>
                       <Input value={quickAddForm.sku} onChange={e => setQuickAddForm({ ...quickAddForm, sku: e.target.value })} className="text-xs h-7" placeholder="e.g., BIO-PWR-001" /></div>
-                    <div><Label className="text-[10px] text-gray-500">Category *</Label>
+                    <div><Label className="text-xs text-gray-500">Category *</Label>
                       <Select value={quickAddForm.categoryId} onValueChange={v => setQuickAddForm({ ...quickAddForm, categoryId: v })}>
                         <SelectTrigger className="text-xs h-7"><SelectValue placeholder="Select..." /></SelectTrigger>
                         <SelectContent>{categories.map((c: any) => <SelectItem key={c.id} value={String(c.id)}>{c.name}</SelectItem>)}</SelectContent>
                       </Select></div>
-                    <div><Label className="text-[10px] text-gray-500">Type</Label>
+                    <div><Label className="text-xs text-gray-500">Type</Label>
                       <Select value={quickAddForm.subCategory} onValueChange={v => setQuickAddForm({ ...quickAddForm, subCategory: v })}>
                         <SelectTrigger className="text-xs h-7"><SelectValue /></SelectTrigger>
                         <SelectContent>{['Hardware', 'Software', 'Service', 'Consumable'].map(t => <SelectItem key={t} value={t}>{t}</SelectItem>)}</SelectContent>
                       </Select></div>
-                    <div><Label className="text-[10px] text-gray-500">Unit Price</Label>
+                    <div><Label className="text-xs text-gray-500">Unit Price</Label>
                       <Input type="number" value={quickAddForm.unitPrice} onChange={e => setQuickAddForm({ ...quickAddForm, unitPrice: e.target.value })} className="text-xs h-7" placeholder="0" /></div>
-                    <div><Label className="text-[10px] text-gray-500">Quantity</Label>
+                    <div><Label className="text-xs text-gray-500">Quantity</Label>
                       <Input type="number" value={quickAddForm.qty} onChange={e => setQuickAddForm({ ...quickAddForm, qty: e.target.value })} className="text-xs h-7" min="1" /></div>
                   </div>
                   <div className="flex items-center justify-between">
@@ -441,7 +441,7 @@ export function ProductCatalogPage() {
                       <input type="checkbox" checked={quickAddForm.sellSeparately}
                         onChange={e => setQuickAddForm({ ...quickAddForm, sellSeparately: e.target.checked })}
                         className="rounded border-gray-300" />
-                      <span className="text-[10px] text-gray-600">Also sell separately in catalog</span>
+                      <span className="text-xs text-gray-600">Also sell separately in catalog</span>
                     </label>
                     <Button size="sm" className="h-7 text-xs" onClick={handleQuickAddComponent} disabled={addingComponent}>
                       {addingComponent ? <Loader2 className="w-3 h-3 animate-spin mr-1" /> : <Plus className="w-3 h-3 mr-1" />}
@@ -480,8 +480,8 @@ export function ProductCatalogPage() {
                     >
                       <div>
                         <span className="font-medium">{p.name}</span>
-                        {p.sku && <span className="text-gray-400 ml-1">({p.sku})</span>}
-                        <Badge className="ml-1 text-[9px]" variant="outline">{p.sub_category}</Badge>
+                        {p.sku && <span className="text-gray-500 ml-1">({p.sku})</span>}
+                        <Badge className="ml-1 text-xs" variant="outline">{p.sub_category}</Badge>
                       </div>
                       <div className="flex items-center gap-2">
                         <span>{formatCurrency(p.unit_price, undefined, { compact: false })}</span>
@@ -509,7 +509,7 @@ export function ProductCatalogPage() {
               </div>
 
               {(bomData[manageBOM.id] || []).length === 0 ? (
-                <div className="text-center py-10 text-gray-400">
+                <div className="text-center py-10 text-gray-500">
                   <Box className="w-10 h-10 mx-auto mb-2 text-gray-300" />
                   <p className="text-sm">No components yet</p>
                   <p className="text-xs">Search and add products above to build a bundle</p>
@@ -528,7 +528,7 @@ export function ProductCatalogPage() {
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center gap-1">
                             <span className="font-medium text-sm truncate">{comp.component_name}</span>
-                            {comp.sku && <span className="text-[10px] text-gray-400">({comp.sku})</span>}
+                            {comp.sku && <span className="text-xs text-gray-500">({comp.sku})</span>}
                           </div>
                           <span className="text-xs text-gray-500">{formatCurrency(comp.unit_price, undefined, { compact: false })}/unit</span>
                         </div>
@@ -546,7 +546,7 @@ export function ProductCatalogPage() {
                       {/* BOM Fields (always visible) */}
                       <div className="flex items-center gap-3 pl-11">
                         <div className="flex items-center gap-1.5">
-                          <Label className="text-[10px] text-gray-500">Qty:</Label>
+                          <Label className="text-xs text-gray-500">Qty:</Label>
                           <Input type="number" min="0.01" step="0.01"
                             defaultValue={comp.quantity}
                             className="w-16 h-6 text-xs"
@@ -560,7 +560,7 @@ export function ProductCatalogPage() {
                           <input type="checkbox" checked={!!comp.is_optional}
                             onChange={e => handleUpdateBOMComponent(comp.id, { isOptional: e.target.checked })}
                             className="rounded border-gray-300 h-3 w-3" />
-                          <span className="text-[10px] text-gray-500">Optional</span>
+                          <span className="text-xs text-gray-500">Optional</span>
                         </label>
                         <span className="text-xs font-medium text-gray-700 ml-auto">
                           = {formatCurrency((comp.unit_price || 0) * (comp.quantity || 1), undefined, { compact: false })}
@@ -570,24 +570,24 @@ export function ProductCatalogPage() {
                       {/* Expandable Product Details Edit */}
                       {isEditing && (
                         <div className="pl-11 pt-2 border-t mt-2 space-y-2">
-                          <p className="text-[10px] text-indigo-600 font-medium">Edit Product Details</p>
+                          <p className="text-xs text-indigo-600 font-medium">Edit Product Details</p>
                           <div className="grid grid-cols-2 gap-2">
-                            <div><Label className="text-[10px] text-gray-500">Name</Label>
+                            <div><Label className="text-xs text-gray-500">Name</Label>
                               <Input defaultValue={comp.component_name} className="text-xs h-6"
                                 onBlur={e => { if (e.target.value !== comp.component_name) handleUpdateProductFromBOM(comp.component_product_id, { name: e.target.value }); }} /></div>
-                            <div><Label className="text-[10px] text-gray-500">SKU</Label>
+                            <div><Label className="text-xs text-gray-500">SKU</Label>
                               <Input defaultValue={comp.sku || ''} className="text-xs h-6"
                                 onBlur={e => { if (e.target.value !== (comp.sku || '')) handleUpdateProductFromBOM(comp.component_product_id, { sku: e.target.value || null }); }} /></div>
-                            <div><Label className="text-[10px] text-gray-500">Unit Price</Label>
+                            <div><Label className="text-xs text-gray-500">Unit Price</Label>
                               <Input type="number" defaultValue={comp.unit_price} className="text-xs h-6"
                                 onBlur={e => { const v = Number(e.target.value); if (v !== comp.unit_price) handleUpdateProductFromBOM(comp.component_product_id, { unitPrice: v }); }} /></div>
-                            <div><Label className="text-[10px] text-gray-500">Tax Rate %</Label>
+                            <div><Label className="text-xs text-gray-500">Tax Rate %</Label>
                               <Input type="number" defaultValue={comp.component_tax_rate || comp.tax_rate || 18} className="text-xs h-6"
                                 onBlur={e => { handleUpdateProductFromBOM(comp.component_product_id, { taxRate: Number(e.target.value) }); }} /></div>
-                            <div><Label className="text-[10px] text-gray-500">HSN Code</Label>
+                            <div><Label className="text-xs text-gray-500">HSN Code</Label>
                               <Input defaultValue={comp.component_hsn || comp.hsn_code || ''} className="text-xs h-6"
                                 onBlur={e => { handleUpdateProductFromBOM(comp.component_product_id, { hsnCode: e.target.value || null }); }} /></div>
-                            <div><Label className="text-[10px] text-gray-500">Unit of Measure</Label>
+                            <div><Label className="text-xs text-gray-500">Unit of Measure</Label>
                               <Input defaultValue={comp.unit_of_measure || 'Unit'} className="text-xs h-6"
                                 onBlur={e => { handleUpdateProductFromBOM(comp.component_product_id, { unitOfMeasure: e.target.value }); }} /></div>
                           </div>
@@ -595,7 +595,7 @@ export function ProductCatalogPage() {
                             <input type="checkbox" defaultChecked={!!comp.is_active}
                               onChange={e => handleUpdateProductFromBOM(comp.component_product_id, { isStandalone: e.target.checked })}
                               className="rounded border-gray-300 h-3 w-3" />
-                            <span className="text-[10px] text-gray-500">Also sell separately in catalog</span>
+                            <span className="text-xs text-gray-500">Also sell separately in catalog</span>
                           </label>
                         </div>
                       )}

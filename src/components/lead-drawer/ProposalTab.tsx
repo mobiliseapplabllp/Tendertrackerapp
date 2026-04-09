@@ -288,8 +288,8 @@ export function ProposalTab({ leadId, lead, userRole }: ProposalTabProps) {
                       onClick={() => handleAddProduct(p)}>
                       <div>
                         <span className="font-medium">{p.name}</span>
-                        {p.sku && <span className="text-gray-400 ml-2">({p.sku})</span>}
-                        {p.is_bundle && <Badge className="ml-2 text-[10px] bg-purple-100 text-purple-700">Bundle</Badge>}
+                        {p.sku && <span className="text-gray-500 ml-2">({p.sku})</span>}
+                        {p.is_bundle && <Badge className="ml-2 text-xs bg-purple-100 text-purple-700">Bundle</Badge>}
                       </div>
                       <span className="font-medium">{formatCurrency(p.unit_price, undefined, { compact: false })}</span>
                     </div>
@@ -322,7 +322,7 @@ export function ProposalTab({ leadId, lead, userRole }: ProposalTabProps) {
                   );
                 })}
                 {topLevel.length === 0 && (
-                  <tr><td colSpan={7} className="px-3 py-6 text-center text-gray-400">No line items yet. Add from catalog or custom.</td></tr>
+                  <tr><td colSpan={7} className="px-3 py-6 text-center text-gray-500">No line items yet. Add from catalog or custom.</td></tr>
                 )}
               </tbody>
             </table>
@@ -437,11 +437,11 @@ export function ProposalTab({ leadId, lead, userRole }: ProposalTabProps) {
                 onClick={() => setEditorMode({ open: true, proposalId: p.id, approvalMode: true })}>
                 <div>
                   <span className="text-xs font-medium">{p.title}</span>
-                  <span className="text-[10px] text-gray-500 ml-2">by {p.created_by_name}</span>
+                  <span className="text-xs text-gray-500 ml-2">by {p.created_by_name}</span>
                 </div>
                 <div className="flex items-center gap-2">
                   <span className="text-xs font-medium">{formatCurrency(p.grand_total, undefined, { compact: false })}</span>
-                  <Badge className="bg-amber-100 text-amber-700 text-[10px]">Review</Badge>
+                  <Badge className="bg-amber-100 text-amber-700 text-xs">Review</Badge>
                 </div>
               </div>
             ))}
@@ -470,8 +470,8 @@ export function ProposalTab({ leadId, lead, userRole }: ProposalTabProps) {
                 <div className="flex-1">
                   <div className="flex items-center gap-2">
                     <span className="font-medium text-sm">{p.title}</span>
-                    <Badge className={`text-[10px] ${statusColor(p.status)}`}>{p.status}</Badge>
-                    <Badge variant="outline" className="text-[10px]">{p.proposal_type}</Badge>
+                    <Badge className={`text-xs ${statusColor(p.status)}`}>{p.status}</Badge>
+                    <Badge variant="outline" className="text-xs">{p.proposal_type}</Badge>
                   </div>
                   <div className="text-xs text-gray-500 mt-1">
                     v{p.current_version} · Created by {p.created_by_name} · {new Date(p.created_at).toLocaleDateString()}
@@ -499,15 +499,15 @@ function ItemRow({ item, children, isDraft, onRemove, formatCurrency }: {
         <td className="px-3 py-2">
           <div className="flex items-center gap-1">
             {children.length > 0 && (
-              <button onClick={() => setExpanded(!expanded)} className="text-gray-400 hover:text-gray-600">
+              <button onClick={() => setExpanded(!expanded)} className="text-gray-500 hover:text-gray-600">
                 {expanded ? <ChevronDown className="w-3 h-3" /> : <ChevronRight className="w-3 h-3" />}
               </button>
             )}
             <div>
               <span className="font-medium">{item.item_name}</span>
-              {item.sku && <span className="text-gray-400 text-xs ml-1">({item.sku})</span>}
-              {item.item_type === 'Bundle' && <Badge className="ml-1 text-[9px] bg-purple-100 text-purple-700">Bundle</Badge>}
-              {item.item_type === 'Custom' && <Badge className="ml-1 text-[9px] bg-gray-100 text-gray-600">Custom</Badge>}
+              {item.sku && <span className="text-gray-500 text-xs ml-1">({item.sku})</span>}
+              {item.item_type === 'Bundle' && <Badge className="ml-1 text-xs bg-purple-100 text-purple-700">Bundle</Badge>}
+              {item.item_type === 'Custom' && <Badge className="ml-1 text-xs bg-gray-100 text-gray-600">Custom</Badge>}
             </div>
           </div>
         </td>

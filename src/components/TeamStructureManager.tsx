@@ -164,9 +164,9 @@ export function TeamStructureManager() {
 
                 {/* Product Line Card */}
                 <div className="bg-white border-2 border-indigo-200 rounded-xl px-5 py-3 shadow-sm text-center hover:shadow-md transition-shadow min-w-[180px]">
-                  <Badge className="bg-indigo-100 text-indigo-700 mb-1 text-[10px]">Product Line</Badge>
+                  <Badge className="bg-indigo-100 text-indigo-700 mb-1 text-xs">Product Line</Badge>
                   <p className="font-semibold text-sm">{team.name}</p>
-                  <p className="text-xs text-gray-400">{(team.members?.length || 0) + (team.salesHead ? 1 : 0)} people</p>
+                  <p className="text-xs text-gray-500">{(team.members?.length || 0) + (team.salesHead ? 1 : 0)} people</p>
                 </div>
 
                 {/* Sales Head Level */}
@@ -178,11 +178,11 @@ export function TeamStructureManager() {
                       </div>
                       <Crown className="w-4 h-4 text-amber-500 absolute top-2 right-2" />
                       <p className="font-semibold text-sm">{team.salesHead.fullName}</p>
-                      <p className="text-[10px] text-gray-500">{team.salesHead.email}</p>
-                      <Badge className="bg-amber-100 text-amber-700 text-[9px] mt-1">Sales Head</Badge>
+                      <p className="text-xs text-gray-500">{team.salesHead.email}</p>
+                      <Badge className="bg-amber-100 text-amber-700 text-xs mt-1">Sales Head</Badge>
                       <div className="absolute -top-2 -right-2 hidden group-hover:flex gap-1">
                         <button onClick={() => { setSelectedProductLine(team.id); setShowAssignHead(true); }}
-                          className="w-5 h-5 bg-blue-500 text-white rounded-full flex items-center justify-center text-[10px] hover:bg-blue-600"
+                          className="w-5 h-5 bg-blue-500 text-white rounded-full flex items-center justify-center text-xs hover:bg-blue-600"
                           title="Change Head">✏</button>
                       </div>
                     </div>
@@ -192,7 +192,7 @@ export function TeamStructureManager() {
                       className="bg-gray-50 border-2 border-dashed border-gray-300 rounded-xl px-4 py-4 text-center min-w-[170px] hover:border-indigo-400 hover:bg-indigo-50 transition-colors cursor-pointer"
                     >
                       <div className="w-10 h-10 bg-gray-200 rounded-full flex items-center justify-center mx-auto mb-1.5">
-                        <UserPlus className="w-5 h-5 text-gray-400" />
+                        <UserPlus className="w-5 h-5 text-gray-500" />
                       </div>
                       <p className="text-xs text-gray-500 font-medium">Assign Sales Head</p>
                     </button>
@@ -207,7 +207,7 @@ export function TeamStructureManager() {
                             <span className="text-indigo-600 font-semibold text-xs">{getInitials(member.fullName)}</span>
                           </div>
                           <p className="font-medium text-xs truncate">{member.fullName}</p>
-                          <p className="text-[9px] text-gray-400 truncate">{member.email}</p>
+                          <p className="text-xs text-gray-500 truncate">{member.email}</p>
                           {/* Action buttons on hover */}
                           <div className="absolute -top-1.5 -right-1.5 hidden group-hover:flex gap-0.5">
                             <button onClick={() => {
@@ -237,8 +237,8 @@ export function TeamStructureManager() {
                         }}
                         className="border border-dashed border-gray-300 rounded-lg px-3 py-2.5 text-center min-w-[100px] hover:border-indigo-400 hover:bg-indigo-50 transition-colors cursor-pointer flex flex-col items-center justify-center"
                       >
-                        <Plus className="w-5 h-5 text-gray-400 mb-0.5" />
-                        <span className="text-[10px] text-gray-400">Add</span>
+                        <Plus className="w-5 h-5 text-gray-500 mb-0.5" />
+                        <span className="text-xs text-gray-500">Add</span>
                       </button>
                     </div>
                   )}

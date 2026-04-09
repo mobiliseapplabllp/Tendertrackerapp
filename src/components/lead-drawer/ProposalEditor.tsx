@@ -275,11 +275,11 @@ export function ProposalEditor({ leadId, lead, proposalId, approvalMode, onBack,
     <div className="flex items-center justify-between cursor-pointer py-2 border-b border-gray-100"
       onClick={() => toggleSection(name)}>
       <div className="flex items-center gap-1.5">
-        {collapsed.has(name) ? <ChevronRight className="w-3.5 h-3.5 text-gray-400" /> : <ChevronDown className="w-3.5 h-3.5 text-gray-400" />}
+        {collapsed.has(name) ? <ChevronRight className="w-3.5 h-3.5 text-gray-500" /> : <ChevronDown className="w-3.5 h-3.5 text-gray-500" />}
         <span className="text-xs font-semibold text-gray-700 uppercase">{label}</span>
       </div>
       {showAI && !collapsed.has(name) && (
-        <Button size="sm" variant="ghost" className="h-5 text-[10px] px-1.5 text-indigo-600"
+        <Button size="sm" variant="ghost" className="h-5 text-xs px-1.5 text-indigo-600"
           onClick={e => { e.stopPropagation(); handleAIRefine(name); }}
           disabled={refiningSection === name}>
           {refiningSection === name ? <Loader2 className="w-3 h-3 animate-spin" /> : <Sparkles className="w-3 h-3" />}
@@ -400,19 +400,19 @@ export function ProposalEditor({ leadId, lead, proposalId, approvalMode, onBack,
           {!collapsed.has('header') && (
             <div className="space-y-2 pl-5">
               <div className="grid grid-cols-2 gap-2">
-                <div><Label className="text-[10px]">Title *</Label>
+                <div><Label className="text-xs">Title *</Label>
                   <Input value={form.title} onChange={e => setForm({ ...form, title: e.target.value })} className="text-xs h-7" /></div>
-                <div><Label className="text-[10px]">Type</Label>
+                <div><Label className="text-xs">Type</Label>
                   <Select value={form.proposalType} onValueChange={v => setForm({ ...form, proposalType: v })}>
                     <SelectTrigger className="text-xs h-7"><SelectValue /></SelectTrigger>
                     <SelectContent>{['Software', 'Hardware', 'Custom Development', 'Other'].map(t => <SelectItem key={t} value={t}>{t}</SelectItem>)}</SelectContent>
                   </Select></div>
-                <div><Label className="text-[10px]">Client Name</Label>
+                <div><Label className="text-xs">Client Name</Label>
                   <Input value={form.clientName} onChange={e => setForm({ ...form, clientName: e.target.value })} className="text-xs h-7" /></div>
-                <div><Label className="text-[10px]">Company</Label>
+                <div><Label className="text-xs">Company</Label>
                   <Input value={form.clientCompany} onChange={e => setForm({ ...form, clientCompany: e.target.value })} className="text-xs h-7" /></div>
               </div>
-              <div><Label className="text-[10px]">Client Address</Label>
+              <div><Label className="text-xs">Client Address</Label>
                 <Input value={form.clientAddress} onChange={e => setForm({ ...form, clientAddress: e.target.value })} className="text-xs h-7" /></div>
             </div>
           )}
@@ -422,21 +422,21 @@ export function ProposalEditor({ leadId, lead, proposalId, approvalMode, onBack,
           {!collapsed.has('submitter') && (
             <div className="space-y-2 pl-5">
               <div className="grid grid-cols-3 gap-2">
-                <div><Label className="text-[10px]">Name</Label>
+                <div><Label className="text-xs">Name</Label>
                   <Input value={form.submitterName} onChange={e => setForm({ ...form, submitterName: e.target.value })} className="text-xs h-7" /></div>
-                <div><Label className="text-[10px]">Email</Label>
+                <div><Label className="text-xs">Email</Label>
                   <Input value={form.submitterEmail} onChange={e => setForm({ ...form, submitterEmail: e.target.value })} className="text-xs h-7" /></div>
-                <div><Label className="text-[10px]">Phone</Label>
+                <div><Label className="text-xs">Phone</Label>
                   <Input value={form.submitterPhone} onChange={e => setForm({ ...form, submitterPhone: e.target.value })} className="text-xs h-7" /></div>
               </div>
               <div className="border-t pt-2 mt-1">
-                <p className="text-[10px] text-gray-500 mb-1">Company Details</p>
+                <p className="text-xs text-gray-500 mb-1">Company Details</p>
                 <div className="grid grid-cols-3 gap-2">
-                  <div><Label className="text-[10px]">Company Name</Label>
+                  <div><Label className="text-xs">Company Name</Label>
                     <Input value={form.companyName} onChange={e => setForm({ ...form, companyName: e.target.value })} className="text-xs h-7" /></div>
-                  <div><Label className="text-[10px]">Company Email</Label>
+                  <div><Label className="text-xs">Company Email</Label>
                     <Input value={form.companyEmail} onChange={e => setForm({ ...form, companyEmail: e.target.value })} className="text-xs h-7" /></div>
-                  <div><Label className="text-[10px]">Company Phone</Label>
+                  <div><Label className="text-xs">Company Phone</Label>
                     <Input value={form.companyPhone} onChange={e => setForm({ ...form, companyPhone: e.target.value })} className="text-xs h-7" /></div>
                 </div>
               </div>
@@ -482,17 +482,17 @@ export function ProposalEditor({ leadId, lead, proposalId, approvalMode, onBack,
                     className="text-xs h-6 w-14" placeholder="Qty" />
                   <Input type="number" value={item.unitPrice} onChange={e => { const n = [...oneTimeItems]; n[i].unitPrice = Number(e.target.value); setOneTimeItems(n); }}
                     className="text-xs h-6 w-20" placeholder="Rate" />
-                  <span className="text-[10px] font-medium w-16 text-right">
+                  <span className="text-xs font-medium w-16 text-right">
                     {(item.quantity * item.unitPrice).toLocaleString('en-IN')}
                   </span>
                   <button onClick={() => setOneTimeItems(prev => prev.filter((_, j) => j !== i))}><Trash2 className="w-3 h-3 text-red-400" /></button>
                 </div>
               ))}
               <div className="flex gap-2">
-                <Button size="sm" variant="outline" className="h-6 text-[10px]" onClick={() => setShowProductPicker('one-time')}>
+                <Button size="sm" variant="outline" className="h-6 text-xs" onClick={() => setShowProductPicker('one-time')}>
                   <Package className="w-3 h-3 mr-1" />From Catalog
                 </Button>
-                <Button size="sm" variant="outline" className="h-6 text-[10px]" onClick={() => addCustomItem('one-time')}>
+                <Button size="sm" variant="outline" className="h-6 text-xs" onClick={() => addCustomItem('one-time')}>
                   <Plus className="w-3 h-3 mr-1" />Custom
                 </Button>
               </div>
@@ -515,17 +515,17 @@ export function ProposalEditor({ leadId, lead, proposalId, approvalMode, onBack,
                     className="text-xs h-6 w-14" placeholder="Qty" />
                   <Input type="number" value={item.unitPrice} onChange={e => { const n = [...recurringItems]; n[i].unitPrice = Number(e.target.value); setRecurringItems(n); }}
                     className="text-xs h-6 w-20" placeholder="Rate" />
-                  <span className="text-[10px] font-medium w-16 text-right">
+                  <span className="text-xs font-medium w-16 text-right">
                     {(item.quantity * item.unitPrice).toLocaleString('en-IN')}
                   </span>
                   <button onClick={() => setRecurringItems(prev => prev.filter((_, j) => j !== i))}><Trash2 className="w-3 h-3 text-red-400" /></button>
                 </div>
               ))}
               <div className="flex gap-2">
-                <Button size="sm" variant="outline" className="h-6 text-[10px]" onClick={() => setShowProductPicker('recurring')}>
+                <Button size="sm" variant="outline" className="h-6 text-xs" onClick={() => setShowProductPicker('recurring')}>
                   <Package className="w-3 h-3 mr-1" />From Catalog
                 </Button>
-                <Button size="sm" variant="outline" className="h-6 text-[10px]" onClick={() => addCustomItem('recurring')}>
+                <Button size="sm" variant="outline" className="h-6 text-xs" onClick={() => addCustomItem('recurring')}>
                   <Plus className="w-3 h-3 mr-1" />Custom
                 </Button>
               </div>
@@ -577,7 +577,7 @@ export function ProposalEditor({ leadId, lead, proposalId, approvalMode, onBack,
         {showPreview && (
           <div className="w-1/2 overflow-y-auto bg-gray-100 p-4">
             <div className="sticky top-0 bg-gray-100 pb-2 z-10">
-              <Badge variant="outline" className="text-[10px]">Live Preview</Badge>
+              <Badge variant="outline" className="text-xs">Live Preview</Badge>
             </div>
             <ProposalPreview data={previewData} />
           </div>
@@ -609,17 +609,17 @@ function ProductPicker({ onSelect, onClose, search, setSearch, results, onSearch
       {expandingBundle && (bundleBOM || []).length > 0 && (
         <div className="bg-white rounded border p-2 space-y-1">
           <div className="flex items-center justify-between">
-            <span className="text-[10px] font-semibold text-indigo-700">{expandingBundle.name} — Components:</span>
-            <Button size="sm" className="h-5 text-[9px] px-1.5" onClick={onAddAllBOM}>Add All Components</Button>
+            <span className="text-xs font-semibold text-indigo-700">{expandingBundle.name} — Components:</span>
+            <Button size="sm" className="h-5 text-xs px-1.5" onClick={onAddAllBOM}>Add All Components</Button>
           </div>
           {(bundleBOM || []).map((c: any, i: number) => (
-            <div key={i} className="flex items-center justify-between px-2 py-0.5 rounded text-[10px] hover:bg-indigo-50 cursor-pointer"
+            <div key={i} className="flex items-center justify-between px-2 py-0.5 rounded text-xs hover:bg-indigo-50 cursor-pointer"
               onClick={() => onAddBOMComponent?.(c)}>
-              <span>↳ {c.component_name} <span className="text-gray-400">x{c.quantity}</span></span>
+              <span>↳ {c.component_name} <span className="text-gray-500">x{c.quantity}</span></span>
               <span className="font-medium">₹{c.unit_price?.toLocaleString('en-IN')}</span>
             </div>
           ))}
-          <Button size="sm" variant="ghost" className="h-5 text-[9px] w-full" onClick={() => { /* clear */ }}>Back to search</Button>
+          <Button size="sm" variant="ghost" className="h-5 text-xs w-full" onClick={() => { /* clear */ }}>Back to search</Button>
         </div>
       )}
 
@@ -627,18 +627,18 @@ function ProductPicker({ onSelect, onClose, search, setSearch, results, onSearch
       {!expandingBundle && results.length > 0 && (
         <div className="max-h-40 overflow-y-auto space-y-0.5">
           {results.map((p: any) => (
-            <div key={p.id} className="flex items-center justify-between bg-white px-2 py-1 rounded text-[10px]">
+            <div key={p.id} className="flex items-center justify-between bg-white px-2 py-1 rounded text-xs">
               <div className="flex items-center gap-1 flex-1 cursor-pointer hover:text-indigo-600" onClick={() => onSelect(p)}>
                 <span>{p.name}</span>
-                {p.sku && <span className="text-gray-400">({p.sku})</span>}
-                {!!p.is_bundle && <span className="bg-purple-600 text-white px-1 rounded text-[8px]">Bundle</span>}
-                {!p.is_standalone && <span className="bg-gray-200 text-gray-600 px-1 rounded text-[8px]">Component</span>}
+                {p.sku && <span className="text-gray-500">({p.sku})</span>}
+                {!!p.is_bundle && <span className="bg-purple-600 text-white px-1 rounded text-xs">Bundle</span>}
+                {!p.is_standalone && <span className="bg-gray-200 text-gray-600 px-1 rounded text-xs">Component</span>}
               </div>
               <div className="flex items-center gap-1.5">
                 <span className="font-medium">₹{p.unit_price?.toLocaleString('en-IN')}</span>
                 {!!p.is_bundle && p.component_count > 0 && onExpandBundle && (
                   <button onClick={(e) => { e.stopPropagation(); onExpandBundle(p); }}
-                    className="text-[8px] bg-indigo-100 text-indigo-700 px-1.5 py-0.5 rounded hover:bg-indigo-200" title="View & add individual components">
+                    className="text-xs bg-indigo-100 text-indigo-700 px-1.5 py-0.5 rounded hover:bg-indigo-200" title="View & add individual components">
                     BOM ({p.component_count})
                   </button>
                 )}

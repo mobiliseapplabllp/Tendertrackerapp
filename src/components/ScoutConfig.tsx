@@ -336,7 +336,7 @@ export function ScoutConfig() {
 
                                     {interests.length === 0 ? (
                                         <Card className="p-8 text-center">
-                                            <Target className="w-12 h-12 mx-auto text-gray-400 mb-4" />
+                                            <Target className="w-12 h-12 mx-auto text-gray-500 mb-4" />
                                             <p className="text-gray-600 mb-4">No interest profiles configured</p>
                                             <Button onClick={() => handleOpenProfileForm()}>
                                                 <Plus className="w-4 h-4 mr-2" />

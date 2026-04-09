@@ -126,7 +126,7 @@ export function UserManagement() {
   const getStatusBadgeColor = (status: string) => {
     return status === 'Active'
       ? 'bg-white text-emerald-700 border-emerald-200'
-      : 'bg-white text-gray-400 border-gray-200';
+      : 'bg-white text-gray-500 border-gray-200';
   };
 
   const handleCreateUser = async () => {

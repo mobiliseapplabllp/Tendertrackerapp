@@ -1569,7 +1569,7 @@ export function Administration() {
                   </div>
                 ) : aiConfigs.length === 0 && !showAiForm ? (
                   <div className="text-center py-12">
-                    <Bot className="w-12 h-12 mx-auto text-gray-400 mb-4" />
+                    <Bot className="w-12 h-12 mx-auto text-gray-500 mb-4" />
                     <p className="text-muted-foreground mb-4">No AI configurations found. Add one to get started.</p>
                     <Button onClick={() => handleOpenAiForm()}>
                       <Plus className="w-4 h-4 mr-2" />

@@ -44,6 +44,7 @@ export function Sidebar({ currentView, onNavigate, onLogout, user }: SidebarProp
       label: 'Overview',
       items: [
         { id: 'dashboard', icon: Home, label: 'Dashboard', badge: null },
+        { id: 'reports', icon: BarChart3, label: 'Reports & Analytics', badge: null },
       ]
     },
     {
@@ -59,32 +60,31 @@ export function Sidebar({ currentView, onNavigate, onLogout, user }: SidebarProp
       items: [
         { id: 'leads', icon: FileText, label: 'Leads', badge: null },
         { id: 'sales-hub', icon: TrendingUp, label: 'Sales Hub', badge: null },
+        { id: 'companies', icon: Building2, label: 'Companies & Contacts', badge: null },
         { id: 'team-structure', icon: Users, label: 'Team Structure', badge: null },
         { id: 'sales-targets', icon: Target, label: 'Sales Targets', badge: null },
-        { id: 'collateral', icon: FolderArchive, label: 'Collateral Repository', badge: null },
         { id: 'product-catalog', icon: Tag, label: 'Product Catalog', badge: null },
       ]
     },
     {
-      label: 'Organization',
+      label: 'Document Management',
       items: [
-        { id: 'documents', icon: FolderOpen, label: 'Document Management', badge: null },
-        { id: 'companies', icon: Building2, label: 'Companies & Contacts', badge: null },
-        { id: 'users', icon: Users, label: 'User Management', badge: null },
-        { id: 'reports', icon: BarChart3, label: 'Reports & Analytics', badge: null },
-        { id: 'categories', icon: Tag, label: 'Categories & Tags', badge: null },
+        { id: 'documents', icon: FolderOpen, label: 'Documents', badge: null },
+        { id: 'collateral', icon: FolderArchive, label: 'Collateral Repository', badge: null },
       ]
-    }
+    },
   ];
 
   const bottomSections = [
     {
       label: 'System Settings',
       items: [
+        { id: 'users', icon: Users, label: 'User Management', badge: null },
+        { id: 'categories', icon: Tag, label: 'Categories & Tags', badge: null },
         { id: 'email-settings', icon: Bell, label: 'Email Alerts', badge: null },
         { id: 'administration', icon: ShieldCheck, label: 'Administration', badge: null },
         { id: 'scout-config', icon: Settings, label: 'Scout Configuration', badge: null },
-        { id: 'api-playground', icon: Terminal, label: 'API Playground', badge: null },
+        ...(canAccessPlayground ? [{ id: 'api-playground', icon: Terminal, label: 'API Playground', badge: null }] : []),
         { id: 'settings', icon: Settings, label: 'Settings', badge: null },
       ]
     }
@@ -148,7 +148,7 @@ export function Sidebar({ currentView, onNavigate, onLogout, user }: SidebarProp
         {menuSections.map((section, idx) => (
           <div key={section.label} className={idx > 0 ? 'mt-4' : ''}>
             {!isCollapsed && (
-              <h2 className="px-2.5 mb-1 text-[10px] font-semibold text-gray-400 uppercase tracking-wider">
+              <h2 className="px-2.5 mb-1 text-xs font-semibold text-gray-500 uppercase tracking-wider">
                 {section.label}
               </h2>
             )}
@@ -179,7 +179,7 @@ export function Sidebar({ currentView, onNavigate, onLogout, user }: SidebarProp
                     </span>
                   )}
                   {!isCollapsed && item.badge && (
-                    <span className="ml-auto bg-gray-900 text-white text-[10px] px-1.5 py-0.5 rounded-full flex-shrink-0">
+                    <span className="ml-auto bg-gray-900 text-white text-xs px-1.5 py-0.5 rounded-full flex-shrink-0">
                       {item.badge}
                     </span>
                   )}
@@ -194,7 +194,7 @@ export function Sidebar({ currentView, onNavigate, onLogout, user }: SidebarProp
         {bottomSections.map((section) => (
           <div key={section.label}>
             {!isCollapsed && (
-              <h2 className="px-2.5 mb-1 text-[10px] font-semibold text-gray-400 uppercase tracking-wider">
+              <h2 className="px-2.5 mb-1 text-xs font-semibold text-gray-500 uppercase tracking-wider">
                 {section.label}
               </h2>
             )}
@@ -229,7 +229,7 @@ export function Sidebar({ currentView, onNavigate, onLogout, user }: SidebarProp
                       </span>
                     )}
                     {!isCollapsed && item.badge && (
-                      <span className="ml-auto bg-gray-900 text-white text-[10px] px-1.5 py-0.5 rounded-full flex-shrink-0">
+                      <span className="ml-auto bg-gray-900 text-white text-xs px-1.5 py-0.5 rounded-full flex-shrink-0">
                         {item.badge}
                       </span>
                     )}

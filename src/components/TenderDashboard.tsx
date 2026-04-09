@@ -446,13 +446,13 @@ export function TenderDashboard({ onLogout, onNavigate }: TenderDashboardProps) 
 
     // Condensed badge style
     if (days < 0) {
-      return <Badge className="bg-red-500 text-white hover:bg-red-600 rounded-sm px-1.5 h-5 text-[10px]">Overdue</Badge>;
+      return <Badge className="bg-red-500 text-white hover:bg-red-600 rounded-sm px-1.5 h-5 text-xs">Overdue</Badge>;
     } else if (days <= 2) {
-      return <Badge className="bg-red-100 text-red-800 hover:bg-red-200 border-red-200 rounded-sm px-1.5 h-5 text-[10px]">{days}d left</Badge>;
+      return <Badge className="bg-red-100 text-red-800 hover:bg-red-200 border-red-200 rounded-sm px-1.5 h-5 text-xs">{days}d left</Badge>;
     } else if (days <= 7) {
-      return <Badge className="bg-orange-100 text-orange-800 hover:bg-orange-200 border-orange-200 rounded-sm px-1.5 h-5 text-[10px]">{days}d left</Badge>;
+      return <Badge className="bg-orange-100 text-orange-800 hover:bg-orange-200 border-orange-200 rounded-sm px-1.5 h-5 text-xs">{days}d left</Badge>;
     } else if (days <= 15) {
-      return <Badge className="bg-yellow-100 text-yellow-800 hover:bg-yellow-200 border-yellow-200 rounded-sm px-1.5 h-5 text-[10px]">{days}d left</Badge>;
+      return <Badge className="bg-yellow-100 text-yellow-800 hover:bg-yellow-200 border-yellow-200 rounded-sm px-1.5 h-5 text-xs">{days}d left</Badge>;
     }
     return <span className="text-xs text-muted-foreground">{days}d</span>;
   };
@@ -593,7 +593,7 @@ export function TenderDashboard({ onLogout, onNavigate }: TenderDashboardProps) 
         {/* Filters and Actions Box */}
         <div className="bg-white p-4 rounded-lg border border-gray-200 mb-6 flex items-center gap-3">
           <div className="flex-1 max-w-sm relative">
-            <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+            <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-gray-500" />
             <Input
               placeholder="Search..."
               value={searchQuery}

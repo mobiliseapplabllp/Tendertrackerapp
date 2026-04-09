@@ -288,9 +288,9 @@ function UploadDialog({
               </div>
             ) : (
               <>
-                <Upload className="h-8 w-8 text-gray-400 mx-auto mb-2" />
+                <Upload className="h-8 w-8 text-gray-500 mx-auto mb-2" />
                 <p className="text-sm text-gray-600">Drop file here or click to browse</p>
-                <p className="text-xs text-gray-400 mt-1">PDF, DOC, PPTX, XLS, Images, Videos, ZIP</p>
+                <p className="text-xs text-gray-500 mt-1">PDF, DOC, PPTX, XLS, Images, Videos, ZIP</p>
               </>
             )}
           </div>
@@ -518,7 +518,7 @@ function EditDialog({
                         <span className="font-medium">v{v.version_number}</span>
                         <span className="text-gray-500 ml-2">{v.original_name}</span>
                       </div>
-                      <div className="text-gray-400">
+                      <div className="text-gray-500">
                         {formatFileSize(v.file_size)} · {formatDate(v.created_at)}
                       </div>
                     </div>
@@ -547,7 +547,7 @@ function EditDialog({
                 </div>
               ) : (
                 <div>
-                  <Upload className="h-5 w-5 text-gray-400 mx-auto mb-1" />
+                  <Upload className="h-5 w-5 text-gray-500 mx-auto mb-1" />
                   <p className="text-xs text-gray-500">Click to select a new file to replace the current one</p>
                 </div>
               )}
@@ -721,12 +721,12 @@ function CollateralCard({
           )}
           <div className="flex items-center gap-2 mt-2 flex-wrap">
             {item.tags?.map(tag => (
-              <Badge key={tag.id} variant="outline" className="text-[10px] px-1.5 py-0">
+              <Badge key={tag.id} variant="outline" className="text-xs px-1.5 py-0">
                 {tag.type === 'product' ? '🏷' : tag.type === 'project' ? '📁' : '🔖'} {tag.name}
               </Badge>
             ))}
           </div>
-          <div className="flex items-center gap-3 mt-2 text-[10px] text-gray-400">
+          <div className="flex items-center gap-3 mt-2 text-xs text-gray-500">
             <span>{item.uploaded_by_name}</span>
             <span>{formatDate(item.created_at)}</span>
             {item.download_count > 0 && <span>{item.download_count} downloads</span>}
@@ -908,7 +908,7 @@ export function CollateralRepository() {
 
       {/* Search Bar */}
       <div className="relative mb-6">
-        <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+        <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-500" />
         <Input
           className="pl-10 w-full"
           placeholder="Search across titles, descriptions, tags..."
@@ -1041,7 +1041,7 @@ export function CollateralRepository() {
                       {stats.topDownloaded.map((item, idx) => (
                         <div key={item.id} className="flex items-center justify-between p-2 bg-gray-50 rounded">
                           <span className="text-sm">
-                            <span className="text-gray-400 mr-2">#{idx + 1}</span>
+                            <span className="text-gray-500 mr-2">#{idx + 1}</span>
                             {item.title}
                           </span>
                           <Badge variant="outline" className="text-xs">{item.download_count} downloads</Badge>
@@ -1092,7 +1092,7 @@ export function CollateralRepository() {
             {/* Filters */}
             <div className="flex flex-wrap items-center gap-3 mb-4">
               <div className="flex items-center gap-2">
-                <Filter className="h-4 w-4 text-gray-400" />
+                <Filter className="h-4 w-4 text-gray-500" />
                 <Select value={categoryFilter} onValueChange={v => { setCategoryFilter(v); setPage(1); }}>
                   <SelectTrigger className="w-[180px] h-8 text-xs">
                     <SelectValue placeholder="All Categories" />
@@ -1231,11 +1231,11 @@ export function CollateralRepository() {
                     {typeTags.map(tag => (
                       <div key={tag.id} className="inline-flex items-center gap-1 bg-gray-100 rounded-full px-3 py-1">
                         <span className="text-sm">{tag.name}</span>
-                        <Badge variant="outline" className="text-[10px] ml-1">{tag.usage_count}</Badge>
+                        <Badge variant="outline" className="text-xs ml-1">{tag.usage_count}</Badge>
                         <Button
                           variant="ghost"
                           size="sm"
-                          className="h-4 w-4 p-0 ml-1 text-gray-400 hover:text-red-500"
+                          className="h-4 w-4 p-0 ml-1 text-gray-500 hover:text-red-500"
                           onClick={async () => {
                             if (confirm(`Delete tag "${tag.name}"?`)) {
                               await collateralApi.deleteTag(tag.id);

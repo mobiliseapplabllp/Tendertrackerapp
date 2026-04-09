@@ -198,14 +198,14 @@ export function OTPVerification({ email, userId, onVerify, onBack, onResend }: O
           {canResend ? (
             <button
               onClick={handleResend}
-              className="text-[10px] font-black text-indigo-600 hover:text-indigo-800 transition-colors flex items-center gap-2 uppercase tracking-widest"
+              className="text-xs font-black text-indigo-600 hover:text-indigo-800 transition-colors flex items-center gap-2 uppercase tracking-widest"
               disabled={isResending}
             >
               <RefreshCw className={`w-3.5 h-3.5 ${isResending ? 'animate-spin' : ''}`} />
               {isResending ? 'Transmitting...' : 'Request Replacement code'}
             </button>
           ) : (
-            <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">
+            <p className="text-xs text-slate-400 font-bold uppercase tracking-widest">
               Synchronization link active for <span className="text-indigo-600">{countdown}s</span>
             </p>
           )}
@@ -217,9 +217,9 @@ export function OTPVerification({ email, userId, onVerify, onBack, onResend }: O
           <div className="w-6 h-6 rounded-lg bg-white shadow-sm flex items-center justify-center">
             <Shield className="w-3 h-3 text-emerald-500" />
           </div>
-          <span className="text-[8px] font-black text-slate-900 uppercase tracking-widest">Notice</span>
+          <span className="text-xs font-black text-slate-900 uppercase tracking-widest">Notice</span>
         </div>
-        <p className="text-[10px] text-slate-500 leading-tight font-medium">
+        <p className="text-xs text-slate-500 leading-tight font-medium">
           Confidentiality is paramount. Never broadcast this sequence.
         </p>
       </div>

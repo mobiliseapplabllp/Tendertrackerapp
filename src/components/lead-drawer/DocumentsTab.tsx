@@ -205,7 +205,7 @@ export function DocumentsTab({ leadId }: DocumentsTabProps) {
                     <div className="flex flex-col items-center justify-center h-full text-center">
                         <FileText className="w-12 h-12 text-gray-300 mb-3" />
                         <p className="text-sm text-gray-500">No documents attached yet</p>
-                        <p className="text-xs text-gray-400 mt-1">
+                        <p className="text-xs text-gray-500 mt-1">
                             Upload your first document to get started
                         </p>
                     </div>

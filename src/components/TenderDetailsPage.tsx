@@ -2350,7 +2350,7 @@ export function TenderDetailsPage({ tenderId, onBack, onUpdate }: TenderDetailsP
                   <div>
                     <MessageCircle className="w-12 h-12 mx-auto text-indigo-300 mb-4" />
                     <p className="text-gray-500 font-medium">Start a conversation about this tender</p>
-                    <p className="text-sm text-gray-400 mt-2 mb-4">I can help you understand:</p>
+                    <p className="text-sm text-gray-500 mt-2 mb-4">I can help you understand:</p>
                     <div className="space-y-2 text-left max-w-xs mx-auto">
                       <div className="bg-indigo-50 p-2 rounded text-xs text-indigo-700">• Key requirements & eligibility</div>
                       <div className="bg-indigo-50 p-2 rounded text-xs text-indigo-700">• Financial details & deadlines</div>

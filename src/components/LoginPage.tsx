@@ -263,7 +263,7 @@ export function LoginPage({ onLogin }: LoginPageProps) {
                   autoComplete="email"
                 />
               </div>
-              {errors.email && <p className="text-[9px] font-bold text-red-600 ml-1">{errors.email}</p>}
+              {errors.email && <p className="text-xs font-bold text-red-600 ml-1">{errors.email}</p>}
             </div>
 
             <div className="space-y-1">
@@ -306,7 +306,7 @@ export function LoginPage({ onLogin }: LoginPageProps) {
                   {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                 </button>
               </div>
-              {errors.password && <p className="text-[9px] font-bold text-red-600 ml-1">{errors.password}</p>}
+              {errors.password && <p className="text-xs font-bold text-red-600 ml-1">{errors.password}</p>}
             </div>
 
             <Button
@@ -447,7 +447,7 @@ export function LoginPage({ onLogin }: LoginPageProps) {
             <div key={i} className={`flex items-start gap-8 ${i !== 0 ? 'border-l border-white/20 pl-8' : ''}`}>
               <div>
                 <p className="text-lg font-black text-white tracking-tight leading-none mb-1.5">{stat.val}</p>
-                <p className="text-[10px] text-white/40 font-bold uppercase tracking-widest leading-none">{stat.label}</p>
+                <p className="text-xs text-white/40 font-bold uppercase tracking-widest leading-none">{stat.label}</p>
               </div>
             </div>
           ))}

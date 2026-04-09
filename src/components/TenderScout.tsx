@@ -313,7 +313,7 @@ export function TenderScout() {
                 <div className="p-6 space-y-4">
                     {results.length === 0 ? (
                         <Card className="p-12 text-center">
-                            <Search className="w-16 h-16 mx-auto text-gray-400 mb-4" />
+                            <Search className="w-16 h-16 mx-auto text-gray-500 mb-4" />
                             <h3 className="text-lg font-semibold mb-2">No tenders found</h3>
                             <p className="text-muted-foreground mb-4">
                                 Click "Run Scout Now" to search for new tender opportunities

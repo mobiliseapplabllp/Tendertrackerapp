@@ -106,11 +106,11 @@ const SortableDealCard = memo(({ lead }: { lead: Lead }) => {
           </div>
         ) : <div />}
         {lead.probability !== undefined && (
-          <Badge variant="secondary" className="text-[10px] px-1 h-5 bg-indigo-50 text-indigo-700 border-none">{lead.probability}%</Badge>
+          <Badge variant="secondary" className="text-xs px-1 h-5 bg-indigo-50 text-indigo-700 border-none">{lead.probability}%</Badge>
         )}
       </div>
       {lead.expectedCloseDate && (
-        <div className="mt-2 pt-2 border-t border-gray-50 text-[10px] text-gray-400 flex items-center gap-1">
+        <div className="mt-2 pt-2 border-t border-gray-50 text-xs text-gray-500 flex items-center gap-1">
           <Target className="w-3 h-3" />
           {new Date(lead.expectedCloseDate).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}
         </div>
@@ -139,11 +139,11 @@ const PipelineColumn = memo(({ stageId, stageData }: { stageId: string, stageDat
           <div className="flex items-center justify-between mb-2">
             <h3 className="font-bold text-gray-900 flex items-center gap-2">
               {stage.name}
-              <span className="bg-gray-100 text-gray-500 text-[10px] px-1.5 py-0.5 rounded-full font-medium">
+              <span className="bg-gray-100 text-gray-500 text-xs px-1.5 py-0.5 rounded-full font-medium">
                 {leads.length}
               </span>
             </h3>
-            <div className="text-[10px] font-bold text-indigo-600 bg-indigo-50 px-1.5 py-0.5 rounded">
+            <div className="text-xs font-bold text-indigo-600 bg-indigo-50 px-1.5 py-0.5 rounded">
               {stage.probability}%
             </div>
           </div>
@@ -170,7 +170,7 @@ const PipelineColumn = memo(({ stageId, stageData }: { stageId: string, stageDat
             ))}
           </SortableContext>
           {leads.length === 0 && (
-            <div className="h-32 border-2 border-dashed border-gray-200 rounded-xl flex flex-col items-center justify-center text-gray-400 text-xs gap-2 bg-white/50">
+            <div className="h-32 border-2 border-dashed border-gray-200 rounded-xl flex flex-col items-center justify-center text-gray-500 text-xs gap-2 bg-white/50">
               <div className="w-8 h-8 rounded-full bg-gray-50 flex items-center justify-center">
                 <Target className="w-4 h-4 opacity-20" />
               </div>

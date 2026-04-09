@@ -209,7 +209,7 @@ export function ActivitiesTab({ leadId }: ActivitiesTabProps) {
                     <div className="flex flex-col items-center justify-center h-full text-center">
                         <Clock className="w-12 h-12 text-gray-300 mb-3" />
                         <p className="text-sm text-gray-500">No activity recorded yet</p>
-                        <p className="text-xs text-gray-400 mt-1">
+                        <p className="text-xs text-gray-500 mt-1">
                             Add your first work log to get started
                         </p>
                     </div>
@@ -243,7 +243,7 @@ export function ActivitiesTab({ leadId }: ActivitiesTabProps) {
                                             </Badge>
                                             {activity.performedByName && (
                                                 <div className="flex items-center gap-1.5 text-xs text-gray-600">
-                                                    <div className="w-5 h-5 rounded-full bg-gray-200 flex items-center justify-center text-[10px] font-medium">
+                                                    <div className="w-5 h-5 rounded-full bg-gray-200 flex items-center justify-center text-xs font-medium">
                                                         {getInitials(activity.performedByName)}
                                                     </div>
                                                     <span>{activity.performedByName}</span>

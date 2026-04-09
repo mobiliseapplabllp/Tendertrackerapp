@@ -504,7 +504,7 @@ export function LeadDashboard({ onLogout, onNavigate }: LeadDashboardProps) {
         <div className="bg-white p-4 rounded-lg border border-gray-200 mb-6">
           <div className="flex flex-col lg:flex-row gap-4">
             <div className="flex-1 relative">
-              <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+              <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-gray-500" />
               <Input
                 placeholder="Search by lead number, title, or client..."
                 value={searchQuery}

@@ -952,7 +952,7 @@ export function TenderDrawer({ tender, isOpen, onClose, onUpdate }: TenderDrawer
                     </h3>
                     <div className="grid grid-cols-3 gap-2">
                       <div className="space-y-1">
-                        <Label className="text-[10px] uppercase tracking-wide text-slate-500 font-semibold">Type</Label>
+                        <Label className="text-xs uppercase tracking-wide text-slate-500 font-semibold">Type</Label>
                         <Select value="Tender" disabled>
                           <SelectTrigger className="h-8 text-xs bg-white/50 border-slate-200">
                             <SelectValue />
@@ -963,7 +963,7 @@ export function TenderDrawer({ tender, isOpen, onClose, onUpdate }: TenderDrawer
                         </Select>
                       </div>
                       <div className="space-y-1">
-                        <Label className="text-[10px] uppercase tracking-wide text-slate-500 font-semibold">Status</Label>
+                        <Label className="text-xs uppercase tracking-wide text-slate-500 font-semibold">Status</Label>
                         <Select
                           value={editedTender.status}
                           onValueChange={(value) => setEditedTender({ ...editedTender, status: value as Tender['status'] })}
@@ -983,7 +983,7 @@ export function TenderDrawer({ tender, isOpen, onClose, onUpdate }: TenderDrawer
                         </Select>
                       </div>
                       <div className="space-y-1">
-                        <Label className="text-[10px] uppercase tracking-wide text-slate-500 font-semibold">Priority</Label>
+                        <Label className="text-xs uppercase tracking-wide text-slate-500 font-semibold">Priority</Label>
                         <Select
                           value={editedTender.priority || 'Medium'}
                           onValueChange={(value) => setEditedTender({ ...editedTender, priority: value as Tender['priority'] })}
@@ -1009,7 +1009,7 @@ export function TenderDrawer({ tender, isOpen, onClose, onUpdate }: TenderDrawer
                     </h3>
                     <div className="space-y-2">
                       <div className="space-y-1">
-                        <Label className="text-[10px] uppercase tracking-wide text-slate-500 font-semibold">Title</Label>
+                        <Label className="text-xs uppercase tracking-wide text-slate-500 font-semibold">Title</Label>
                         <Input
                           value={editedTender.title}
                           onChange={(e) => setEditedTender({ ...editedTender, title: e.target.value })}
@@ -1018,7 +1018,7 @@ export function TenderDrawer({ tender, isOpen, onClose, onUpdate }: TenderDrawer
                         />
                       </div>
                       <div className="space-y-1">
-                        <Label className="text-[10px] uppercase tracking-wide text-slate-500 font-semibold">Client</Label>
+                        <Label className="text-xs uppercase tracking-wide text-slate-500 font-semibold">Client</Label>
                         <Select
                           value={editedTender.companyId?.toString() || 'none'}
                           onValueChange={(value) => setEditedTender({
@@ -1064,7 +1064,7 @@ export function TenderDrawer({ tender, isOpen, onClose, onUpdate }: TenderDrawer
                     <div className="space-y-2">
                       <div className="grid grid-cols-2 gap-2">
                         <div className="space-y-1">
-                          <Label className="text-[10px] uppercase tracking-wide text-slate-500 font-semibold">Est. Value</Label>
+                          <Label className="text-xs uppercase tracking-wide text-slate-500 font-semibold">Est. Value</Label>
                           <Input
                             type="number"
                             value={editedTender.estimatedValue || ''}
@@ -1074,7 +1074,7 @@ export function TenderDrawer({ tender, isOpen, onClose, onUpdate }: TenderDrawer
                           />
                         </div>
                         <div className="space-y-1">
-                          <Label className="text-[10px] uppercase tracking-wide text-slate-500 font-semibold">Due Date</Label>
+                          <Label className="text-xs uppercase tracking-wide text-slate-500 font-semibold">Due Date</Label>
                           <Input
                             type="date"
                             value={editedTender.dueDate ? new Date(editedTender.dueDate).toISOString().split('T')[0] : ''}
@@ -1085,7 +1085,7 @@ export function TenderDrawer({ tender, isOpen, onClose, onUpdate }: TenderDrawer
                       </div>
                       <div className="grid grid-cols-2 gap-2">
                         <div className="space-y-1">
-                          <Label className="text-[10px] uppercase tracking-wide text-slate-500 font-semibold">EMD</Label>
+                          <Label className="text-xs uppercase tracking-wide text-slate-500 font-semibold">EMD</Label>
                           <Input
                             type="number"
                             value={editedTender.emdAmount || ''}
@@ -1095,7 +1095,7 @@ export function TenderDrawer({ tender, isOpen, onClose, onUpdate }: TenderDrawer
                           />
                         </div>
                         <div className="space-y-1">
-                          <Label className="text-[10px] uppercase tracking-wide text-slate-500 font-semibold">Fees</Label>
+                          <Label className="text-xs uppercase tracking-wide text-slate-500 font-semibold">Fees</Label>
                           <Input
                             type="number"
                             value={editedTender.tenderFees || ''}
@@ -1112,19 +1112,19 @@ export function TenderDrawer({ tender, isOpen, onClose, onUpdate }: TenderDrawer
                 {/* Footer Metadata */}
                 <div className="grid grid-cols-4 gap-4 pt-3 border-t border-slate-100">
                   <div className="space-y-0.5">
-                    <p className="text-[9px] uppercase tracking-wide text-slate-400 font-bold">Created By</p>
+                    <p className="text-xs uppercase tracking-wide text-slate-400 font-bold">Created By</p>
                     <p className="text-[11px] font-medium text-slate-700 truncate">{editedTender.createdBy}</p>
                   </div>
                   <div className="space-y-0.5">
-                    <p className="text-[9px] uppercase tracking-wide text-slate-400 font-bold">Created At</p>
+                    <p className="text-xs uppercase tracking-wide text-slate-400 font-bold">Created At</p>
                     <p className="text-[11px] font-medium text-slate-700">{safeDate(editedTender.createdAt)}</p>
                   </div>
                   <div className="space-y-0.5">
-                    <p className="text-[9px] uppercase tracking-wide text-slate-400 font-bold">Updated By</p>
+                    <p className="text-xs uppercase tracking-wide text-slate-400 font-bold">Updated By</p>
                     <p className="text-[11px] font-medium text-slate-700 truncate">{editedTender.updatedBy}</p>
                   </div>
                   <div className="space-y-0.5">
-                    <p className="text-[9px] uppercase tracking-wide text-slate-400 font-bold">Updated At</p>
+                    <p className="text-xs uppercase tracking-wide text-slate-400 font-bold">Updated At</p>
                     <p className="text-[11px] font-medium text-slate-700">{safeDate(editedTender.updatedAt)}</p>
                   </div>
                 </div>
@@ -1140,7 +1140,7 @@ export function TenderDrawer({ tender, isOpen, onClose, onUpdate }: TenderDrawer
                   </h3>
                   <div className="flex items-end gap-2">
                     <div className="flex-1 space-y-1">
-                      <Label className="text-[10px] uppercase tracking-wide text-slate-500 font-semibold">Description</Label>
+                      <Label className="text-xs uppercase tracking-wide text-slate-500 font-semibold">Description</Label>
                       <Input
                         value={newTaskForm.description}
                         onChange={(e) => setNewTaskForm({ ...newTaskForm, description: e.target.value })}
@@ -1150,7 +1150,7 @@ export function TenderDrawer({ tender, isOpen, onClose, onUpdate }: TenderDrawer
                       />
                     </div>
                     <div className="w-32 space-y-1">
-                      <Label className="text-[10px] uppercase tracking-wide text-slate-500 font-semibold">Due Date</Label>
+                      <Label className="text-xs uppercase tracking-wide text-slate-500 font-semibold">Due Date</Label>
                       <Input
                         type="date"
                         value={newTaskForm.dueDate}
@@ -1160,7 +1160,7 @@ export function TenderDrawer({ tender, isOpen, onClose, onUpdate }: TenderDrawer
                       />
                     </div>
                     <div className="w-32 space-y-1">
-                      <Label className="text-[10px] uppercase tracking-wide text-slate-500 font-semibold">Assign To</Label>
+                      <Label className="text-xs uppercase tracking-wide text-slate-500 font-semibold">Assign To</Label>
                       <Select
                         value={newTaskForm.assignedTo?.toString()}
                         onValueChange={(val) => setNewTaskForm({ ...newTaskForm, assignedTo: val ? parseInt(val) : undefined })}
@@ -1211,11 +1211,11 @@ export function TenderDrawer({ tender, isOpen, onClose, onUpdate }: TenderDrawer
                           <div>
                             <p className={`text-xs font-medium ${reminder.isCompleted ? 'text-slate-500 line-through' : 'text-slate-800'}`}>{reminder.actionRequired}</p>
                             <div className="flex items-center gap-2 mt-1">
-                              <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-bold ${reminder.isCompleted ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'}`}>
+                              <span className={`text-xs px-1.5 py-0.5 rounded-full font-bold ${reminder.isCompleted ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'}`}>
                                 {reminder.isCompleted ? 'Completed' : 'Pending'}
                               </span>
                               {reminder.dueDate && (
-                                <span className="text-[10px] text-slate-500 flex items-center gap-1">
+                                <span className="text-xs text-slate-500 flex items-center gap-1">
                                   <Calendar className="w-3 h-3" />
                                   {safeDate(reminder.dueDate)}
                                 </span>

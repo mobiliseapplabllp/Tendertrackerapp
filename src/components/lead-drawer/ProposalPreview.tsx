@@ -51,17 +51,17 @@ export function ProposalPreview({ data }: ProposalPreviewProps) {
         <div className="pb-4 mb-5 border-b border-gray-200">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-[9px] uppercase tracking-[0.2em] text-indigo-500 font-semibold mb-1">Proposal Document</p>
+              <p className="text-xs uppercase tracking-[0.2em] text-indigo-500 font-semibold mb-1">Proposal Document</p>
               <h1 className="text-base font-bold text-gray-900">{data.title || 'Untitled Proposal'}</h1>
             </div>
             <div className="text-right">
               <div className="w-10 h-10 bg-indigo-600 rounded-lg flex items-center justify-center mb-1 ml-auto">
                 <span className="text-white font-bold text-sm">M</span>
               </div>
-              <p className="text-[9px] text-gray-500">{data.companyName || appName}</p>
+              <p className="text-xs text-gray-500">{data.companyName || appName}</p>
             </div>
           </div>
-          <div className="flex gap-6 mt-3 text-[10px] text-gray-500">
+          <div className="flex gap-6 mt-3 text-xs text-gray-500">
             <span className="flex items-center gap-1"><span className="w-1 h-1 bg-indigo-400 rounded-full"></span>Dated: {data.date || new Date().toLocaleDateString('en-IN', { year: 'numeric', month: 'long', day: 'numeric' })}</span>
             <span className="flex items-center gap-1"><span className="w-1 h-1 bg-indigo-400 rounded-full"></span>ID: {data.proposalId || '---'}</span>
             <span className="flex items-center gap-1"><span className="w-1 h-1 bg-indigo-400 rounded-full"></span>Version: {data.version || '01'}</span>
@@ -72,18 +72,18 @@ export function ProposalPreview({ data }: ProposalPreviewProps) {
         <div className="grid grid-cols-2 gap-3 mb-5">
           {(data.clientName || data.clientCompany) && (
             <div className="bg-gray-50 rounded-lg p-3 border border-gray-100">
-              <p className="text-[9px] uppercase tracking-wider text-indigo-500 font-semibold mb-1.5">Submitted To</p>
+              <p className="text-xs uppercase tracking-wider text-indigo-500 font-semibold mb-1.5">Submitted To</p>
               <p className="font-semibold text-gray-900">{data.clientName || '---'}</p>
               {data.clientCompany && <p className="text-gray-600">{data.clientCompany}</p>}
-              {data.clientAddress && <p className="text-gray-400 text-[10px] mt-0.5">{data.clientAddress}</p>}
+              {data.clientAddress && <p className="text-gray-500 text-xs mt-0.5">{data.clientAddress}</p>}
             </div>
           )}
           {(data.submitterName || data.companyName) && (
             <div className="bg-indigo-50/50 rounded-lg p-3 border border-indigo-100">
-              <p className="text-[9px] uppercase tracking-wider text-indigo-500 font-semibold mb-1.5">Submitted By</p>
+              <p className="text-xs uppercase tracking-wider text-indigo-500 font-semibold mb-1.5">Submitted By</p>
               {data.submitterName && <p className="font-semibold text-gray-900">{data.submitterName}</p>}
               {data.companyName && <p className="text-gray-600">{data.companyName}</p>}
-              <div className="text-[10px] text-gray-400 mt-0.5">
+              <div className="text-xs text-gray-500 mt-0.5">
                 {data.submitterEmail && <span>{data.submitterEmail}</span>}
                 {data.submitterPhone && <span> | {data.submitterPhone}</span>}
               </div>
@@ -127,7 +127,7 @@ export function ProposalPreview({ data }: ProposalPreviewProps) {
       {/* Page 2 - Cost Proposal */}
       <div className="p-6 border-t border-gray-200">
         <div className="mb-4">
-          <p className="text-[9px] uppercase tracking-[0.2em] text-indigo-500 font-semibold mb-0.5">Commercial</p>
+          <p className="text-xs uppercase tracking-[0.2em] text-indigo-500 font-semibold mb-0.5">Commercial</p>
           <h2 className="text-base font-bold text-gray-900">Cost Proposal</h2>
         </div>
 
@@ -135,7 +135,7 @@ export function ProposalPreview({ data }: ProposalPreviewProps) {
         {(data.oneTimeItems || []).length > 0 && (
           <div className="mb-4">
             <p className="font-semibold mb-1">[A] One-Time Charges</p>
-            <table className="w-full border border-gray-300 text-[10px]">
+            <table className="w-full border border-gray-300 text-xs">
               <thead className="bg-indigo-50">
                 <tr>
                   <th className="border border-gray-300 px-2 py-1 text-left w-8">SL</th>
@@ -176,7 +176,7 @@ export function ProposalPreview({ data }: ProposalPreviewProps) {
         {(data.recurringItems || []).length > 0 && (
           <div className="mb-4">
             <p className="font-semibold mb-1">[B] Recurring Charges (Annual)</p>
-            <table className="w-full border border-gray-300 text-[10px]">
+            <table className="w-full border border-gray-300 text-xs">
               <thead className="bg-amber-50">
                 <tr>
                   <th className="border border-gray-300 px-2 py-1 text-left w-8">SL</th>
@@ -202,7 +202,7 @@ export function ProposalPreview({ data }: ProposalPreviewProps) {
                 </tr>
               </tbody>
             </table>
-            <p className="text-[9px] text-gray-500 mt-1 italic">* Yearly charges applicable from Year 2 onwards, charged on annual basis</p>
+            <p className="text-xs text-gray-500 mt-1 italic">* Yearly charges applicable from Year 2 onwards, charged on annual basis</p>
           </div>
         )}
 
@@ -234,7 +234,7 @@ export function ProposalPreview({ data }: ProposalPreviewProps) {
         {data.annexureBOM && Object.keys(data.annexureBOM).length > 0 && (
           <div className="mt-6 pt-4 border-t border-gray-200">
             <div className="mb-3">
-              <p className="text-[9px] uppercase tracking-[0.2em] text-indigo-500 font-semibold mb-0.5">Annexure</p>
+              <p className="text-xs uppercase tracking-[0.2em] text-indigo-500 font-semibold mb-0.5">Annexure</p>
               <h3 className="text-sm font-bold text-gray-900">Product & Module Details</h3>
             </div>
             {Object.entries(data.annexureBOM).map(([productId, components]) => {
@@ -246,16 +246,16 @@ export function ProposalPreview({ data }: ProposalPreviewProps) {
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-2">
                         <div className="w-6 h-6 bg-indigo-600 rounded flex items-center justify-center">
-                          <span className="text-white text-[9px] font-bold">{(components as any[]).length}</span>
+                          <span className="text-white text-xs font-bold">{(components as any[]).length}</span>
                         </div>
                         <div>
                           <p className="font-semibold text-xs text-indigo-900">{parentItem.name}</p>
-                          <p className="text-[9px] text-indigo-600">{(components as any[]).length} modules / components included</p>
+                          <p className="text-xs text-indigo-600">{(components as any[]).length} modules / components included</p>
                         </div>
                       </div>
                     </div>
                   </div>
-                  <table className="w-full border border-indigo-100 text-[10px]">
+                  <table className="w-full border border-indigo-100 text-xs">
                     <thead className="bg-gray-50">
                       <tr>
                         <th className="border-b border-indigo-100 px-3 py-1.5 text-left w-8 text-gray-500">#</th>
@@ -267,7 +267,7 @@ export function ProposalPreview({ data }: ProposalPreviewProps) {
                     <tbody>
                       {(components as any[]).map((comp: any, idx: number) => (
                         <tr key={idx} className={idx % 2 === 0 ? 'bg-white' : 'bg-gray-50/50'}>
-                          <td className="px-3 py-1.5 text-gray-400 font-medium">{idx + 1}</td>
+                          <td className="px-3 py-1.5 text-gray-500 font-medium">{idx + 1}</td>
                           <td className="px-3 py-1.5 font-medium text-gray-800">{comp.component_name}</td>
                           <td className="px-3 py-1.5 text-gray-500">{comp.notes || '—'}</td>
                           <td className="px-3 py-1.5 text-center">{comp.quantity}</td>
@@ -283,14 +283,14 @@ export function ProposalPreview({ data }: ProposalPreviewProps) {
 
         {/* Footer */}
         <div className="mt-8 pt-4 border-t border-gray-200">
-          <div className="bg-gray-50 rounded-lg p-4 text-center text-[9px] text-gray-500">
-            <p className="font-bold text-gray-700 text-[10px]">{data.companyName || appName}</p>
+          <div className="bg-gray-50 rounded-lg p-4 text-center text-xs text-gray-500">
+            <p className="font-bold text-gray-700 text-xs">{data.companyName || appName}</p>
             <p className="mt-0.5">62B, HSIIDC, Sector 31, Faridabad, Haryana, INDIA</p>
             <div className="flex justify-center gap-4 mt-1">
               {data.companyEmail && <span>Email: {data.companyEmail}</span>}
               {data.companyPhone && <span>Phone: {data.companyPhone}</span>}
             </div>
-            <div className="mt-2 pt-2 border-t border-gray-200 flex justify-between text-[9px]">
+            <div className="mt-2 pt-2 border-t border-gray-200 flex justify-between text-xs">
               <span>Valid for {data.validityDays || 30} days from date of issue</span>
               {data.submitterName && <span>Prepared by: <strong>{data.submitterName}</strong></span>}
             </div>

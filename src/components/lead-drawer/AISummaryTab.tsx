@@ -95,7 +95,7 @@ export function AISummaryTab({ leadId }: AISummaryTabProps) {
           </div>
           <div className="h-64 overflow-y-auto p-3 space-y-2 bg-white">
             {chatMessages.length === 0 && (
-              <p className="text-center text-gray-400 text-sm py-8">Ask anything about this lead.</p>
+              <p className="text-center text-gray-500 text-sm py-8">Ask anything about this lead.</p>
             )}
             {chatMessages.map((m, i) => (
               <div key={i} className={`flex ${m.role === 'user' ? 'justify-end' : 'justify-start'}`}>
