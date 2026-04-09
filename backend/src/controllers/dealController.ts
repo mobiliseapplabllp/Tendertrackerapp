@@ -363,9 +363,25 @@ export class DealController {
         params.push(startOfYear, endOfYear);
       }
 
+      // RBAC filter for deals (via lead_id → tenders)
+      let rbacFilter = '';
+      const rbacParams: any[] = [];
+      const user = req.user;
+      const isAdmin = user?.role === 'Admin';
+      if (!isAdmin && user) {
+        if (user.isSalesHead && user.salesHeadProductLineIds?.length) {
+          const ph = user.salesHeadProductLineIds.map(() => '?').join(',');
+          rbacFilter = ` AND t.product_line_id IN (${ph})`;
+          rbacParams.push(...user.salesHeadProductLineIds);
+        } else {
+          rbacFilter = ` AND (t.created_by = ? OR t.assigned_to = ?)`;
+          rbacParams.push(user.userId, user.userId);
+        }
+      }
+
       // Get forecast data
       const [forecast] = await db.query(
-        `SELECT 
+        `SELECT
           COUNT(*) as totalDeals,
           SUM(d.deal_value) as totalValue,
           SUM(d.deal_value * d.probability / 100) as weightedValue,
@@ -374,8 +390,9 @@ export class DealController {
           SUM(CASE WHEN ss.name = 'Won' THEN d.deal_value ELSE 0 END) as wonValue
          FROM deals d
          LEFT JOIN sales_stages ss ON d.sales_stage_id = ss.id
-         WHERE d.expected_close_date IS NOT NULL ${dateFilter}`,
-        params
+         LEFT JOIN tenders t ON d.lead_id = t.id
+         WHERE d.expected_close_date IS NOT NULL ${dateFilter}${rbacFilter}`,
+        [...params, ...rbacParams]
       );
 
       const forecastData = (forecast as any[])[0];

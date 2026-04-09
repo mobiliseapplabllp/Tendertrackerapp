@@ -4,6 +4,21 @@ import { CustomError } from '../middleware/errorHandler';
 import logger from '../utils/logger';
 
 export class PipelineController {
+
+  /** Build RBAC WHERE clause for tenders */
+  private static getRBACFilter(req: Request, alias: string = 'l'): { clause: string; params: any[] } {
+    const user = req.user;
+    const isAdmin = user?.role === 'Admin';
+    if (isAdmin || !user) return { clause: '', params: [] };
+
+    const isSalesHead = user.isSalesHead;
+    if (isSalesHead && user.salesHeadProductLineIds?.length) {
+      const ph = user.salesHeadProductLineIds.map(() => '?').join(',');
+      return { clause: ` AND ${alias}.product_line_id IN (${ph})`, params: [...user.salesHeadProductLineIds] };
+    }
+    return { clause: ` AND (${alias}.created_by = ? OR ${alias}.assigned_to = ?)`, params: [user.userId, user.userId] };
+  }
+
   /**
    * Get pipeline view with all stages and leads
    */
@@ -35,6 +50,11 @@ export class PipelineController {
           WHERE l.sales_stage_id = ? AND l.deleted_at IS NULL
         `;
         const params: any[] = [stage.id];
+
+        // RBAC filter
+        const rbac = PipelineController.getRBACFilter(req, 'l');
+        query += rbac.clause;
+        params.push(...rbac.params);
 
         if (leadTypeId) {
           query += ' AND l.lead_type_id = ?';
@@ -93,6 +113,11 @@ export class PipelineController {
 
       let whereClause = 'l.deleted_at IS NULL';
       const params: any[] = [];
+
+      // RBAC filter
+      const rbac = PipelineController.getRBACFilter(req, 'l');
+      whereClause += rbac.clause;
+      params.push(...rbac.params);
 
       if (leadTypeId) {
         whereClause += ' AND l.lead_type_id = ?';
