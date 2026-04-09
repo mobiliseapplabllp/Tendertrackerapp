@@ -253,7 +253,7 @@ export function TeamStructureManager() {
 
       {/* Assign Head Dialog */}
       <Dialog open={showAssignHead} onOpenChange={setShowAssignHead}>
-        <DialogContent className="sm:max-w-md">
+        <DialogContent className="sm:max-w-md overflow-visible">
           <DialogHeader>
             <DialogTitle>Assign Sales Head</DialogTitle>
             <DialogDescription>Select a user to be the sales head for this product line.</DialogDescription>
@@ -282,7 +282,7 @@ export function TeamStructureManager() {
 
       {/* Add Member Dialog */}
       <Dialog open={showAddMember} onOpenChange={setShowAddMember}>
-        <DialogContent className="sm:max-w-md">
+        <DialogContent className="sm:max-w-md overflow-visible">
           <DialogHeader>
             <DialogTitle>Add Team Member</DialogTitle>
             <DialogDescription>Add a user to the team.</DialogDescription>
@@ -311,7 +311,7 @@ export function TeamStructureManager() {
 
       {/* Transfer Dialog */}
       <Dialog open={showTransfer} onOpenChange={setShowTransfer}>
-        <DialogContent className="sm:max-w-md">
+        <DialogContent className="sm:max-w-md overflow-visible">
           <DialogHeader>
             <DialogTitle>Transfer Member</DialogTitle>
             <DialogDescription>Move this member to another product line team.</DialogDescription>
