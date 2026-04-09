@@ -162,6 +162,15 @@ export function ProductCatalogPage() {
     finally { setAddingComponent(false); }
   };
 
+  const handleUpdateBOMComponent = async (bomId: number, updates: { quantity?: number; isOptional?: boolean }) => {
+    if (!manageBOM) return;
+    try {
+      await productCatalogApi.updateBOMComponent(manageBOM.id, bomId, updates);
+      const refreshed = await productCatalogApi.getBOM(manageBOM.id);
+      if (refreshed.success) setBomData(prev => ({ ...prev, [manageBOM.id]: refreshed.data || [] }));
+    } catch (err: any) { alert(err.message); }
+  };
+
   const handleRemoveBOMComponent = async (bomId: number) => {
     if (!manageBOM || !confirm('Remove this component from the bundle?')) return;
     const res = await productCatalogApi.removeBOMComponent(manageBOM.id, bomId);
@@ -495,31 +504,45 @@ export function ProductCatalogPage() {
               ) : (
                 <div className="space-y-2">
                   {(bomData[manageBOM.id] || []).map((comp: any, idx: number) => (
-                    <div key={comp.id} className="flex items-center gap-3 bg-gray-50 rounded-lg p-3 border">
-                      <div className="w-8 h-8 bg-indigo-100 rounded-full flex items-center justify-center flex-shrink-0">
-                        <span className="text-indigo-700 font-bold text-xs">{idx + 1}</span>
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-1">
-                          <span className="font-medium text-sm truncate">{comp.component_name}</span>
-                          {comp.sku && <span className="text-[10px] text-gray-400">({comp.sku})</span>}
+                    <div key={comp.id} className="bg-gray-50 rounded-lg p-3 border space-y-2">
+                      <div className="flex items-center gap-3">
+                        <div className="w-8 h-8 bg-indigo-100 rounded-full flex items-center justify-center flex-shrink-0">
+                          <span className="text-indigo-700 font-bold text-xs">{idx + 1}</span>
                         </div>
-                        <div className="flex items-center gap-3 text-xs text-gray-500 mt-0.5">
-                          <span>Qty: {comp.quantity}</span>
-                          <span>{formatCurrency(comp.unit_price, undefined, { compact: false })}/unit</span>
-                          <span className="font-medium text-gray-700">
-                            = {formatCurrency((comp.unit_price || 0) * (comp.quantity || 1), undefined, { compact: false })}
-                          </span>
-                          {!!comp.is_optional && <Badge className="text-[9px] bg-yellow-100 text-yellow-700">Optional</Badge>}
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-1">
+                            <span className="font-medium text-sm truncate">{comp.component_name}</span>
+                            {comp.sku && <span className="text-[10px] text-gray-400">({comp.sku})</span>}
+                          </div>
+                          <span className="text-xs text-gray-500">{formatCurrency(comp.unit_price, undefined, { compact: false })}/unit</span>
                         </div>
+                        <Button variant="ghost" size="icon" className="h-7 w-7 flex-shrink-0"
+                          onClick={() => handleRemoveBOMComponent(comp.id)} title="Remove">
+                          <Trash2 className="w-3.5 h-3.5 text-red-500" />
+                        </Button>
                       </div>
-                      <Button
-                        variant="ghost" size="icon" className="h-7 w-7 flex-shrink-0"
-                        onClick={() => handleRemoveBOMComponent(comp.id)}
-                        title="Remove component"
-                      >
-                        <Trash2 className="w-3.5 h-3.5 text-red-500" />
-                      </Button>
+                      <div className="flex items-center gap-3 pl-11">
+                        <div className="flex items-center gap-1.5">
+                          <Label className="text-[10px] text-gray-500">Qty:</Label>
+                          <Input type="number" min="0.01" step="0.01"
+                            defaultValue={comp.quantity}
+                            className="w-16 h-6 text-xs"
+                            onBlur={e => {
+                              const val = Number(e.target.value);
+                              if (val > 0 && val !== comp.quantity) handleUpdateBOMComponent(comp.id, { quantity: val });
+                            }}
+                          />
+                        </div>
+                        <label className="flex items-center gap-1.5 cursor-pointer">
+                          <input type="checkbox" checked={!!comp.is_optional}
+                            onChange={e => handleUpdateBOMComponent(comp.id, { isOptional: e.target.checked })}
+                            className="rounded border-gray-300 h-3 w-3" />
+                          <span className="text-[10px] text-gray-500">Optional</span>
+                        </label>
+                        <span className="text-xs font-medium text-gray-700 ml-auto">
+                          = {formatCurrency((comp.unit_price || 0) * (comp.quantity || 1), undefined, { compact: false })}
+                        </span>
+                      </div>
                     </div>
                   ))}
                 </div>
