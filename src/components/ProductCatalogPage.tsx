@@ -27,6 +27,11 @@ export function ProductCatalogPage() {
   const [expandedBOM, setExpandedBOM] = useState<Set<number>>(new Set());
   const [bomData, setBomData] = useState<Record<number, any[]>>({});
   const [error, setError] = useState<string | null>(null);
+  const [manageBOM, setManageBOM] = useState<any>(null); // product being managed
+  const [bomSearch, setBomSearch] = useState('');
+  const [bomSearchResults, setBomSearchResults] = useState<any[]>([]);
+  const [addingComponent, setAddingComponent] = useState(false);
+  const [componentQty, setComponentQty] = useState('1');
   const { formatCurrency } = useSettings();
 
   const [form, setForm] = useState({
@@ -117,6 +122,52 @@ export function ProductCatalogPage() {
       next.add(productId);
     }
     setExpandedBOM(next);
+  };
+
+  // BOM Management
+  const openBOMManager = async (product: any) => {
+    setManageBOM(product);
+    setBomSearch(''); setBomSearchResults([]); setComponentQty('1');
+    const res = await productCatalogApi.getBOM(product.id);
+    if (res.success) setBomData(prev => ({ ...prev, [product.id]: res.data || [] }));
+  };
+
+  const searchBOMProducts = async (query: string) => {
+    if (!query.trim()) { setBomSearchResults([]); return; }
+    const res = await productCatalogApi.getAll({ search: query, pageSize: '20' });
+    if (res.success) {
+      // Exclude the parent product and existing BOM components
+      const existingIds = new Set((bomData[manageBOM?.id] || []).map((c: any) => c.component_product_id));
+      existingIds.add(manageBOM?.id);
+      setBomSearchResults((res.data?.data || []).filter((p: any) => !existingIds.has(p.id)));
+    }
+  };
+
+  const handleAddBOMComponent = async (componentId: number) => {
+    if (!manageBOM) return;
+    setAddingComponent(true);
+    try {
+      const res = await productCatalogApi.addBOMComponent(manageBOM.id, {
+        componentProductId: componentId,
+        quantity: Number(componentQty) || 1,
+      });
+      if (res.success) {
+        setBomData(prev => ({ ...prev, [manageBOM.id]: res.data || [] }));
+        setBomSearch(''); setBomSearchResults([]); setComponentQty('1');
+        fetchProducts(); // Refresh to update bundle badge + component count
+      } else { alert(res.error || 'Failed to add component'); }
+    } catch (err: any) { alert(err.message); }
+    finally { setAddingComponent(false); }
+  };
+
+  const handleRemoveBOMComponent = async (bomId: number) => {
+    if (!manageBOM || !confirm('Remove this component from the bundle?')) return;
+    const res = await productCatalogApi.removeBOMComponent(manageBOM.id, bomId);
+    if (res.success) {
+      const refreshed = await productCatalogApi.getBOM(manageBOM.id);
+      if (refreshed.success) setBomData(prev => ({ ...prev, [manageBOM.id]: refreshed.data || [] }));
+      fetchProducts();
+    }
   };
 
   const subCatIcon = (type: string) => {
@@ -250,6 +301,9 @@ export function ProductCatalogPage() {
                       <td className="px-4 py-3 text-center">{p.component_count > 0 ? <Badge variant="outline" className="text-xs">{p.component_count}</Badge> : '-'}</td>
                       <td className="px-4 py-3 text-right">
                         <div className="flex items-center justify-end gap-1">
+                          <Button variant="ghost" size="sm" className="h-7 text-xs px-2" onClick={() => openBOMManager(p)} title="Manage BOM">
+                            <Box className="w-3.5 h-3.5 mr-1" />BOM
+                          </Button>
                           <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => handleEdit(p)} title="Edit"><Edit2 className="w-3.5 h-3.5 text-blue-500" /></Button>
                           <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => handleDelete(p.id)} title="Delete"><Trash2 className="w-3.5 h-3.5 text-red-500" /></Button>
                         </div>
@@ -281,6 +335,127 @@ export function ProductCatalogPage() {
           </div>
         )}
       </div>
+
+      {/* BOM Management Panel */}
+      {manageBOM && (
+        <>
+          <div className="fixed inset-0 bg-black/50 z-40" onClick={() => setManageBOM(null)} />
+          <div className="fixed right-0 top-0 h-full w-[500px] bg-white shadow-2xl z-50 flex flex-col">
+            {/* Header */}
+            <div className="px-5 py-4 border-b flex items-center justify-between flex-shrink-0">
+              <div>
+                <h2 className="font-semibold text-lg">BOM: {manageBOM.name}</h2>
+                <p className="text-xs text-gray-500">{manageBOM.sku || 'No SKU'} · {!!manageBOM.is_bundle ? 'Bundle' : 'Standalone product'}</p>
+              </div>
+              <Button variant="ghost" size="icon" onClick={() => setManageBOM(null)}><X className="w-5 h-5" /></Button>
+            </div>
+
+            {/* Add Component */}
+            <div className="px-5 py-3 bg-blue-50 border-b space-y-2 flex-shrink-0">
+              <Label className="text-xs font-medium">Add Component</Label>
+              <div className="flex gap-2">
+                <Input
+                  placeholder="Search products to add..."
+                  value={bomSearch}
+                  onChange={e => setBomSearch(e.target.value)}
+                  onKeyDown={e => { if (e.key === 'Enter') searchBOMProducts(bomSearch); }}
+                  className="text-sm flex-1"
+                />
+                <Input
+                  type="number" placeholder="Qty" value={componentQty}
+                  onChange={e => setComponentQty(e.target.value)}
+                  className="text-sm w-16"
+                  min="1"
+                />
+                <Button size="sm" onClick={() => searchBOMProducts(bomSearch)}>
+                  <Search className="w-3.5 h-3.5" />
+                </Button>
+              </div>
+              {bomSearchResults.length > 0 && (
+                <div className="max-h-40 overflow-y-auto space-y-1 mt-1">
+                  {bomSearchResults.map((p: any) => (
+                    <div
+                      key={p.id}
+                      className="flex items-center justify-between bg-white p-2 rounded border text-xs cursor-pointer hover:bg-indigo-50 transition-colors"
+                      onClick={() => handleAddBOMComponent(p.id)}
+                    >
+                      <div>
+                        <span className="font-medium">{p.name}</span>
+                        {p.sku && <span className="text-gray-400 ml-1">({p.sku})</span>}
+                        <Badge className="ml-1 text-[9px]" variant="outline">{p.sub_category}</Badge>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <span>{formatCurrency(p.unit_price, undefined, { compact: false })}</span>
+                        <Plus className="w-3.5 h-3.5 text-green-600" />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+              {addingComponent && <div className="flex items-center gap-2 text-xs text-indigo-600"><Loader2 className="w-3 h-3 animate-spin" />Adding...</div>}
+            </div>
+
+            {/* Component List */}
+            <div className="flex-1 overflow-y-auto px-5 py-3">
+              <div className="flex items-center justify-between mb-3">
+                <h3 className="text-sm font-medium text-gray-700">Components ({(bomData[manageBOM.id] || []).length})</h3>
+                {(bomData[manageBOM.id] || []).length > 0 && (
+                  <span className="text-xs text-gray-500">
+                    Total: {formatCurrency(
+                      (bomData[manageBOM.id] || []).reduce((sum: number, c: any) => sum + (c.unit_price || 0) * (c.quantity || 1), 0),
+                      undefined, { compact: false }
+                    )}
+                  </span>
+                )}
+              </div>
+
+              {(bomData[manageBOM.id] || []).length === 0 ? (
+                <div className="text-center py-10 text-gray-400">
+                  <Box className="w-10 h-10 mx-auto mb-2 text-gray-300" />
+                  <p className="text-sm">No components yet</p>
+                  <p className="text-xs">Search and add products above to build a bundle</p>
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  {(bomData[manageBOM.id] || []).map((comp: any, idx: number) => (
+                    <div key={comp.id} className="flex items-center gap-3 bg-gray-50 rounded-lg p-3 border">
+                      <div className="w-8 h-8 bg-indigo-100 rounded-full flex items-center justify-center flex-shrink-0">
+                        <span className="text-indigo-700 font-bold text-xs">{idx + 1}</span>
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-1">
+                          <span className="font-medium text-sm truncate">{comp.component_name}</span>
+                          {comp.sku && <span className="text-[10px] text-gray-400">({comp.sku})</span>}
+                        </div>
+                        <div className="flex items-center gap-3 text-xs text-gray-500 mt-0.5">
+                          <span>Qty: {comp.quantity}</span>
+                          <span>{formatCurrency(comp.unit_price, undefined, { compact: false })}/unit</span>
+                          <span className="font-medium text-gray-700">
+                            = {formatCurrency((comp.unit_price || 0) * (comp.quantity || 1), undefined, { compact: false })}
+                          </span>
+                          {!!comp.is_optional && <Badge className="text-[9px] bg-yellow-100 text-yellow-700">Optional</Badge>}
+                        </div>
+                      </div>
+                      <Button
+                        variant="ghost" size="icon" className="h-7 w-7 flex-shrink-0"
+                        onClick={() => handleRemoveBOMComponent(comp.id)}
+                        title="Remove component"
+                      >
+                        <Trash2 className="w-3.5 h-3.5 text-red-500" />
+                      </Button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* Footer */}
+            <div className="px-5 py-3 border-t bg-gray-50 flex-shrink-0">
+              <Button className="w-full" onClick={() => setManageBOM(null)}>Done</Button>
+            </div>
+          </div>
+        </>
+      )}
     </div>
   );
 }
