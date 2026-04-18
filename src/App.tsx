@@ -26,6 +26,18 @@ import { MyPerformancePage } from './components/MyPerformancePage';
 import { CollateralRepository } from './components/CollateralRepository';
 import { ProductCatalogPage } from './components/ProductCatalogPage';
 import { SalesHubPage } from './components/SalesHubPage';
+import { HeaderBar } from './components/HeaderBar';
+import { ModuleSwitcher } from './components/ModuleSwitcher';
+import { CampaignBuilder } from './components/CampaignBuilder';
+import { SocialMediaManager } from './components/SocialMediaManager';
+import { EmailMarketingPage } from './components/EmailMarketingPage';
+import { ContentCalendarPage } from './components/ContentCalendarPage';
+import { LeadCapturePage } from './components/LeadCapturePage';
+import { CampaignAnalyticsPage } from './components/CampaignAnalyticsPage';
+import { AudienceSegmentsPage } from './components/AudienceSegmentsPage';
+import { ApolloSearchPage } from './components/ApolloSearchPage';
+import { RolePermissionsPage } from './components/RolePermissionsPage';
+import { MODULES, getModuleForView, getDefaultModule } from './lib/modules';
 import { tokenManager, authApi } from './lib/api';
 import { SessionManager } from './lib/security';
 
@@ -34,6 +46,8 @@ export default function App() {
   const [currentUser, setCurrentUser] = useState<any>(null);
   const [isCheckingAuth, setIsCheckingAuth] = useState(true);
   const [currentView, setCurrentView] = useState('dashboard');
+  const [activeModule, setActiveModule] = useState('dashboard-reports');
+  const [isModuleSwitcherOpen, setIsModuleSwitcherOpen] = useState(false);
   const [tenderDetailsId, setTenderDetailsId] = useState<number | null>(null);
   const sessionManagerRef = useState(() => new SessionManager(30))[0];
 
@@ -61,8 +75,18 @@ export default function App() {
             setCurrentUser(response.data);
             // Set landing page based on role
             const userRole = (response.data?.role || '').toLowerCase();
-            if (userRole === 'user') setCurrentView('leads');
-            else setCurrentView('dashboard');
+            if (userRole === 'user') {
+              setCurrentView('leads');
+              setActiveModule('sales-crm');
+            } else {
+              setCurrentView('dashboard');
+              setActiveModule(getDefaultModule(userRole));
+            }
+            // Check if returning from OAuth redirect — navigate to social media page
+            if (window.location.hash.startsWith('#social-connected')) {
+              setCurrentView('social-media');
+              setActiveModule('marketing');
+            }
             // Reset session timer
             sessionManagerRef.resetTimer(() => {
               handleLogout();
@@ -112,20 +136,28 @@ export default function App() {
   }, [isAuthenticated]);
 
   const handleNavigate = (view: string) => {
-    // Handle tender details navigation
     if (view.startsWith('tender-details:')) {
       const tenderId = parseInt(view.split(':')[1]);
       setTenderDetailsId(tenderId);
       setCurrentView('tender-details');
     } else if (view.startsWith('lead-details:')) {
-      // Handle lead details navigation
       const leadId = parseInt(view.split(':')[1]);
       setTenderDetailsId(leadId);
       setCurrentView('lead-details');
     } else {
       setTenderDetailsId(null);
       setCurrentView(view);
+      // Sync active module
+      const mod = getModuleForView(view);
+      if (mod) setActiveModule(mod.id);
     }
+  };
+
+  const handleModuleSelect = (moduleId: string) => {
+    setActiveModule(moduleId);
+    const mod = MODULES.find(m => m.id === moduleId);
+    if (mod) handleNavigate(mod.defaultView);
+    setIsModuleSwitcherOpen(false);
   };
 
 
@@ -171,6 +203,8 @@ export default function App() {
         return <DocumentManagement />;
       case 'users':
         return <UserManagement />;
+      case 'role-permissions':
+        return <RolePermissionsPage />;
       case 'companies':
         return <CompanyManagement />;
       case 'reports':
@@ -199,6 +233,22 @@ export default function App() {
         return <CollateralRepository />;
       case 'product-catalog':
         return <ProductCatalogPage />;
+      case 'campaigns':
+        return <CampaignBuilder />;
+      case 'social-media':
+        return <SocialMediaManager />;
+      case 'email-marketing':
+        return <EmailMarketingPage />;
+      case 'content-calendar':
+        return <ContentCalendarPage />;
+      case 'lead-capture':
+        return <LeadCapturePage />;
+      case 'campaign-analytics':
+        return <CampaignAnalyticsPage />;
+      case 'audience-segments':
+        return <AudienceSegmentsPage />;
+      case 'apollo-search':
+        return <ApolloSearchPage />;
       case 'tender-details':
         return tenderDetailsId ? (
           <TenderDetailsPage
@@ -235,18 +285,34 @@ export default function App() {
   };
 
   return (
-    <div className="flex min-h-screen bg-gray-50 overflow-hidden">
-      <Sidebar
-        currentView={currentView}
-        onNavigate={handleNavigate}
-        onLogout={handleLogout}
+    <div className="flex flex-col min-h-screen bg-gray-50 overflow-hidden">
+      {/* Full-width header */}
+      <HeaderBar
+        activeModule={activeModule}
+        onModuleSwitcherToggle={() => setIsModuleSwitcherOpen(!isModuleSwitcherOpen)}
         user={currentUser}
+        onLogout={handleLogout}
       />
-      <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
-        <div className="flex-1 overflow-auto">
+      {/* Sidebar + Content below header */}
+      <div className="flex flex-1 min-h-0 overflow-hidden">
+        <Sidebar
+          currentView={currentView}
+          onNavigate={handleNavigate}
+          onLogout={handleLogout}
+          user={currentUser}
+          activeModule={activeModule}
+        />
+        <div className="flex-1 overflow-auto min-w-0">
           {renderContent()}
         </div>
       </div>
+      <ModuleSwitcher
+        isOpen={isModuleSwitcherOpen}
+        onClose={() => setIsModuleSwitcherOpen(false)}
+        activeModule={activeModule}
+        onSelectModule={handleModuleSelect}
+        userRole={currentUser?.role || 'user'}
+      />
     </div>
   );
 }

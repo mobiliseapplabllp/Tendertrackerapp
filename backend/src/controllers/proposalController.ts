@@ -1,6 +1,10 @@
 import { Request, Response } from 'express';
 import db from '../config/database';
 import logger from '../utils/logger';
+import { emailService } from '../services/emailService';
+import { getCompanyName } from '../utils/settings';
+import { generateProposalPDF } from '../services/pdfService';
+import * as fs from 'fs';
 
 // ==================== Templates ====================
 
@@ -696,5 +700,449 @@ export const aiRefineSection = async (req: Request, res: Response) => {
   } catch (error: any) {
     logger.error({ message: 'Error refining section', error: error.message });
     return res.status(500).json({ success: false, error: 'Failed to refine section' });
+  }
+};
+
+// ==================== Email Proposal ====================
+
+export const sendProposalEmail = async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    const { to, cc, subject, body } = req.body;
+    const markAsSubmitted = req.body.markAsSubmitted === true || req.body.markAsSubmitted === 'true';
+    const attachPdf = req.body.attachPdf === true || req.body.attachPdf === 'true' || req.body.attachPdf === undefined;
+
+    if (!to || !subject || !body) {
+      return res.status(400).json({ success: false, error: 'To, subject, and body are required' });
+    }
+
+    // Fetch proposal with lead info
+    const [rows] = await db.query(
+      `SELECT p.*, t.title as lead_title, t.tender_number,
+       c.company_name, c.company_name as client, c.address as company_address, c.city, c.state, c.country,
+       u.full_name as created_by_name, u.email as created_by_email,
+       a.full_name as approved_by_name
+       FROM proposals p
+       JOIN tenders t ON p.tender_id = t.id
+       LEFT JOIN companies c ON t.company_id = c.id
+       LEFT JOIN users u ON p.created_by = u.id
+       LEFT JOIN users a ON p.approved_by = a.id
+       WHERE p.id = ? AND p.deleted_at IS NULL`, [id]
+    );
+    if ((rows as any[]).length === 0) {
+      return res.status(404).json({ success: false, error: 'Proposal not found' });
+    }
+    const proposal = (rows as any[])[0];
+
+    if (!['Approved', 'Submitted'].includes(proposal.status)) {
+      return res.status(400).json({ success: false, error: 'Only approved or submitted proposals can be emailed' });
+    }
+
+    // Fetch line items for the email
+    const [items] = await db.query(
+      `SELECT li.*, p.name as product_name
+       FROM proposal_line_items li
+       LEFT JOIN products p ON li.product_id = p.id
+       WHERE li.proposal_id = ? AND li.parent_line_item_id IS NULL
+       ORDER BY li.display_order, li.id`, [id]
+    );
+
+    // Get company settings
+    const companyName = await getCompanyName();
+
+    // Build HTML email
+    const lineItemsHtml = (items as any[]).length > 0 ? `
+      <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="border-collapse: collapse; margin: 16px 0;">
+        <thead>
+          <tr style="background-color: #f3f4f6;">
+            <th style="padding: 10px 12px; text-align: left; font-size: 12px; font-weight: 600; color: #374151; border-bottom: 2px solid #e5e7eb;">Item</th>
+            <th style="padding: 10px 12px; text-align: center; font-size: 12px; font-weight: 600; color: #374151; border-bottom: 2px solid #e5e7eb;">Qty</th>
+            <th style="padding: 10px 12px; text-align: right; font-size: 12px; font-weight: 600; color: #374151; border-bottom: 2px solid #e5e7eb;">Unit Price</th>
+            <th style="padding: 10px 12px; text-align: right; font-size: 12px; font-weight: 600; color: #374151; border-bottom: 2px solid #e5e7eb;">Total</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${(items as any[]).map((item: any, idx: number) => `
+            <tr style="background-color: ${idx % 2 === 0 ? '#ffffff' : '#f9fafb'};">
+              <td style="padding: 10px 12px; font-size: 13px; color: #1f2937; border-bottom: 1px solid #f3f4f6;">
+                ${item.item_name}${item.item_type === 'Bundle' ? ' <span style="background: #ede9fe; color: #7c3aed; padding: 2px 6px; border-radius: 4px; font-size: 10px; font-weight: 600;">Bundle</span>' : ''}
+              </td>
+              <td style="padding: 10px 12px; font-size: 13px; color: #374151; text-align: center; border-bottom: 1px solid #f3f4f6;">${item.quantity}</td>
+              <td style="padding: 10px 12px; font-size: 13px; color: #374151; text-align: right; border-bottom: 1px solid #f3f4f6;">${Number(item.unit_price).toLocaleString('en-IN')}</td>
+              <td style="padding: 10px 12px; font-size: 13px; color: #1f2937; font-weight: 500; text-align: right; border-bottom: 1px solid #f3f4f6;">${Number(item.line_total).toLocaleString('en-IN')}</td>
+            </tr>
+          `).join('')}
+        </tbody>
+        <tfoot>
+          <tr style="background-color: #f3f4f6;">
+            <td colspan="3" style="padding: 10px 12px; text-align: right; font-size: 13px; font-weight: 600; color: #1f2937; border-top: 2px solid #e5e7eb;">Subtotal</td>
+            <td style="padding: 10px 12px; text-align: right; font-size: 13px; font-weight: 600; color: #1f2937; border-top: 2px solid #e5e7eb;">${Number(proposal.subtotal || 0).toLocaleString('en-IN')}</td>
+          </tr>
+          <tr style="background-color: #f3f4f6;">
+            <td colspan="3" style="padding: 6px 12px; text-align: right; font-size: 12px; color: #6b7280;">Tax (GST)</td>
+            <td style="padding: 6px 12px; text-align: right; font-size: 12px; color: #6b7280;">${Number(proposal.total_tax || 0).toLocaleString('en-IN')}</td>
+          </tr>
+          <tr style="background-color: #eef2ff;">
+            <td colspan="3" style="padding: 12px; text-align: right; font-size: 15px; font-weight: 700; color: #4338ca;">Grand Total</td>
+            <td style="padding: 12px; text-align: right; font-size: 15px; font-weight: 700; color: #4338ca;">${Number(proposal.grand_total || 0).toLocaleString('en-IN')}</td>
+          </tr>
+        </tfoot>
+      </table>
+    ` : '';
+
+    // Convert body newlines to HTML paragraphs
+    const bodyHtml = body.split('\n').map((line: string) =>
+      line.trim() ? `<p style="margin: 0 0 10px 0; color: #374151; font-size: 15px; line-height: 1.7;">${line}</p>` : '<br/>'
+    ).join('');
+
+    const validUntil = proposal.valid_until ? new Date(proposal.valid_until).toLocaleDateString('en-IN', { year: 'numeric', month: 'long', day: 'numeric' }) : '';
+
+    const htmlEmail = `
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>${subject}</title>
+</head>
+<body style="margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; background-color: #f3f4f6;">
+  <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="background-color: #f3f4f6; padding: 20px 10px;">
+    <tr>
+      <td align="center">
+        <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="650" style="max-width: 650px; background-color: #ffffff; border-radius: 12px; box-shadow: 0 4px 6px rgba(0, 0, 0, 0.07); overflow: hidden;">
+
+          <!-- Header -->
+          <tr>
+            <td style="background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%); padding: 28px 32px; text-align: left;">
+              <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%">
+                <tr>
+                  <td>
+                    <h1 style="margin: 0; color: #ffffff; font-size: 22px; font-weight: 700; letter-spacing: -0.3px;">${companyName}</h1>
+                    <p style="margin: 6px 0 0 0; color: rgba(255, 255, 255, 0.85); font-size: 13px;">Commercial Proposal</p>
+                  </td>
+                  <td align="right" style="vertical-align: top;">
+                    <div style="background: rgba(255,255,255,0.15); border-radius: 8px; padding: 8px 14px; display: inline-block;">
+                      <p style="margin: 0; color: #ffffff; font-size: 11px; text-transform: uppercase; letter-spacing: 1px;">Proposal Value</p>
+                      <p style="margin: 4px 0 0 0; color: #ffffff; font-size: 20px; font-weight: 700;">${Number(proposal.grand_total || 0).toLocaleString('en-IN')}</p>
+                    </div>
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+
+          <!-- Proposal Meta -->
+          <tr>
+            <td style="padding: 20px 32px 0 32px;">
+              <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="background: #f9fafb; border-radius: 8px; padding: 16px;">
+                <tr>
+                  <td style="padding: 4px 16px;">
+                    <p style="margin: 0; font-size: 11px; color: #6b7280; text-transform: uppercase; letter-spacing: 0.5px;">Proposal</p>
+                    <p style="margin: 3px 0 0 0; font-size: 14px; font-weight: 600; color: #1f2937;">${proposal.title}</p>
+                  </td>
+                  <td style="padding: 4px 16px;">
+                    <p style="margin: 0; font-size: 11px; color: #6b7280; text-transform: uppercase; letter-spacing: 0.5px;">Reference</p>
+                    <p style="margin: 3px 0 0 0; font-size: 14px; font-weight: 600; color: #1f2937;">${proposal.tender_number || 'N/A'}</p>
+                  </td>
+                  <td style="padding: 4px 16px;">
+                    <p style="margin: 0; font-size: 11px; color: #6b7280; text-transform: uppercase; letter-spacing: 0.5px;">Valid Until</p>
+                    <p style="margin: 3px 0 0 0; font-size: 14px; font-weight: 600; color: #1f2937;">${validUntil || 'N/A'}</p>
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+
+          <!-- Email Body -->
+          <tr>
+            <td style="padding: 24px 32px;">
+              ${bodyHtml}
+            </td>
+          </tr>
+
+          <!-- Line Items -->
+          ${lineItemsHtml ? `
+          <tr>
+            <td style="padding: 0 32px 24px 32px;">
+              <h3 style="margin: 0 0 8px 0; font-size: 15px; font-weight: 600; color: #1f2937; border-bottom: 2px solid #e5e7eb; padding-bottom: 8px;">Pricing Summary</h3>
+              ${lineItemsHtml}
+            </td>
+          </tr>
+          ` : ''}
+
+          <!-- Validity Notice -->
+          ${validUntil ? `
+          <tr>
+            <td style="padding: 0 32px 24px 32px;">
+              <div style="background-color: #fffbeb; border-left: 4px solid #f59e0b; border-radius: 6px; padding: 12px 16px;">
+                <p style="margin: 0; color: #92400e; font-size: 13px;">
+                  <strong>Note:</strong> This proposal is valid until <strong>${validUntil}</strong>. Please confirm your interest before this date to ensure pricing and availability.
+                </p>
+              </div>
+            </td>
+          </tr>
+          ` : ''}
+
+          <!-- Footer -->
+          <tr>
+            <td style="background-color: #f9fafb; padding: 24px 32px; border-top: 1px solid #e5e7eb;">
+              <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%">
+                <tr>
+                  <td>
+                    <p style="margin: 0 0 4px 0; font-size: 14px; font-weight: 600; color: #1f2937;">${req.user?.fullName || proposal.created_by_name || 'Team'}</p>
+                    <p style="margin: 0; font-size: 13px; color: #6b7280;">${companyName}</p>
+                    <p style="margin: 4px 0 0 0; font-size: 12px; color: #9ca3af;">${req.user?.email || proposal.created_by_email || ''}</p>
+                  </td>
+                  <td align="right" style="vertical-align: bottom;">
+                    <p style="margin: 0; color: #9ca3af; font-size: 11px;">
+                      &copy; ${new Date().getFullYear()} ${companyName}. All rights reserved.
+                    </p>
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>`;
+
+    // Plain text version
+    const plainText = `${body}\n\n---\nProposal: ${proposal.title}\nReference: ${proposal.tender_number || 'N/A'}\nTotal: ${Number(proposal.grand_total || 0).toLocaleString('en-IN')}\nValid Until: ${validUntil || 'N/A'}\n\n${req.user?.fullName || proposal.created_by_name || ''}\n${companyName}`;
+
+    // Build attachments array
+    const attachments: Array<{ filename: string; content?: Buffer; path?: string; contentType?: string }> = [];
+
+    // Generate and attach proposal PDF
+    if (attachPdf) {
+      try {
+        const pdfBuffer = await generateProposalPDF({ proposal, lineItems: items as any[], companyName });
+        attachments.push({
+          filename: `${(proposal.title || 'Proposal').replace(/[^a-zA-Z0-9\s-]/g, '')}.pdf`,
+          content: pdfBuffer,
+          contentType: 'application/pdf',
+        });
+      } catch (pdfErr: any) {
+        logger.warn({ message: 'PDF generation failed, sending without PDF', error: pdfErr.message });
+      }
+    }
+
+    // Add user-uploaded additional attachments (from multer)
+    if (req.files && Array.isArray(req.files)) {
+      for (const file of req.files) {
+        attachments.push({
+          filename: file.originalname,
+          path: file.path,
+          contentType: file.mimetype,
+        });
+      }
+    }
+
+    // Send the email
+    await emailService.sendProposalEmail({
+      to,
+      cc: cc || undefined,
+      subject,
+      htmlBody: htmlEmail,
+      textBody: plainText,
+      replyTo: req.user?.email || proposal.created_by_email || undefined,
+      attachments: attachments.length > 0 ? attachments : undefined,
+    });
+
+    // Clean up uploaded temp files
+    if (req.files && Array.isArray(req.files)) {
+      for (const file of req.files) {
+        try { fs.unlinkSync(file.path); } catch {}
+      }
+    }
+
+    // If markAsSubmitted and proposal is Approved, auto-mark as Submitted
+    if (markAsSubmitted && proposal.status === 'Approved') {
+      const clientName = proposal.client || proposal.company_name || to;
+      await db.query(
+        'UPDATE proposals SET status = ?, submitted_to = ?, submitted_to_email = ?, submitted_at = NOW() WHERE id = ?',
+        ['Submitted', clientName, to, id]
+      );
+    }
+
+    // Log activity
+    await db.query(
+      `INSERT INTO tender_activities (tender_id, user_id, activity_type, description) VALUES (?, ?, 'Updated', ?)`,
+      [proposal.tender_id, req.user!.userId, `Proposal "${proposal.title}" emailed to ${to}${cc ? ` (CC: ${cc})` : ''}`]
+    );
+
+    logger.info({ message: 'Proposal email sent', proposalId: id, to, cc, sentBy: req.user!.userId });
+    return res.json({ success: true, message: 'Proposal email sent successfully' });
+  } catch (error: any) {
+    logger.error({ message: 'Error sending proposal email', error: error.message, stack: error.stack });
+    return res.status(500).json({ success: false, error: `Failed to send email: ${error.message}` });
+  }
+};
+
+export const aiGenerateEmailDraft = async (req: Request, res: Response) => {
+  try {
+    const { proposalId } = req.body;
+    if (!proposalId) return res.status(400).json({ success: false, error: 'Proposal ID required' });
+
+    // Fetch proposal with lead and company info
+    const [rows] = await db.query(
+      `SELECT p.*, t.title as lead_title, t.tender_number, t.description as lead_description,
+       c.company_name, c.company_name as client, pl.name as product_line_name,
+       u.full_name as created_by_name
+       FROM proposals p
+       JOIN tenders t ON p.tender_id = t.id
+       LEFT JOIN companies c ON t.company_id = c.id
+       LEFT JOIN product_lines pl ON t.product_line_id = pl.id
+       LEFT JOIN users u ON p.created_by = u.id
+       WHERE p.id = ? AND p.deleted_at IS NULL`, [proposalId]
+    );
+    if ((rows as any[]).length === 0) {
+      return res.status(404).json({ success: false, error: 'Proposal not found' });
+    }
+    const proposal = (rows as any[])[0];
+
+    // Fetch sender info
+    const senderName = req.user?.fullName || proposal.created_by_name || 'Team';
+    const companyName = await getCompanyName();
+
+    const clientName = proposal.client || proposal.company_name || 'Sir/Madam';
+    const totalFormatted = `\u20B9${Number(proposal.grand_total || 0).toLocaleString('en-IN')}`;
+    const validUntil = proposal.valid_until ? new Date(proposal.valid_until).toLocaleDateString('en-IN', { year: 'numeric', month: 'long', day: 'numeric' }) : '';
+
+    // Generate professional email draft
+    const subject = `Proposal: ${proposal.title} | ${companyName}`;
+
+    const body = `Dear ${clientName},
+
+Thank you for the opportunity to present our proposal for ${proposal.lead_title || proposal.title}.
+
+We are pleased to share our commercial proposal for your review. This proposal outlines our comprehensive solution, scope of work, and commercial terms tailored to meet your specific requirements.
+
+Proposal Highlights:
+- Solution: ${proposal.title}
+- Type: ${proposal.proposal_type || 'Technology Solution'}
+- Proposed Investment: ${totalFormatted} (inclusive of applicable taxes)${validUntil ? `\n- Valid Until: ${validUntil}` : ''}
+
+${proposal.executive_summary ? `Executive Summary:\n${proposal.executive_summary.substring(0, 300)}${proposal.executive_summary.length > 300 ? '...' : ''}\n` : ''}
+We would welcome the opportunity to discuss this proposal in detail at your convenience. Please feel free to reach out with any questions or if you require any modifications to the proposed solution.
+
+We look forward to your positive response and the opportunity to partner with you on this initiative.
+
+Warm regards,
+${senderName}
+${companyName}`;
+
+    return res.json({
+      success: true,
+      data: {
+        subject,
+        body,
+        suggestedTo: proposal.submitted_to_email || '',
+      }
+    });
+  } catch (error: any) {
+    logger.error({ message: 'Error generating email draft', error: error.message });
+    return res.status(500).json({ success: false, error: 'Failed to generate email draft' });
+  }
+};
+
+export const aiGenerateWhatsAppDraft = async (req: Request, res: Response) => {
+  try {
+    const { proposalId } = req.body;
+    if (!proposalId) return res.status(400).json({ success: false, error: 'Proposal ID required' });
+
+    const [rows] = await db.query(
+      `SELECT p.*, t.title as lead_title, t.tender_number,
+       c.company_name, c.company_name as client, pl.name as product_line_name,
+       u.full_name as created_by_name
+       FROM proposals p
+       JOIN tenders t ON p.tender_id = t.id
+       LEFT JOIN companies c ON t.company_id = c.id
+       LEFT JOIN product_lines pl ON t.product_line_id = pl.id
+       LEFT JOIN users u ON p.created_by = u.id
+       WHERE p.id = ? AND p.deleted_at IS NULL`, [proposalId]
+    );
+    if ((rows as any[]).length === 0) {
+      return res.status(404).json({ success: false, error: 'Proposal not found' });
+    }
+    const proposal = (rows as any[])[0];
+
+    const senderName = req.user?.fullName || proposal.created_by_name || 'Team';
+    const companyName = await getCompanyName();
+    const clientName = proposal.client || proposal.company_name || '';
+    const totalFormatted = `\u20B9${Number(proposal.grand_total || 0).toLocaleString('en-IN')}`;
+    const validUntil = proposal.valid_until ? new Date(proposal.valid_until).toLocaleDateString('en-IN', { year: 'numeric', month: 'long', day: 'numeric' }) : '';
+
+    const message = `*${companyName} - Commercial Proposal*
+
+Dear ${clientName || 'Sir/Madam'},
+
+We are pleased to share our proposal for *${proposal.lead_title || proposal.title}*.
+
+*Proposal Details:*
+\u2022 ${proposal.title}
+\u2022 Type: ${proposal.proposal_type || 'Technology Solution'}
+\u2022 Investment: *${totalFormatted}* (incl. taxes)${validUntil ? `\n\u2022 Valid Until: ${validUntil}` : ''}
+\u2022 Ref: ${proposal.tender_number || 'N/A'}
+
+Please find the detailed proposal PDF attached. We would be happy to discuss further at your convenience.
+
+Warm regards,
+*${senderName}*
+${companyName}`;
+
+    return res.json({
+      success: true,
+      data: { message }
+    });
+  } catch (error: any) {
+    logger.error({ message: 'Error generating WhatsApp draft', error: error.message });
+    return res.status(500).json({ success: false, error: 'Failed to generate WhatsApp draft' });
+  }
+};
+
+// ==================== PDF Download ====================
+
+export const downloadProposalPDF = async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+
+    // Fetch proposal
+    const [rows] = await db.query(
+      `SELECT p.*, t.title as lead_title, t.tender_number,
+       c.company_name, c.company_name as client, c.address as company_address, c.city, c.state, c.country,
+       u.full_name as created_by_name, u.email as created_by_email
+       FROM proposals p
+       JOIN tenders t ON p.tender_id = t.id
+       LEFT JOIN companies c ON t.company_id = c.id
+       LEFT JOIN users u ON p.created_by = u.id
+       WHERE p.id = ? AND p.deleted_at IS NULL`, [id]
+    );
+    if ((rows as any[]).length === 0) {
+      return res.status(404).json({ success: false, error: 'Proposal not found' });
+    }
+    const proposal = (rows as any[])[0];
+
+    // Fetch line items
+    const [items] = await db.query(
+      `SELECT li.*, p.name as product_name
+       FROM proposal_line_items li
+       LEFT JOIN products p ON li.product_id = p.id
+       WHERE li.proposal_id = ?
+       ORDER BY li.display_order, li.id`, [id]
+    );
+
+    const pdfBuffer = await generateProposalPDF({ proposal, lineItems: items as any[] });
+    const filename = `${(proposal.title || 'Proposal').replace(/[^a-zA-Z0-9\s-]/g, '')}.pdf`;
+
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+    res.setHeader('Content-Length', pdfBuffer.length);
+    return res.send(pdfBuffer);
+  } catch (error: any) {
+    logger.error({ message: 'Error generating proposal PDF', error: error.message });
+    return res.status(500).json({ success: false, error: 'Failed to generate PDF' });
   }
 };

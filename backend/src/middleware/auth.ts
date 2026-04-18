@@ -37,8 +37,9 @@ export const authenticate = async (
   try {
     const authHeader = req.headers.authorization;
 
-    // Support token via query param (for media previews in <video>, <img>, <iframe>)
-    const queryToken = req.query.token as string | undefined;
+    // Support token via query param only for media preview routes (video/img/iframe can't set headers)
+    const isMediaPreviewRoute = req.path.includes('/collateral/') && req.path.includes('/download');
+    const queryToken = isMediaPreviewRoute ? (req.query.token as string | undefined) : undefined;
 
     if (!authHeader?.startsWith('Bearer ') && !queryToken) {
       throw new CustomError('No token provided', 401);

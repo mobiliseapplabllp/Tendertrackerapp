@@ -6,8 +6,11 @@ import {
   getTemplates, getByLead, getById, create, update, deleteProposal,
   submitForApproval, approve, reject, markSubmitted, updateOutcome,
   getLineItems, addLineItem, updateLineItem, removeLineItem, addBundleToProposal,
-  getVersions, aiGenerateProposal, aiRefineSection, getPendingApprovals, approveWithChanges
+  getVersions, aiGenerateProposal, aiRefineSection, getPendingApprovals, approveWithChanges,
+  sendProposalEmail, aiGenerateEmailDraft, aiGenerateWhatsAppDraft, downloadProposalPDF
 } from '../controllers/proposalController';
+import multer from 'multer';
+const emailUpload = multer({ dest: '/tmp/email-attachments/', limits: { fileSize: 10 * 1024 * 1024 } });
 
 const router = Router();
 router.use(authenticate);
@@ -19,6 +22,8 @@ router.get('/templates', getTemplates);
 router.post('/ai-generate', aiGenerateProposal);
 router.post('/ai-refine', aiRefineSection);
 router.get('/pending-approvals', getPendingApprovals);
+router.post('/ai-email-draft', aiGenerateEmailDraft);
+router.post('/ai-whatsapp-draft', aiGenerateWhatsAppDraft);
 
 // Proposals by lead
 router.get('/lead/:leadId', validate({ params: Joi.object({ leadId: schemas.id }) }), getByLead);
@@ -61,6 +66,8 @@ router.post('/:id/outcome', validate({
   params: Joi.object({ id: schemas.id }),
   body: Joi.object({ status: Joi.string().valid('Accepted', 'Rejected').required() })
 }), updateOutcome);
+router.post('/:id/send-email', emailUpload.array('attachments', 5), sendProposalEmail);
+router.get('/:id/generate-pdf', validate({ params: Joi.object({ id: schemas.id }) }), downloadProposalPDF);
 
 // Line items
 router.get('/:proposalId/line-items', validate({ params: Joi.object({ proposalId: schemas.id }) }), getLineItems);

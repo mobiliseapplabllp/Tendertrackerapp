@@ -190,6 +190,20 @@ export class AIService {
         }]
       });
     }
+    // Anthropic (Claude)
+    else if (providerName.includes('anthropic') || providerName.includes('claude') || baseUrl.includes('api.anthropic.com')) {
+      if (!decryptedApiKey) throw new Error('API key is required for Anthropic');
+      url = `${baseUrl}/messages`;
+      headers['x-api-key'] = decryptedApiKey;
+      headers['anthropic-version'] = '2023-06-01';
+      body = JSON.stringify({
+        model: modelName,
+        max_tokens: config.max_tokens || 4096,
+        messages: [
+          { role: 'user', content: `${systemPrompt ? systemPrompt + '\n\n' : ''}${prompt}` }
+        ],
+      });
+    }
     // Hugging Face
     else if (providerName.includes('hugging face') || baseUrl.includes('huggingface.co')) {
       if (!decryptedApiKey) throw new Error('API key is required for Hugging Face');
@@ -240,6 +254,7 @@ export class AIService {
 
       // Parse response
       if (data.choices?.[0]?.message?.content) return data.choices[0].message.content; // OpenAI/Ollama
+      if (data.content?.[0]?.text) return data.content[0].text; // Anthropic Claude
       if (data.candidates?.[0]?.content?.parts?.[0]?.text) return data.candidates[0].content.parts[0].text; // Gemini
       if (data[0]?.generated_text) return data[0].generated_text; // Hugging Face
       if (data.response) return data.response; // Generic

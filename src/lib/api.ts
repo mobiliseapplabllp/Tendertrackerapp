@@ -97,10 +97,11 @@ async function apiCall<T>(
 
     // Handle 401 Unauthorized - token might be missing or expired
     if (response.status === 401) {
-      // Remove invalid token
+      // Remove invalid token and redirect to login
       localStorage.removeItem('auth_token');
-      const data = await response.json().catch(() => ({ error: 'Unauthorized' }));
-      throw new Error(data.error || data.message || 'Authentication required. Please login again.');
+      // Force page reload to trigger login screen
+      window.location.reload();
+      throw new Error('Session expired. Please login again.');
     }
 
     const data = await response.json();
@@ -945,6 +946,15 @@ export const dashboardApi = {
   getTeamPerformance: async () => {
     return apiCall<any>('/reports/team-performance');
   },
+  getAiSummary: async () => {
+    return apiCall<{ summary: string }>('/reports/ai-summary');
+  },
+  getTeamMatrix: async () => {
+    return apiCall<any>('/reports/team-matrix');
+  },
+  getTeamMatrixLeads: async (userId: number, statuses: string[]) => {
+    return apiCall<any>(`/reports/team-matrix/leads?userId=${userId}&status=${statuses.join(',')}`);
+  },
 };
 
 // ============================================
@@ -1555,6 +1565,27 @@ export const collateralApi = {
   deleteTag: async (id: number) => apiCall<any>(`/collateral/tags/${id}`, { method: 'DELETE' }),
   createCategory: async (data: { name: string; description?: string; icon?: string }) =>
     apiCall<any>('/collateral/categories', { method: 'POST', body: JSON.stringify(data) }),
+
+  createPublicLink: async (data: { collateralId: number; expiresInDays?: number | null }) =>
+    apiCall<any>('/collateral/share/create-link', { method: 'POST', body: JSON.stringify(data) }),
+
+  logShare: async (data: { collateralId: number; channel: string; recipientInfo?: string; shareToken?: string; sentAsAttachment?: boolean }) =>
+    apiCall<any>('/collateral/share/log', { method: 'POST', body: JSON.stringify(data) }),
+
+  aiShareEmailDraft: async (collateralId: number) =>
+    apiCall<any>('/collateral/share/ai-email-draft', { method: 'POST', body: JSON.stringify({ collateralId }) }),
+
+  getSameProductLineItems: async (collateralId: number) =>
+    apiCall<any>(`/collateral/share/same-product-line/${collateralId}`),
+
+  sendShareEmail: async (data: { collateralId: number; to: string; cc?: string; subject: string; body: string; attachFile: boolean; additionalCollateralIds?: number[] }) =>
+    apiCall<any>('/collateral/share/send-email', { method: 'POST', body: JSON.stringify(data) }),
+
+  getShareHistory: async (collateralId: number) =>
+    apiCall<any>(`/collateral/share/history/${collateralId}`),
+
+  getShareLinks: async (collateralId: number) =>
+    apiCall<any>(`/collateral/share/links/${collateralId}`),
 };
 
 // ==================== Product Catalog API ====================
@@ -1670,5 +1701,175 @@ export const proposalApi = {
     apiCall<any>('/proposals/ai-generate', { method: 'POST', body: JSON.stringify({ leadId }) }),
   aiRefine: async (section: string, currentText: string, leadContext?: any) =>
     apiCall<any>('/proposals/ai-refine', { method: 'POST', body: JSON.stringify({ section, currentText, leadContext }) }),
+  // Email
+  sendEmail: async (proposalId: number, data: { to: string; cc?: string; subject: string; body: string; markAsSubmitted?: boolean; attachPdf?: boolean; attachments?: File[] }) => {
+    const token = getAuthToken();
+    const API_BASE_URL = import.meta.env?.VITE_API_URL || '/api/v1';
+    const formData = new FormData();
+    formData.append('to', data.to);
+    if (data.cc) formData.append('cc', data.cc);
+    formData.append('subject', data.subject);
+    formData.append('body', data.body);
+    formData.append('markAsSubmitted', String(data.markAsSubmitted ?? false));
+    formData.append('attachPdf', String(data.attachPdf ?? true));
+    if (data.attachments) {
+      for (const file of data.attachments) {
+        formData.append('attachments', file);
+      }
+    }
+    const res = await fetch(`${API_BASE_URL}/proposals/${proposalId}/send-email`, {
+      method: 'POST',
+      headers: { 'Authorization': `Bearer ${token}` },
+      body: formData,
+    });
+    return res.json();
+  },
+  aiEmailDraft: async (proposalId: number) =>
+    apiCall<any>('/proposals/ai-email-draft', { method: 'POST', body: JSON.stringify({ proposalId }) }),
+  aiWhatsAppDraft: async (proposalId: number) =>
+    apiCall<any>('/proposals/ai-whatsapp-draft', { method: 'POST', body: JSON.stringify({ proposalId }) }),
+};
+
+// ==================== Marketing Campaign API ====================
+export const marketingCampaignApi = {
+  getAll: async (params?: any) => {
+    const query = params ? '?' + new URLSearchParams(params).toString() : '';
+    return apiCall<any>(`/marketing/campaigns${query}`);
+  },
+  getById: async (id: number) => apiCall<any>(`/marketing/campaigns/${id}`),
+  create: async (data: any) => apiCall<any>('/marketing/campaigns', { method: 'POST', body: JSON.stringify(data) }),
+  update: async (id: number, data: any) => apiCall<any>(`/marketing/campaigns/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
+  delete: async (id: number) => apiCall<any>(`/marketing/campaigns/${id}`, { method: 'DELETE' }),
+  addChannel: async (id: number, data: any) => apiCall<any>(`/marketing/campaigns/${id}/channels`, { method: 'POST', body: JSON.stringify(data) }),
+  updateChannel: async (id: number, channelId: number, data: any) => apiCall<any>(`/marketing/campaigns/${id}/channels/${channelId}`, { method: 'PUT', body: JSON.stringify(data) }),
+  removeChannel: async (id: number, channelId: number) => apiCall<any>(`/marketing/campaigns/${id}/channels/${channelId}`, { method: 'DELETE' }),
+  activateCampaign: async (id: number) => apiCall<any>(`/marketing/campaigns/${id}/activate`, { method: 'POST' }),
+  aiGenerate: async (data: any) => apiCall<any>('/marketing/campaigns/ai-generate', { method: 'POST', body: JSON.stringify(data) }),
+  aiContent: async (data: any) => apiCall<any>('/marketing/campaigns/ai-content', { method: 'POST', body: JSON.stringify(data) }),
+  getDashboard: async () => apiCall<any>('/marketing/campaigns/dashboard'),
+  uploadChannelMedia: async (campaignId: number, channelId: number, file: File) => {
+    const token = getAuthToken();
+    const API_BASE_URL = import.meta.env?.VITE_API_URL || '/api/v1';
+    const formData = new FormData();
+    formData.append('file', file);
+    const res = await fetch(`${API_BASE_URL}/marketing/campaigns/${campaignId}/channels/${channelId}/upload`, {
+      method: 'POST',
+      headers: { 'Authorization': `Bearer ${token}` },
+      body: formData,
+    });
+    return res.json();
+  },
+  attachCollateral: async (campaignId: number, channelId: number, collateralIds: number[]) =>
+    apiCall<any>(`/marketing/campaigns/${campaignId}/channels/${channelId}/attach`, { method: 'POST', body: JSON.stringify({ collateralIds }) }),
+};
+
+// ==================== Social Media API ====================
+export const socialMediaApi = {
+  getAccounts: async () => apiCall<any>('/marketing/social/accounts'),
+  connectAccount: async (data: any) => apiCall<any>('/marketing/social/accounts', { method: 'POST', body: JSON.stringify(data) }),
+  updateAccount: async (id: number, data: any) => apiCall<any>(`/marketing/social/accounts/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
+  disconnectAccount: async (id: number) => apiCall<any>(`/marketing/social/accounts/${id}`, { method: 'DELETE' }),
+  getScheduledPosts: async () => apiCall<any>('/marketing/social/posts/scheduled'),
+  getPublishedPosts: async () => apiCall<any>('/marketing/social/posts/published'),
+  aiGeneratePost: async (data: any) => apiCall<any>('/marketing/social/ai-generate', { method: 'POST', body: JSON.stringify(data) }),
+  // OAuth
+  getOAuthConfig: async () => apiCall<any>('/marketing/social/oauth/config'),
+  initiateOAuth: (platform: string) => {
+    // Redirect in the same window to the OAuth provider's consent page.
+    // Auth token is passed as query param because browser redirect cannot use Authorization header.
+    const token = getAuthToken();
+    if (!token) {
+      alert('You are not logged in. Please refresh and try again.');
+      return;
+    }
+    window.location.href = `/api/v1/marketing/social/oauth/${platform}/initiate?token=${encodeURIComponent(token)}`;
+  },
+};
+
+// ==================== Email Marketing API ====================
+export const emailMarketingApi = {
+  getLists: async () => apiCall<any>('/marketing/email/lists'),
+  createList: async (data: any) => apiCall<any>('/marketing/email/lists', { method: 'POST', body: JSON.stringify(data) }),
+  updateList: async (id: number, data: any) => apiCall<any>(`/marketing/email/lists/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
+  deleteList: async (id: number) => apiCall<any>(`/marketing/email/lists/${id}`, { method: 'DELETE' }),
+  getListMembers: async (id: number, params?: any) => {
+    const query = params ? '?' + new URLSearchParams(params).toString() : '';
+    return apiCall<any>(`/marketing/email/lists/${id}/members${query}`);
+  },
+  addMembers: async (id: number, data: any) => apiCall<any>(`/marketing/email/lists/${id}/members`, { method: 'POST', body: JSON.stringify(data) }),
+  removeMember: async (listId: number, memberId: number) => apiCall<any>(`/marketing/email/lists/${listId}/members/${memberId}`, { method: 'DELETE' }),
+  getCampaigns: async () => apiCall<any>('/marketing/email/campaigns'),
+  createCampaign: async (data: any) => apiCall<any>('/marketing/email/campaigns', { method: 'POST', body: JSON.stringify(data) }),
+  updateCampaign: async (id: number, data: any) => apiCall<any>(`/marketing/email/campaigns/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
+  sendCampaign: async (id: number) => apiCall<any>(`/marketing/email/campaigns/${id}/send`, { method: 'POST' }),
+  aiGenerate: async (data: any) => apiCall<any>('/marketing/email/ai-generate', { method: 'POST', body: JSON.stringify(data) }),
+};
+
+// ==================== Content Calendar API ====================
+export const contentCalendarApi = {
+  getEvents: async (params?: any) => {
+    const query = params ? '?' + new URLSearchParams(params).toString() : '';
+    return apiCall<any>(`/marketing/calendar${query}`);
+  },
+  createEvent: async (data: any) => apiCall<any>('/marketing/calendar', { method: 'POST', body: JSON.stringify(data) }),
+  updateEvent: async (id: number, data: any) => apiCall<any>(`/marketing/calendar/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
+  deleteEvent: async (id: number) => apiCall<any>(`/marketing/calendar/${id}`, { method: 'DELETE' }),
+  aiSuggest: async (data: any) => apiCall<any>('/marketing/calendar/ai-suggest', { method: 'POST', body: JSON.stringify(data) }),
+};
+
+// ==================== Lead Capture API ====================
+export const leadCaptureApi = {
+  getForms: async () => apiCall<any>('/marketing/lead-capture/forms'),
+  getFormById: async (id: number) => apiCall<any>(`/marketing/lead-capture/forms/${id}`),
+  createForm: async (data: any) => apiCall<any>('/marketing/lead-capture/forms', { method: 'POST', body: JSON.stringify(data) }),
+  updateForm: async (id: number, data: any) => apiCall<any>(`/marketing/lead-capture/forms/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
+  deleteForm: async (id: number) => apiCall<any>(`/marketing/lead-capture/forms/${id}`, { method: 'DELETE' }),
+  getSubmissions: async (params?: any) => {
+    const query = params ? '?' + new URLSearchParams(params).toString() : '';
+    return apiCall<any>(`/marketing/lead-capture/submissions${query}`);
+  },
+  convertToLead: async (submissionId: number, data?: any) => apiCall<any>(`/marketing/lead-capture/submissions/${submissionId}/convert`, { method: 'POST', body: JSON.stringify(data || {}) }),
+};
+
+// ==================== Audience Segments API ====================
+export const audienceSegmentApi = {
+  getAll: async () => apiCall<any>('/marketing/segments'),
+  getById: async (id: number) => apiCall<any>(`/marketing/segments/${id}`),
+  create: async (data: any) => apiCall<any>('/marketing/segments', { method: 'POST', body: JSON.stringify(data) }),
+  update: async (id: number, data: any) => apiCall<any>(`/marketing/segments/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
+  delete: async (id: number) => apiCall<any>(`/marketing/segments/${id}`, { method: 'DELETE' }),
+  refreshCount: async (id: number) => apiCall<any>(`/marketing/segments/${id}/refresh`, { method: 'POST' }),
+  aiSuggest: async () => apiCall<any>('/marketing/segments/ai-suggest', { method: 'POST' }),
+};
+
+// ==================== Marketing Analytics API ====================
+export const marketingAnalyticsApi = {
+  getOverview: async () => apiCall<any>('/marketing/analytics/overview'),
+  getCampaignAnalytics: async (campaignId: number) => apiCall<any>(`/marketing/analytics/campaign/${campaignId}`),
+  recordMetric: async (data: any) => apiCall<any>('/marketing/analytics/record', { method: 'POST', body: JSON.stringify(data) }),
+};
+
+// ==================== Apollo Integration API ====================
+export const apolloApi = {
+  getConfig: async () => apiCall<any>('/apollo/config'),
+  searchPeople: async (criteria: any) => apiCall<any>('/apollo/search-people', { method: 'POST', body: JSON.stringify(criteria) }),
+  searchCompanies: async (criteria: any) => apiCall<any>('/apollo/search-companies', { method: 'POST', body: JSON.stringify(criteria) }),
+  importContacts: async (data: { people: any[]; listId?: number }) => apiCall<any>('/apollo/import', { method: 'POST', body: JSON.stringify(data) }),
+  enrichCompany: async (id: number) => apiCall<any>(`/apollo/enrich-company/${id}`, { method: 'POST' }),
+  enrichContact: async (id: number) => apiCall<any>(`/apollo/enrich-contact/${id}`, { method: 'POST' }),
+  getImportHistory: async (params?: { page?: number; pageSize?: number }) => {
+    const query = params ? '?' + new URLSearchParams(params as any).toString() : '';
+    return apiCall<any>(`/apollo/import-history${query}`);
+  },
+};
+
+// ==================== Role Permissions API ====================
+export const permissionApi = {
+  getMatrix: async () => apiCall<any>('/permissions'),
+  updatePermission: async (data: { permissionKey: string; role: string; enabled: boolean }) =>
+    apiCall<any>('/permissions', { method: 'PUT', body: JSON.stringify(data) }),
+  bulkUpdate: async (data: { group: string; role: string; enabled: boolean }) =>
+    apiCall<any>('/permissions/bulk', { method: 'PUT', body: JSON.stringify(data) }),
+  resetDefaults: async () => apiCall<any>('/permissions/reset', { method: 'POST' }),
 };
 

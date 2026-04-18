@@ -335,15 +335,23 @@ export function Settings() {
             max-width: 400px;
             animation: slideIn 0.3s ease-out;
           `;
-          alertDiv.innerHTML = `
-            <div style="display: flex; align-items: center; gap: 10px;">
-              <div style="font-size: 24px;">🔔</div>
-              <div>
-                <strong>Desktop Notification Sent!</strong><br/>
-                <small>If you don't see it, check your system notification settings.</small>
-              </div>
-            </div>
-          `;
+          alertDiv.textContent = '';
+          const wrapper = document.createElement('div');
+          wrapper.style.cssText = 'display: flex; align-items: center; gap: 10px;';
+          const icon = document.createElement('div');
+          icon.style.fontSize = '24px';
+          icon.textContent = '\u{1F514}';
+          const text = document.createElement('div');
+          const strong = document.createElement('strong');
+          strong.textContent = 'Desktop Notification Sent!';
+          const small = document.createElement('small');
+          small.textContent = "If you don't see it, check your system notification settings.";
+          text.appendChild(strong);
+          text.appendChild(document.createElement('br'));
+          text.appendChild(small);
+          wrapper.appendChild(icon);
+          wrapper.appendChild(text);
+          alertDiv.appendChild(wrapper);
           document.body.appendChild(alertDiv);
 
           setTimeout(() => {

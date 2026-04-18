@@ -138,15 +138,17 @@ const AI_PROVIDERS = {
     isFree: false,
   },
   'Anthropic': {
-    name: 'Anthropic',
+    name: 'Anthropic (Claude)',
     defaultBaseUrl: 'https://api.anthropic.com/v1',
     models: [
-      { value: 'claude-3-5-sonnet-20241022', label: 'Claude 3.5 Sonnet (Latest)' },
-      { value: 'claude-3-opus-20240229', label: 'Claude 3 Opus' },
-      { value: 'claude-3-sonnet-20240229', label: 'Claude 3 Sonnet' },
-      { value: 'claude-3-haiku-20240307', label: 'Claude 3 Haiku' },
+      { value: 'claude-sonnet-4-20250514', label: 'Claude Sonnet 4 (Latest - Recommended)' },
+      { value: 'claude-opus-4-20250514', label: 'Claude Opus 4 (Most Powerful)' },
+      { value: 'claude-haiku-4-20250514', label: 'Claude Haiku 4 (Fastest)' },
+      { value: 'claude-3-7-sonnet-20250219', label: 'Claude 3.7 Sonnet' },
+      { value: 'claude-3-5-haiku-20241022', label: 'Claude 3.5 Haiku' },
     ],
     isFree: false,
+    note: 'Get API key from console.anthropic.com. Uses x-api-key header authentication.',
   },
   'Cohere': {
     name: 'Cohere',

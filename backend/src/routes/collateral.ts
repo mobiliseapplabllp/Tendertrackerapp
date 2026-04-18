@@ -51,6 +51,76 @@ router.delete(
 // ==================== Search ====================
 router.get('/search', CollateralController.search);
 
+// ==================== Sharing ====================
+router.post(
+  '/share/create-link',
+  validate({
+    body: Joi.object({
+      collateralId: Joi.number().integer().positive().required(),
+      expiresInDays: Joi.number().integer().positive().allow(null).optional(),
+    }),
+  }),
+  CollateralController.createPublicLink
+);
+
+router.post(
+  '/share/log',
+  validate({
+    body: Joi.object({
+      collateralId: Joi.number().integer().positive().required(),
+      channel: Joi.string().valid('email', 'whatsapp', 'sms', 'linkedin', 'twitter', 'facebook', 'copy_link', 'other').required(),
+      recipientInfo: Joi.string().max(500).allow(null, '').optional(),
+      shareToken: Joi.string().max(64).allow(null, '').optional(),
+      sentAsAttachment: Joi.boolean().optional(),
+    }),
+  }),
+  CollateralController.logShare
+);
+
+router.post(
+  '/share/ai-email-draft',
+  validate({
+    body: Joi.object({
+      collateralId: Joi.number().integer().positive().required(),
+    }),
+  }),
+  CollateralController.aiGenerateShareEmailDraft
+);
+
+router.get(
+  '/share/same-product-line/:collateralId',
+  validate({ params: Joi.object({ collateralId: Joi.number().integer().positive().required() }) }),
+  CollateralController.getSameProductLineItems
+);
+
+router.post(
+  '/share/send-email',
+  validate({
+    body: Joi.object({
+      collateralId: Joi.number().integer().positive().required(),
+      to: Joi.string().email().required(),
+      cc: Joi.string().allow(null, '').optional(),
+      subject: Joi.string().min(1).max(500).required(),
+      body: Joi.string().min(1).required(),
+      attachFile: Joi.boolean().optional(),
+      additionalCollateralIds: Joi.array().items(Joi.number().integer().positive()).max(10).optional(),
+    }),
+  }),
+  CollateralController.sendShareEmail
+);
+
+router.get(
+  '/share/history/:collateralId',
+  validate({ params: Joi.object({ collateralId: Joi.number().integer().positive().required() }) }),
+  CollateralController.getShareHistory
+);
+
+router.get(
+  '/share/links/:collateralId',
+  validate({ params: Joi.object({ collateralId: Joi.number().integer().positive().required() }) }),
+  CollateralController.getPublicLink
+);
+
 // ==================== Collateral Items ====================
 router.get('/', CollateralController.getAll);
 
@@ -82,6 +152,8 @@ router.post(
       categoryId: Joi.number().integer().positive().required(),
       tags: Joi.string().allow(null, ''), // Comma-separated tag IDs
       isFeatured: Joi.any().optional(),
+      productLineId: Joi.number().integer().positive().allow(null).optional(),
+      productId: Joi.number().integer().positive().allow(null).optional(),
     }),
   }),
   CollateralController.upload
@@ -101,6 +173,8 @@ router.put(
         Joi.array().items(Joi.number())
       ),
       isFeatured: Joi.any().optional(),
+      productLineId: Joi.number().integer().positive().allow(null).optional(),
+      productId: Joi.number().integer().positive().allow(null).optional(),
     }),
   }),
   CollateralController.update

@@ -45,8 +45,10 @@ import {
   TrendingUp,
   Grid3X3,
   List,
+  Share2,
 } from 'lucide-react';
-import { collateralApi } from '../lib/api';
+import { collateralApi, productLineApi, productCatalogApi } from '../lib/api';
+import { ShareCollateralPage } from './ShareCollateralDialog';
 
 // ==================== Type definitions ====================
 interface CollateralCategory {
@@ -84,6 +86,11 @@ interface CollateralItem {
   updated_at: string;
   current_version: number;
   tags: { id: number; name: string; type: string }[];
+  product_line_id: number | null;
+  product_line_name: string | null;
+  product_id: number | null;
+  product_name: string | null;
+  product_sku: string | null;
 }
 
 interface DashboardStats {
@@ -144,12 +151,16 @@ function UploadDialog({
   onClose,
   categories,
   tags,
+  productLines,
+  products,
   onUploaded,
 }: {
   isOpen: boolean;
   onClose: () => void;
   categories: CollateralCategory[];
   tags: CollateralTag[];
+  productLines: any[];
+  products: any[];
   onUploaded: () => void;
 }) {
   const [file, setFile] = useState<File | null>(null);
@@ -161,6 +172,8 @@ function UploadDialog({
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState('');
   const [dragActive, setDragActive] = useState(false);
+  const [productLineId, setProductLineId] = useState('');
+  const [productId, setProductId] = useState('');
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const resetForm = () => {
@@ -171,6 +184,8 @@ function UploadDialog({
     setSelectedTags([]);
     setIsFeatured(false);
     setError('');
+    setProductLineId('');
+    setProductId('');
   };
 
   const handleDrag = (e: React.DragEvent) => {
@@ -214,6 +229,8 @@ function UploadDialog({
         categoryId: parseInt(categoryId),
         tags: selectedTags.length > 0 ? selectedTags.join(',') : undefined,
         isFeatured,
+        productLineId: productLineId && productLineId !== 'none' ? parseInt(productLineId) : undefined,
+        productId: productId && productId !== 'none' ? parseInt(productId) : undefined,
       });
 
       if (result.success) {
@@ -335,6 +352,40 @@ function UploadDialog({
             </Select>
           </div>
 
+          {/* Product Line (optional) */}
+          <div>
+            <Label htmlFor="collateral-product-line">Product Line</Label>
+            <Select value={productLineId} onValueChange={setProductLineId}>
+              <SelectTrigger id="collateral-product-line">
+                <SelectValue placeholder="Select product line (optional)" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="none">None</SelectItem>
+                {productLines.map((pl: any) => (
+                  <SelectItem key={pl.id} value={String(pl.id)}>{pl.name}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          {/* Product (optional) */}
+          <div>
+            <Label htmlFor="collateral-product">Product</Label>
+            <Select value={productId} onValueChange={setProductId}>
+              <SelectTrigger id="collateral-product">
+                <SelectValue placeholder="Select product (optional)" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="none">None</SelectItem>
+                {products
+                  .filter((p: any) => !productLineId || productLineId === 'none' || String(p.product_line_id) === productLineId)
+                  .map((p: any) => (
+                    <SelectItem key={p.id} value={String(p.id)}>{p.name} {p.sku ? `(${p.sku})` : ''}</SelectItem>
+                  ))}
+              </SelectContent>
+            </Select>
+          </div>
+
           {/* Tags */}
           <div>
             <Label>Tags</Label>
@@ -398,12 +449,16 @@ function EditDialog({
   item,
   categories,
   tags,
+  productLines,
+  products,
   onClose,
   onSaved,
 }: {
   item: CollateralItem;
   categories: CollateralCategory[];
   tags: CollateralTag[];
+  productLines: any[];
+  products: any[];
   onClose: () => void;
   onSaved: () => void;
 }) {
@@ -418,6 +473,8 @@ function EditDialog({
   const [showVersions, setShowVersions] = useState(false);
   const [versions, setVersions] = useState<any[]>([]);
   const [loadingVersions, setLoadingVersions] = useState(false);
+  const [productLineId, setProductLineId] = useState(item.product_line_id ? String(item.product_line_id) : '');
+  const [productId, setProductId] = useState(item.product_id ? String(item.product_id) : '');
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const loadVersions = async () => {
@@ -444,6 +501,8 @@ function EditDialog({
         categoryId: parseInt(categoryId),
         tags: selectedTags.join(','),
         isFeatured,
+        productLineId: productLineId && productLineId !== 'none' ? parseInt(productLineId) : undefined,
+        productId: productId && productId !== 'none' ? parseInt(productId) : undefined,
       }, newFile || undefined);
       if (result.success) {
         onSaved();
@@ -579,6 +638,38 @@ function EditDialog({
               </SelectContent>
             </Select>
           </div>
+          {/* Product Line (optional) */}
+          <div>
+            <Label htmlFor="edit-product-line">Product Line</Label>
+            <Select value={productLineId} onValueChange={setProductLineId}>
+              <SelectTrigger id="edit-product-line">
+                <SelectValue placeholder="Select product line (optional)" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="none">None</SelectItem>
+                {productLines.map((pl: any) => (
+                  <SelectItem key={pl.id} value={String(pl.id)}>{pl.name}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          {/* Product (optional) */}
+          <div>
+            <Label htmlFor="edit-product">Product</Label>
+            <Select value={productId} onValueChange={setProductId}>
+              <SelectTrigger id="edit-product">
+                <SelectValue placeholder="Select product (optional)" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="none">None</SelectItem>
+                {products
+                  .filter((p: any) => !productLineId || productLineId === 'none' || String(p.product_line_id) === productLineId)
+                  .map((p: any) => (
+                    <SelectItem key={p.id} value={String(p.id)}>{p.name} {p.sku ? `(${p.sku})` : ''}</SelectItem>
+                  ))}
+              </SelectContent>
+            </Select>
+          </div>
           <div>
             <Label>Tags</Label>
             <div className="flex flex-wrap gap-1 mt-1">
@@ -675,10 +766,106 @@ function CreateTagDialog({
   );
 }
 
-// ==================== Item Card ====================
+// ==================== Preview Modal ====================
 function canPreview(fileType: string): boolean {
   return fileType?.startsWith('video/') || fileType?.startsWith('image/') || fileType?.includes('pdf');
 }
+
+function PreviewModal({ item, onClose, onDownload }: { item: CollateralItem; onClose: () => void; onDownload: (item: CollateralItem) => void }) {
+  const [blobUrl, setBlobUrl] = useState<string | null>(null);
+  const [loadingPreview, setLoadingPreview] = useState(true);
+  const [previewError, setPreviewError] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    const loadPreview = async () => {
+      setLoadingPreview(true);
+      setPreviewError(false);
+      try {
+        const token = localStorage.getItem('auth_token');
+        const API_BASE_URL = (import.meta as any).env?.VITE_API_URL || '/api/v1';
+        const res = await fetch(`${API_BASE_URL}/collateral/${item.id}/download?inline=true`, {
+          headers: { 'Authorization': `Bearer ${token}` },
+        });
+        if (!res.ok) throw new Error('Failed to load');
+        const blob = await res.blob();
+        if (!cancelled) {
+          const url = URL.createObjectURL(blob);
+          setBlobUrl(url);
+        }
+      } catch {
+        if (!cancelled) setPreviewError(true);
+      } finally {
+        if (!cancelled) setLoadingPreview(false);
+      }
+    };
+    loadPreview();
+    return () => { cancelled = true; if (blobUrl) URL.revokeObjectURL(blobUrl); };
+  }, [item.id]);
+
+  useEffect(() => {
+    return () => { if (blobUrl) URL.revokeObjectURL(blobUrl); };
+  }, [blobUrl]);
+
+  return (
+    <>
+      <div className="fixed inset-0 bg-black/80 z-[60]" onClick={onClose} />
+      <div className="fixed inset-4 z-[61] bg-white rounded-xl overflow-hidden flex flex-col shadow-2xl">
+        <div className="flex items-center justify-between px-6 py-3 bg-gray-50 border-b flex-shrink-0">
+          <div>
+            <h2 className="font-semibold text-sm">{item.title}</h2>
+            <p className="text-xs text-gray-500">{item.file_extension?.toUpperCase()} · {formatFileSize(item.file_size)}</p>
+          </div>
+          <div className="flex items-center gap-2">
+            <Button size="sm" variant="outline" onClick={() => onDownload(item)}>
+              <Download className="w-3.5 h-3.5 mr-1" />Download
+            </Button>
+            <Button size="sm" variant="ghost" onClick={onClose}>Close</Button>
+          </div>
+        </div>
+        <div className="flex-1 overflow-auto flex items-center justify-center bg-gray-900 p-4">
+          {loadingPreview && (
+            <div className="text-center text-white">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-white mx-auto mb-3" />
+              <p className="text-sm">Loading preview...</p>
+            </div>
+          )}
+          {previewError && (
+            <div className="text-center text-white">
+              <FileText className="w-16 h-16 mx-auto mb-4 text-gray-500" />
+              <p className="text-lg">Failed to load preview</p>
+              <p className="text-sm text-gray-500 mt-1">Click Download to view the file</p>
+            </div>
+          )}
+          {blobUrl && !previewError && (
+            <>
+              {item.file_type?.startsWith('video/') && (
+                <video controls autoPlay className="max-w-full max-h-full rounded-lg" src={blobUrl}>
+                  Your browser does not support video playback.
+                </video>
+              )}
+              {item.file_type?.startsWith('image/') && (
+                <img src={blobUrl} alt={item.title} className="max-w-full max-h-full object-contain rounded-lg" />
+              )}
+              {item.file_type?.includes('pdf') && (
+                <iframe src={`${blobUrl}#toolbar=1`} className="w-full h-full rounded-lg bg-white" title={item.title} />
+              )}
+            </>
+          )}
+          {!loadingPreview && !previewError && !blobUrl && !canPreview(item.file_type) && (
+            <div className="text-center text-white">
+              <FileText className="w-16 h-16 mx-auto mb-4 text-gray-500" />
+              <p className="text-lg">Preview not available for this file type</p>
+              <p className="text-sm text-gray-500 mt-1">Click Download to view the file</p>
+            </div>
+          )}
+        </div>
+      </div>
+    </>
+  );
+}
+
+// ==================== Item Card ====================
 
 function CollateralCard({
   item,
@@ -686,12 +873,14 @@ function CollateralCard({
   onDelete,
   onDownload,
   onPreview,
+  onShare,
 }: {
   item: CollateralItem;
   onEdit: (item: CollateralItem) => void;
   onDelete: (item: CollateralItem) => void;
   onDownload: (item: CollateralItem) => void;
   onPreview: (item: CollateralItem) => void;
+  onShare: (item: CollateralItem) => void;
 }) {
   return (
     <Card className="p-4 hover:shadow-md transition-shadow">
@@ -703,12 +892,17 @@ function CollateralCard({
           <div className="flex items-start justify-between gap-2">
             <div className="min-w-0">
               <h3 className="font-medium text-sm truncate" title={item.title}>
-                {item.is_featured && <Star className="h-3 w-3 text-yellow-500 inline mr-1" />}
+                {!!item.is_featured && <Star className="h-3 w-3 text-yellow-500 inline mr-1" />}
                 {item.title}
               </h3>
               <p className="text-xs text-gray-500 mt-0.5">
                 {item.category_name} &middot; {formatFileSize(item.file_size)} &middot; {item.file_extension?.toUpperCase()}
               </p>
+              {(item.product_line_name || item.product_name) && (
+                <p className="text-xs text-indigo-600 mt-0.5">
+                  {item.product_line_name}{item.product_name ? ` · ${item.product_name}` : ''}
+                </p>
+              )}
             </div>
             <div className="flex items-center gap-1 flex-shrink-0">
               {canPreview(item.file_type) && (
@@ -718,6 +912,9 @@ function CollateralCard({
               )}
               <Button variant="ghost" size="sm" className="h-7 w-7 p-0" onClick={() => onDownload(item)} title="Download" aria-label={`Download ${item.title}`}>
                 <Download className="h-3.5 w-3.5" />
+              </Button>
+              <Button variant="ghost" size="sm" className="h-7 w-7 p-0" onClick={() => onShare(item)} title="Share" aria-label={`Share ${item.title}`}>
+                <Share2 className="h-3.5 w-3.5 text-green-600" />
               </Button>
               <Button variant="ghost" size="sm" className="h-7 w-7 p-0" onClick={() => onEdit(item)} title="Edit" aria-label={`Edit ${item.title}`}>
                 <Pencil className="h-3.5 w-3.5" />
@@ -758,6 +955,8 @@ export function CollateralRepository() {
   const [stats, setStats] = useState<DashboardStats | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [productLines, setProductLines] = useState<any[]>([]);
+  const [products, setProducts] = useState<any[]>([]);
 
   // UI state
   const [activeTab, setActiveTab] = useState('dashboard');
@@ -767,11 +966,13 @@ export function CollateralRepository() {
   const [categoryFilter, setCategoryFilter] = useState('all');
   const [tagFilter, setTagFilter] = useState('all');
   const [fileTypeFilter, setFileTypeFilter] = useState('all');
+  const [productLineFilter, setProductLineFilter] = useState('all');
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
   const [isUploadOpen, setIsUploadOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<CollateralItem | null>(null);
   const [isCreateTagOpen, setIsCreateTagOpen] = useState(false);
   const [previewItem, setPreviewItem] = useState<CollateralItem | null>(null);
+  const [shareItem, setShareItem] = useState<CollateralItem | null>(null);
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [totalItems, setTotalItems] = useState(0);
@@ -795,11 +996,32 @@ export function CollateralRepository() {
     if (res.success) setStats(res.data);
   }, []);
 
+  const loadProductLines = useCallback(async () => {
+    try {
+      const res = await productLineApi.getAll();
+      if (res.success) setProductLines(res.data || []);
+      else if (Array.isArray(res)) setProductLines(res);
+    } catch (err) {
+      console.error('Failed to load product lines', err);
+    }
+  }, []);
+
+  const loadProducts = useCallback(async () => {
+    try {
+      const res = await productCatalogApi.getAll({ pageSize: 500 });
+      if (res.success && res.data) setProducts(res.data.data || []);
+      else if (Array.isArray(res)) setProducts(res);
+    } catch (err) {
+      console.error('Failed to load products', err);
+    }
+  }, []);
+
   const loadItems = useCallback(async () => {
     const params: any = { page, pageSize: 20 };
     if (categoryFilter !== 'all') params.categoryId = parseInt(categoryFilter);
     if (tagFilter !== 'all') params.tagId = parseInt(tagFilter);
     if (fileTypeFilter !== 'all') params.fileType = fileTypeFilter;
+    if (productLineFilter !== 'all') params.productLineId = parseInt(productLineFilter);
 
     const res = await collateralApi.getAll(params);
     if (res.success) {
@@ -807,19 +1029,19 @@ export function CollateralRepository() {
       setTotalPages(res.data.totalPages);
       setTotalItems(res.data.total);
     }
-  }, [page, categoryFilter, tagFilter, fileTypeFilter]);
+  }, [page, categoryFilter, tagFilter, fileTypeFilter, productLineFilter]);
 
   const loadAll = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
-      await Promise.all([loadCategories(), loadTags(), loadStats(), loadItems()]);
+      await Promise.all([loadCategories(), loadTags(), loadStats(), loadItems(), loadProductLines(), loadProducts()]);
     } catch (err: any) {
       setError(err.message || 'Failed to load data');
     } finally {
       setLoading(false);
     }
-  }, [loadCategories, loadTags, loadStats, loadItems]);
+  }, [loadCategories, loadTags, loadStats, loadItems, loadProductLines, loadProducts]);
 
   useEffect(() => {
     loadAll();
@@ -827,7 +1049,7 @@ export function CollateralRepository() {
 
   useEffect(() => {
     loadItems();
-  }, [page, categoryFilter, tagFilter, fileTypeFilter]);
+  }, [page, categoryFilter, tagFilter, fileTypeFilter, productLineFilter]);
 
   // ==================== Search ====================
 
@@ -898,6 +1120,11 @@ export function CollateralRepository() {
     );
   }
 
+  // Full-page share view
+  if (shareItem) {
+    return <ShareCollateralPage item={shareItem} onBack={() => setShareItem(null)} />;
+  }
+
   const displayItems = searchResults !== null ? searchResults : items;
 
   return (
@@ -961,6 +1188,7 @@ export function CollateralRepository() {
                 onDelete={handleDelete}
                 onDownload={handleDownload}
                 onPreview={(item: any) => setPreviewItem(item)}
+                onShare={setShareItem}
               />
             ))}
           </div>
@@ -1119,6 +1347,18 @@ export function CollateralRepository() {
                 </Select>
               </div>
 
+              <Select value={productLineFilter} onValueChange={v => { setProductLineFilter(v); setPage(1); }}>
+                <SelectTrigger className="w-[180px] h-8 text-xs">
+                  <SelectValue placeholder="All Product Lines" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Product Lines</SelectItem>
+                  {productLines.map((pl: any) => (
+                    <SelectItem key={pl.id} value={String(pl.id)}>{pl.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+
               <Select value={tagFilter} onValueChange={v => { setTagFilter(v); setPage(1); }}>
                 <SelectTrigger className="w-[180px] h-8 text-xs">
                   <SelectValue placeholder="All Tags" />
@@ -1185,7 +1425,8 @@ export function CollateralRepository() {
                       onEdit={setEditingItem}
                       onDelete={handleDelete}
                       onDownload={handleDownload}
-                onPreview={(item: any) => setPreviewItem(item)}
+                      onPreview={(item: any) => setPreviewItem(item)}
+                      onShare={setShareItem}
                     />
                   ))}
                 </div>
@@ -1217,7 +1458,7 @@ export function CollateralRepository() {
               <div className="text-center py-16">
                 <FolderOpen className="h-12 w-12 mx-auto text-gray-300 mb-3" />
                 <p className="text-gray-500">No materials found with these filters.</p>
-                <Button variant="link" onClick={() => { setCategoryFilter('all'); setTagFilter('all'); setFileTypeFilter('all'); }}>
+                <Button variant="link" onClick={() => { setCategoryFilter('all'); setTagFilter('all'); setFileTypeFilter('all'); setProductLineFilter('all'); }}>
                   Clear filters
                 </Button>
               </div>
@@ -1276,6 +1517,8 @@ export function CollateralRepository() {
         onClose={() => setIsUploadOpen(false)}
         categories={categories}
         tags={tags}
+        productLines={productLines}
+        products={products}
         onUploaded={handleAfterUpload}
       />
 
@@ -1284,6 +1527,8 @@ export function CollateralRepository() {
           item={editingItem}
           categories={categories}
           tags={tags}
+          productLines={productLines}
+          products={products}
           onClose={() => setEditingItem(null)}
           onSaved={handleAfterUpload}
         />
@@ -1297,51 +1542,7 @@ export function CollateralRepository() {
 
       {/* Preview Modal */}
       {previewItem && (
-        <>
-          <div className="fixed inset-0 bg-black/80 z-[60]" onClick={() => setPreviewItem(null)} />
-          <div className="fixed inset-4 z-[61] bg-white rounded-xl overflow-hidden flex flex-col shadow-2xl">
-            <div className="flex items-center justify-between px-6 py-3 bg-gray-50 border-b flex-shrink-0">
-              <div>
-                <h2 className="font-semibold text-sm">{previewItem.title}</h2>
-                <p className="text-xs text-gray-500">{previewItem.file_extension?.toUpperCase()} · {formatFileSize(previewItem.file_size)}</p>
-              </div>
-              <div className="flex items-center gap-2">
-                <Button size="sm" variant="outline" onClick={() => { handleDownload(previewItem); }}>
-                  <Download className="w-3.5 h-3.5 mr-1" />Download
-                </Button>
-                <Button size="sm" variant="ghost" onClick={() => setPreviewItem(null)}>Close</Button>
-              </div>
-            </div>
-            <div className="flex-1 overflow-auto flex items-center justify-center bg-gray-900 p-4">
-              {(() => {
-                const token = localStorage.getItem('auth_token');
-                const baseUrl = `/api/v1/collateral/${previewItem.id}/download?inline=true&token=${token}`;
-                return (
-                  <>
-                    {previewItem.file_type?.startsWith('video/') && (
-                      <video controls autoPlay className="max-w-full max-h-full rounded-lg" src={baseUrl}>
-                        Your browser does not support video playback.
-                      </video>
-                    )}
-                    {previewItem.file_type?.startsWith('image/') && (
-                      <img src={baseUrl} alt={previewItem.title} className="max-w-full max-h-full object-contain rounded-lg" />
-                    )}
-                    {previewItem.file_type?.includes('pdf') && (
-                      <iframe src={`${baseUrl}#toolbar=1`} className="w-full h-full rounded-lg bg-white" title={previewItem.title} />
-                    )}
-                  </>
-                );
-              })()}
-              {!previewItem.file_type?.startsWith('video/') && !previewItem.file_type?.startsWith('image/') && !previewItem.file_type?.includes('pdf') && (
-                <div className="text-center text-white">
-                  <FileText className="w-16 h-16 mx-auto mb-4 text-gray-500" />
-                  <p className="text-lg">Preview not available for this file type</p>
-                  <p className="text-sm text-gray-500 mt-1">Click Download to view the file</p>
-                </div>
-              )}
-            </div>
-          </div>
-        </>
+        <PreviewModal item={previewItem} onClose={() => setPreviewItem(null)} onDownload={handleDownload} />
       )}
     </div>
   );

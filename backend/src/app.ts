@@ -38,7 +38,17 @@ import salesPerformanceRoutes from './routes/salesPerformance';
 import collateralRoutes from './routes/collateral';
 import productCatalogRoutes from './routes/productCatalog';
 import proposalRoutes from './routes/proposals';
+import marketingCampaignRoutes from './routes/marketingCampaigns';
+import socialMediaRoutes from './routes/socialMedia';
+import emailMarketingRoutes from './routes/emailMarketing';
+import contentCalendarRoutes from './routes/contentCalendar';
+import leadCaptureRoutes from './routes/leadCapture';
+import audienceSegmentRoutes from './routes/audienceSegments';
+import marketingAnalyticsRoutes from './routes/marketingAnalytics';
+import permissionRoutes from './routes/permissions';
+import apolloRoutes from './routes/apollo';
 import { ReminderService } from './services/reminderService';
+import { CampaignPublishingService } from './services/campaignPublishingService';
 
 const app: Express = express();
 const PORT = process.env.PORT || 5000;
@@ -189,6 +199,36 @@ app.use(`/api/${API_VERSION}/collateral`, collateralRoutes);
 app.use(`/api/${API_VERSION}/product-catalog`, productCatalogRoutes);
 app.use(`/api/${API_VERSION}/proposals`, proposalRoutes);
 
+// Public OAuth routes (MUST be before marketing/social router — no auth needed for browser redirects)
+import { SocialOAuthController } from './controllers/socialOAuthController';
+app.get(`/api/${API_VERSION}/marketing/social/oauth/:platform/initiate`, SocialOAuthController.initiateOAuth);
+app.get(`/api/${API_VERSION}/marketing/social/oauth/:platform/callback`, SocialOAuthController.handleCallback);
+
+// Marketing module routes
+app.use(`/api/${API_VERSION}/marketing/campaigns`, marketingCampaignRoutes);
+app.use(`/api/${API_VERSION}/marketing/social`, socialMediaRoutes);
+app.use(`/api/${API_VERSION}/marketing/email`, emailMarketingRoutes);
+app.use(`/api/${API_VERSION}/marketing/calendar`, contentCalendarRoutes);
+app.use(`/api/${API_VERSION}/marketing/lead-capture`, leadCaptureRoutes);
+app.use(`/api/${API_VERSION}/marketing/segments`, audienceSegmentRoutes);
+app.use(`/api/${API_VERSION}/marketing/analytics`, marketingAnalyticsRoutes);
+
+// Role Permissions routes
+app.use(`/api/${API_VERSION}/permissions`, permissionRoutes);
+
+// Apollo integration routes
+app.use(`/api/${API_VERSION}/apollo`, apolloRoutes);
+
+// Public collateral sharing routes (no auth required, under /api/ so Apache proxies them)
+import { CollateralController } from './controllers/collateralController';
+app.get(`/api/${API_VERSION}/shared/:token`, CollateralController.publicView);
+app.get(`/api/${API_VERSION}/shared/:token/download`, CollateralController.publicDownload);
+
+// Public lead capture routes (no auth required)
+import { LeadCaptureController } from './controllers/leadCaptureController';
+app.get(`/api/${API_VERSION}/public/forms/:token`, LeadCaptureController.getPublicForm);
+app.post(`/api/${API_VERSION}/public/forms/:token/submit`, LeadCaptureController.submitForm);
+
 // 404 handler
 app.use(notFoundHandler);
 
@@ -230,6 +270,18 @@ const server = app.listen(PORT, () => {
     }, 60 * 60 * 1000);
 
     logger.info('Reminder service scheduled to run every hour');
+
+    // Campaign publishing scheduler -- check every minute for scheduled posts
+    setInterval(() => {
+      CampaignPublishingService.processScheduledChannels().catch((error) => {
+        logger.error({
+          message: 'Campaign scheduler error',
+          error: error.message,
+        });
+      });
+    }, 60 * 1000); // Every 60 seconds
+
+    logger.info({ message: 'Campaign publishing scheduler started (every minute)' });
   }
 });
 

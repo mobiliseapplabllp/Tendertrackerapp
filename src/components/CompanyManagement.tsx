@@ -124,7 +124,7 @@ export function CompanyManagement() {
     try {
       setLoading(true);
       setError(null);
-      const response = await companyApi.getAll();
+      const response = await companyApi.getAll({ pageSize: 1000 } as any);
       if (response.success && response.data) {
         // Transform snake_case to camelCase if needed
         const companiesData = response.data.data || response.data || [];

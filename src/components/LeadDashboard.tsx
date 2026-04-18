@@ -60,6 +60,7 @@ export function LeadDashboard({ onLogout, onNavigate }: LeadDashboardProps) {
   const [totalPages, setTotalPages] = useState(1);
   const [showDeleted, setShowDeleted] = useState(false);
   const [deletedCount, setDeletedCount] = useState(0);
+  const [statusCounts, setStatusCounts] = useState<Record<string, number>>({});
   const [currentUser, setCurrentUser] = useState<UserType | null>(null);
   const [isProfileDropdownOpen, setIsProfileDropdownOpen] = useState(false);
   const [productLines, setProductLines] = useState<ProductLine[]>([]);
@@ -85,6 +86,43 @@ export function LeadDashboard({ onLogout, onNavigate }: LeadDashboardProps) {
       }
     } catch (err) {
       console.error('Error fetching deleted count:', err);
+    }
+  };
+
+  // Fetch true lead counts by status from backend (all leads, not just current page)
+  const fetchStatusCounts = async () => {
+    try {
+      const statuses = ['Draft', 'Submitted', 'Under Review', 'Shortlisted', 'Won', 'Lost', 'Cancelled'];
+      const counts: Record<string, number> = {};
+
+      // Total (all statuses, leadTypeId=2)
+      const totalResp = await leadApi.getAll({
+        page: 1,
+        pageSize: 1,
+        leadTypeId: 2,
+      });
+      if (totalResp.success && totalResp.data) {
+        counts['total'] = totalResp.data.total || 0;
+      }
+
+      // Per-status counts
+      for (const status of statuses) {
+        try {
+          const resp = await leadApi.getAll({
+            page: 1,
+            pageSize: 1,
+            leadTypeId: 2,
+            status: [status],
+          });
+          counts[status] = resp.success && resp.data ? (resp.data.total || 0) : 0;
+        } catch {
+          counts[status] = 0;
+        }
+      }
+
+      setStatusCounts(counts);
+    } catch (err) {
+      console.error('Error fetching lead status counts:', err);
     }
   };
 
@@ -122,6 +160,8 @@ export function LeadDashboard({ onLogout, onNavigate }: LeadDashboardProps) {
     if (!showDeleted) {
       fetchDeletedCount();
     }
+    // Fetch true status counts (independent of current page/filters)
+    fetchStatusCounts();
   }, [searchQuery, statusFilter, priorityFilter, page, showDeleted]);
 
   const fetchLeads = async () => {
@@ -463,7 +503,7 @@ export function LeadDashboard({ onLogout, onNavigate }: LeadDashboardProps) {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-muted-foreground">Total Leads</p>
-                <p className="text-2xl mt-1">{leads.filter(l => !l.deletedAt).length}</p>
+                <p className="text-2xl mt-1">{statusCounts.total ?? 0}</p>
               </div>
               <FileText className="w-8 h-8 text-indigo-600" />
             </div>
@@ -472,9 +512,7 @@ export function LeadDashboard({ onLogout, onNavigate }: LeadDashboardProps) {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-muted-foreground">Draft</p>
-                <p className="text-2xl mt-1">
-                  {leads.filter((l) => l.status === 'Draft' && !l.deletedAt).length}
-                </p>
+                <p className="text-2xl mt-1">{statusCounts.Draft ?? 0}</p>
               </div>
               <Calendar className="w-8 h-8 text-green-600" />
             </div>
@@ -483,9 +521,7 @@ export function LeadDashboard({ onLogout, onNavigate }: LeadDashboardProps) {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-muted-foreground">Under Review</p>
-                <p className="text-2xl mt-1">
-                  {leads.filter((l) => l.status === 'Under Review' && !l.deletedAt).length}
-                </p>
+                <p className="text-2xl mt-1">{statusCounts['Under Review'] ?? 0}</p>
               </div>
               <User className="w-8 h-8 text-blue-600" />
             </div>
@@ -494,9 +530,7 @@ export function LeadDashboard({ onLogout, onNavigate }: LeadDashboardProps) {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-muted-foreground">Won</p>
-                <p className="text-2xl mt-1">
-                  {leads.filter((l) => l.status === 'Won' && !l.deletedAt).length}
-                </p>
+                <p className="text-2xl mt-1">{statusCounts.Won ?? 0}</p>
               </div>
               <DollarSign className="w-8 h-8 text-emerald-600" />
             </div>

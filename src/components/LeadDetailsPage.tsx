@@ -130,14 +130,14 @@ export function LeadDetailsPage({ leadId, onBack, onUpdate }: LeadDetailsPagePro
       <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1 flex flex-col overflow-hidden">
         <div className="bg-white border-b px-6">
           <TabsList className="flex-wrap gap-0">
-            <TabsTrigger value="overview" className="text-xs py-2.5 flex items-center gap-1.5"><FileText className="w-3.5 h-3.5" />Overview</TabsTrigger>
-            <TabsTrigger value="documents" className="text-xs py-2.5 flex items-center gap-1.5"><FileText className="w-3.5 h-3.5" />Documents</TabsTrigger>
-            <TabsTrigger value="proposals" className="text-xs py-2.5 flex items-center gap-1.5"><ScrollText className="w-3.5 h-3.5 text-indigo-500" />Proposals</TabsTrigger>
-            <TabsTrigger value="tasks" className="text-xs py-2.5 flex items-center gap-1.5"><CheckSquare className="w-3.5 h-3.5" />Tasks</TabsTrigger>
-            <TabsTrigger value="worklog" className="text-xs py-2.5 flex items-center gap-1.5"><Clock className="w-3.5 h-3.5" />Work Log</TabsTrigger>
-            <TabsTrigger value="activities" className="text-xs py-2.5 flex items-center gap-1.5"><MessageSquare className="w-3.5 h-3.5" />Activities</TabsTrigger>
-            <TabsTrigger value="audit" className="text-xs py-2.5 flex items-center gap-1.5"><Shield className="w-3.5 h-3.5" />Audit</TabsTrigger>
-            <TabsTrigger value="ai" className="text-xs py-2.5 flex items-center gap-1.5"><Sparkles className="w-3.5 h-3.5 text-indigo-500" />AI</TabsTrigger>
+            <TabsTrigger value="overview" className="text-sm py-3 px-4 flex items-center gap-2 font-medium"><FileText className="w-4 h-4" />Overview</TabsTrigger>
+            <TabsTrigger value="documents" className="text-sm py-3 px-4 flex items-center gap-2 font-medium"><FileText className="w-4 h-4" />Documents</TabsTrigger>
+            <TabsTrigger value="proposals" className="text-sm py-3 px-4 flex items-center gap-2 font-medium"><ScrollText className="w-4 h-4 text-indigo-500" />Proposals</TabsTrigger>
+            <TabsTrigger value="tasks" className="text-sm py-3 px-4 flex items-center gap-2 font-medium"><CheckSquare className="w-4 h-4" />Tasks</TabsTrigger>
+            <TabsTrigger value="worklog" className="text-sm py-3 px-4 flex items-center gap-2 font-medium"><Clock className="w-4 h-4" />Work Log</TabsTrigger>
+            <TabsTrigger value="activities" className="text-sm py-3 px-4 flex items-center gap-2 font-medium"><MessageSquare className="w-4 h-4" />Activities</TabsTrigger>
+            <TabsTrigger value="audit" className="text-sm py-3 px-4 flex items-center gap-2 font-medium"><Shield className="w-4 h-4" />Audit</TabsTrigger>
+            <TabsTrigger value="ai" className="text-sm py-3 px-4 flex items-center gap-2 font-medium"><Sparkles className="w-4 h-4 text-indigo-500" />AI</TabsTrigger>
           </TabsList>
         </div>
 

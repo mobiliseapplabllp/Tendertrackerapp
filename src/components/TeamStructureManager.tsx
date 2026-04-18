@@ -160,7 +160,7 @@ export function TeamStructureManager() {
             {teams.map((team) => (
               <div key={team.id} className="flex flex-col items-center" style={{ position: 'relative', minWidth: 200 }}>
                 {/* Vertical line from horizontal bar */}
-                <div style={{ width: 0, height: 0, borderLeft: '2px solid #c7d2fe', position: 'absolute', top: -20, height: 20 }} />
+                <div style={{ width: 0, borderLeft: '2px solid #c7d2fe', position: 'absolute', top: -20, height: 20 }} />
 
                 {/* Product Line Card */}
                 <div className="bg-white border-2 border-indigo-200 rounded-xl px-5 py-3 shadow-sm text-center hover:shadow-md transition-shadow min-w-[180px]">

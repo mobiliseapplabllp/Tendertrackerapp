@@ -1,12 +1,13 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { useSettings } from '../hooks/useSettings';
 import { Card } from './ui/card';
 import { Badge } from './ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs';
 import {
   BarChart3, FileText, TrendingUp, DollarSign, Clock,
-  CheckCircle2, AlertCircle, XCircle, Calendar, Users, Crown, Loader2
+  CheckCircle2, AlertCircle, XCircle, Calendar, Users, Crown, Loader2, Sparkles, RefreshCw, Info
 } from 'lucide-react';
+import { Button } from './ui/button';
 import { DashboardStatCard } from './DashboardStatCard';
 import {
   BarChart, Bar, PieChart, Pie, Cell,
@@ -16,6 +17,130 @@ import { ScrollArea } from './ui/scroll-area';
 import { dashboardApi } from '../lib/api';
 import type { DashboardStats } from '../lib/types';
 
+// Stage descriptions for info tooltips
+const stageDescriptions: Record<string, string> = {
+  'New': 'Freshly created leads that haven\'t been qualified yet. Initial contact or inquiry received.',
+  'Qualified': 'Leads that have been vetted and confirmed as genuine opportunities with budget and decision-making authority.',
+  'Proposal': 'Qualified leads where a formal proposal or solution has been submitted to the client for review.',
+  'Negotiation': 'Active discussions on pricing, terms, and scope. Client is evaluating the proposal seriously.',
+  'Won': 'Successfully closed deals. Contract signed, order confirmed, or project awarded.',
+  'Lost': 'Deals that did not convert. Client chose a competitor, budget was cut, or opportunity expired.',
+};
+
+// Stage name → tender status mapping (reverse of backend mapping)
+const stageToStatuses: Record<string, string[]> = {
+  'New': ['Draft'],
+  'Qualified': ['Submitted'],
+  'Proposal': ['Under Review'],
+  'Negotiation': ['Shortlisted'],
+  'Won': ['Won'],
+  'Lost': ['Lost', 'Cancelled'],
+};
+
+// Hover popup for lead list on matrix cells (Teams-style hover card)
+function LeadHoverCard({ userId, stageName, stageColor, count, children }: {
+  userId: number; stageName: string; stageColor: string; count: number; children: React.ReactNode;
+}) {
+  const [leads, setLeads] = useState<any[] | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [visible, setVisible] = useState(false);
+  const timeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const wrapperRef = useRef<HTMLDivElement>(null);
+
+  const fetchLeads = useCallback(async () => {
+    if (leads) return;
+    const statuses = stageToStatuses[stageName] || [stageName];
+    setLoading(true);
+    try {
+      const res = await dashboardApi.getTeamMatrixLeads(userId, statuses);
+      if (res.success) setLeads(res.data || []);
+    } catch { /* silent */ }
+    finally { setLoading(false); }
+  }, [userId, stageName, leads]);
+
+  const show = () => {
+    if (timeoutRef.current) clearTimeout(timeoutRef.current);
+    timeoutRef.current = setTimeout(() => { setVisible(true); fetchLeads(); }, 250);
+  };
+  const hide = () => {
+    if (timeoutRef.current) clearTimeout(timeoutRef.current);
+    timeoutRef.current = setTimeout(() => setVisible(false), 150);
+  };
+  const keep = () => { if (timeoutRef.current) clearTimeout(timeoutRef.current); };
+
+  const priorityColor = (p: string) =>
+    p === 'Critical' ? 'bg-red-100 text-red-700' : p === 'High' ? 'bg-orange-100 text-orange-700' : p === 'Medium' ? 'bg-amber-50 text-amber-700' : 'bg-gray-100 text-gray-600';
+
+  return (
+    <div ref={wrapperRef} className="relative inline-block" onMouseEnter={show} onMouseLeave={hide}>
+      {children}
+      {visible && (
+        <div
+          className="fixed z-[100] w-80 bg-white rounded-xl shadow-2xl border border-gray-200 overflow-hidden animate-in fade-in duration-150"
+          style={{
+            top: (wrapperRef.current?.getBoundingClientRect().bottom ?? 0) + 6,
+            left: Math.min(
+              Math.max((wrapperRef.current?.getBoundingClientRect().left ?? 0) - 100, 8),
+              window.innerWidth - 330
+            ),
+          }}
+          onMouseEnter={keep} onMouseLeave={hide}
+        >
+          {/* Colored top bar */}
+          <div className="h-1.5 w-full" style={{ backgroundColor: stageColor || '#6B7280' }} />
+          {/* Header */}
+          <div className="px-4 py-2.5 border-b border-gray-100 flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: stageColor || '#6B7280' }} />
+              <span className="text-sm font-semibold text-gray-900">{stageName}</span>
+            </div>
+            <span className="text-xs font-medium px-2 py-0.5 rounded-full" style={{ backgroundColor: (stageColor || '#6B7280') + '18', color: stageColor || '#6B7280' }}>
+              {count} lead{count !== 1 ? 's' : ''}
+            </span>
+          </div>
+          {/* Lead list */}
+          <div className="max-h-56 overflow-y-auto">
+            {loading ? (
+              <div className="flex items-center justify-center py-6 gap-2 text-gray-400">
+                <Loader2 className="h-4 w-4 animate-spin" />
+                <span className="text-xs">Loading leads...</span>
+              </div>
+            ) : leads && leads.length > 0 ? (
+              <div className="divide-y divide-gray-50">
+                {leads.map((lead: any) => (
+                  <div key={lead.id} className="px-4 py-2.5 hover:bg-gray-50 transition-colors text-left">
+                    <p className="text-sm font-medium text-gray-900 leading-snug text-left">{lead.title}</p>
+                    <div className="flex items-center gap-1.5 mt-1 flex-wrap justify-start">
+                      {lead.company_name && (
+                        <span className="text-[11px] text-gray-500">{lead.company_name}</span>
+                      )}
+                      {lead.product_line_name && (
+                        <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-indigo-50 text-indigo-600 font-medium">{lead.product_line_name}</span>
+                      )}
+                      {lead.priority && (
+                        <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-medium ${priorityColor(lead.priority)}`}>{lead.priority}</span>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="py-6 text-center">
+                <p className="text-xs text-gray-400">No leads in this stage</p>
+              </div>
+            )}
+          </div>
+          {leads && leads.length > 0 && (
+            <div className="px-4 py-2 border-t border-gray-100 bg-gray-50/50">
+              <p className="text-[10px] text-gray-400 text-center">Showing {leads.length} lead{leads.length !== 1 ? 's' : ''}</p>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
 export function Dashboard() {
   const [stats, setStats] = useState<DashboardStats | null>(null);
   const [loading, setLoading] = useState(true);
@@ -23,6 +148,10 @@ export function Dashboard() {
   const [activeTab, setActiveTab] = useState('combined');
   const [teamMembers, setTeamMembers] = useState<any[]>([]);
   const [expandedMembers, setExpandedMembers] = useState(false);
+  const [aiSummary, setAiSummary] = useState<string>('');
+  const [aiLoading, setAiLoading] = useState(true);
+  const [teamMatrix, setTeamMatrix] = useState<any>(null);
+  const [matrixLoading, setMatrixLoading] = useState(false);
   const { formatCurrency } = useSettings();
 
   useEffect(() => {
@@ -47,6 +176,37 @@ export function Dashboard() {
       }
     };
     fetchDashboardData();
+  }, []);
+
+  useEffect(() => {
+    const loadAiSummary = async () => {
+      try {
+        const res = await dashboardApi.getAiSummary();
+        if (res.success && res.data) setAiSummary(res.data.summary);
+      } catch (err) { console.error(err); }
+      finally { setAiLoading(false); }
+    };
+    loadAiSummary();
+  }, []);
+
+  const loadTeamMatrix = async () => {
+    setMatrixLoading(true);
+    try {
+      const res = await dashboardApi.getTeamMatrix();
+      if (res.success) setTeamMatrix(res.data);
+    } catch { /* silent */ }
+    finally { setMatrixLoading(false); }
+  };
+
+  useEffect(() => {
+    if (activeTab === 'team-matrix' && !teamMatrix && !matrixLoading) {
+      loadTeamMatrix();
+    }
+  }, [activeTab]);
+
+  // Also auto-load team matrix on mount
+  useEffect(() => {
+    loadTeamMatrix();
   }, []);
 
   if (loading) {
@@ -109,6 +269,26 @@ export function Dashboard() {
     </div>
   );
 
+  const AiAnalysisCard = () => (
+    <div className="bg-amber-50/60 border-l-4 border-amber-400 rounded-r-xl p-5">
+      <div className="flex items-start gap-3">
+        <Sparkles className="h-5 w-5 text-purple-500 mt-0.5 flex-shrink-0" />
+        <div>
+          <h3 className="text-sm font-bold text-purple-700 mb-1">AI Analysis</h3>
+          {aiLoading ? (
+            <div className="flex items-center gap-2">
+              <div className="animate-pulse h-3 bg-amber-200 rounded w-3/4" />
+            </div>
+          ) : aiSummary ? (
+            <p className="text-sm text-gray-700 leading-relaxed">{aiSummary}</p>
+          ) : (
+            <p className="text-sm text-gray-500 italic">AI analysis not available. Configure AI in Administration to enable.</p>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+
   return (
     <div className="h-full flex flex-col bg-gray-50">
       {/* Header */}
@@ -156,6 +336,9 @@ export function Dashboard() {
             <TabsTrigger value="leads" className="text-sm py-2.5 flex items-center gap-1.5">
               <Users className="w-4 h-4" />Leads
             </TabsTrigger>
+            <TabsTrigger value="team-matrix" className="text-sm py-2.5 flex items-center gap-1.5">
+              <Users className="w-4 h-4" />Team Performance
+            </TabsTrigger>
           </TabsList>
         </div>
 
@@ -163,6 +346,7 @@ export function Dashboard() {
           {/* Combined Tab */}
           <TabsContent value="combined" className="mt-0 p-6 space-y-6">
             <StatsGrid />
+            <AiAnalysisCard />
 
             {/* Charts */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -283,6 +467,7 @@ export function Dashboard() {
           {/* Tenders Tab */}
           <TabsContent value="tenders" className="mt-0 p-6 space-y-6">
             <StatsGrid />
+            <AiAnalysisCard />
             <Card className="p-6">
               <h3 className="mb-4 font-medium">Tender Status Distribution</h3>
               <ResponsiveContainer width="100%" height={300}>
@@ -300,6 +485,7 @@ export function Dashboard() {
           {/* Leads Tab */}
           <TabsContent value="leads" className="mt-0 p-6 space-y-6">
             <StatsGrid />
+            <AiAnalysisCard />
             <Card className="p-6">
               <h3 className="mb-4 font-medium">Lead Categories</h3>
               <ResponsiveContainer width="100%" height={300}>
@@ -312,6 +498,125 @@ export function Dashboard() {
                 </BarChart>
               </ResponsiveContainer>
             </Card>
+          </TabsContent>
+
+          {/* Team Matrix Tab */}
+          <TabsContent value="team-matrix" className="mt-0 p-6">
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <h3 className="text-lg font-semibold">Team Performance Matrix</h3>
+                <Button variant="outline" size="sm" onClick={loadTeamMatrix} disabled={matrixLoading}>
+                  {matrixLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
+                  <span className="ml-1">Refresh</span>
+                </Button>
+              </div>
+
+              {matrixLoading ? (
+                <div className="flex items-center justify-center py-12">
+                  <Loader2 className="h-6 w-6 animate-spin text-gray-400" />
+                </div>
+              ) : !teamMatrix ? (
+                <div className="text-center py-12 text-gray-500">
+                  <Users className="h-12 w-12 mx-auto mb-3 text-gray-300" />
+                  <p>Click Refresh to load team performance data</p>
+                </div>
+              ) : (
+                <div className="border rounded-xl overflow-hidden">
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-sm">
+                      <thead>
+                        <tr className="bg-gray-50 border-b border-gray-200">
+                          <th className="text-left px-4 py-3 font-semibold text-gray-700 sticky left-0 bg-gray-50 min-w-[180px] border-r border-gray-200 z-20">Team Member</th>
+                          {teamMatrix.stages.map((stage: any) => (
+                            <th key={stage.id} className="text-center px-3 py-3 font-semibold text-gray-700 min-w-[110px]">
+                              <div className="flex flex-col items-center gap-1">
+                                <span className="inline-block w-3 h-3 rounded-full" style={{ backgroundColor: stage.color || '#9CA3AF' }} />
+                                <div className="flex items-center gap-1">
+                                  <span>{stage.name}</span>
+                                  <span className="relative group/tip">
+                                    <Info className="h-3 w-3 text-gray-300 hover:text-gray-500 cursor-help" />
+                                    <span className="absolute z-[200] top-full left-1/2 -translate-x-1/2 mt-1.5 w-56 p-2.5 bg-gray-900 text-white text-[11px] font-normal leading-relaxed rounded-lg shadow-xl opacity-0 invisible group-hover/tip:opacity-100 group-hover/tip:visible transition-all duration-150 text-left whitespace-normal">
+                                      {stageDescriptions[stage.name] || `${stage.name} stage — ${stage.probability}% probability of closing.`}
+                                      <span className="absolute bottom-full left-1/2 -translate-x-1/2 border-4 border-transparent border-b-gray-900" />
+                                    </span>
+                                  </span>
+                                </div>
+                                <span className="text-[10px] text-gray-400 font-normal">{stage.probability}%</span>
+                              </div>
+                            </th>
+                          ))}
+                          <th className="text-center px-3 py-3 font-semibold text-gray-700 min-w-[80px] border-l border-gray-200 bg-green-50">Total</th>
+                          <th className="text-center px-3 py-3 font-semibold text-gray-700 min-w-[80px] bg-green-50">Won</th>
+                          <th className="text-center px-3 py-3 font-semibold text-gray-700 min-w-[80px] bg-red-50">Lost</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {teamMatrix.users.map((user: any, idx: number) => (
+                          <tr key={user.userId} className={`border-b border-gray-100 hover:bg-gray-50 ${idx % 2 === 0 ? '' : 'bg-gray-50/30'}`}>
+                            <td className="px-4 py-3 sticky left-0 bg-white border-r border-gray-200 z-10">
+                              <div>
+                                <p className="font-medium text-gray-900">{user.fullName}</p>
+                                <p className="text-xs text-gray-400 capitalize">{user.role}</p>
+                              </div>
+                            </td>
+                            {teamMatrix.stages.map((stage: any) => {
+                              const stageData = user.stages[stage.id];
+                              const count = stageData?.count || 0;
+                              return (
+                                <td key={stage.id} className="text-center px-3 py-3">
+                                  {count > 0 ? (
+                                    <LeadHoverCard userId={user.userId} stageName={stage.name} stageColor={stage.color || '#9CA3AF'} count={count}>
+                                      <span className="inline-flex items-center justify-center min-w-[28px] h-7 px-2 rounded-full text-sm font-semibold cursor-pointer hover:scale-110 transition-transform"
+                                        style={{ backgroundColor: (stage.color || '#9CA3AF') + '20', color: stage.color || '#6B7280' }}>
+                                        {count}
+                                      </span>
+                                    </LeadHoverCard>
+                                  ) : (
+                                    <span className="text-gray-300">&mdash;</span>
+                                  )}
+                                </td>
+                              );
+                            })}
+                            <td className="text-center px-3 py-3 border-l border-gray-200 bg-green-50/30 font-semibold text-gray-900">{user.totalLeads}</td>
+                            <td className="text-center px-3 py-3 bg-green-50/30">
+                              <span className="text-green-700 font-semibold">{user.wonCount}</span>
+                            </td>
+                            <td className="text-center px-3 py-3 bg-red-50/30">
+                              <span className="text-red-600 font-semibold">{user.lostCount}</span>
+                            </td>
+                          </tr>
+                        ))}
+                        {/* Totals Row */}
+                        {teamMatrix.users.length > 0 && (
+                          <tr className="bg-gray-100 font-semibold border-t-2 border-gray-300">
+                            <td className="px-4 py-3 sticky left-0 bg-gray-100 border-r border-gray-200 z-10">
+                              <p className="font-bold text-gray-900">TOTAL</p>
+                            </td>
+                            {teamMatrix.stages.map((stage: any) => {
+                              const stageTotal = teamMatrix.users.reduce((sum: number, u: any) => sum + (u.stages[stage.id]?.count || 0), 0);
+                              return (
+                                <td key={stage.id} className="text-center px-3 py-3 font-bold text-gray-900">
+                                  {stageTotal > 0 ? stageTotal : '\u2014'}
+                                </td>
+                              );
+                            })}
+                            <td className="text-center px-3 py-3 border-l border-gray-200 bg-green-100/50 font-bold text-gray-900">
+                              {teamMatrix.users.reduce((s: number, u: any) => s + u.totalLeads, 0)}
+                            </td>
+                            <td className="text-center px-3 py-3 bg-green-100/50 font-bold text-green-700">
+                              {teamMatrix.users.reduce((s: number, u: any) => s + u.wonCount, 0)}
+                            </td>
+                            <td className="text-center px-3 py-3 bg-red-100/50 font-bold text-red-600">
+                              {teamMatrix.users.reduce((s: number, u: any) => s + u.lostCount, 0)}
+                            </td>
+                          </tr>
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
+            </div>
           </TabsContent>
         </ScrollArea>
       </Tabs>

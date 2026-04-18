@@ -136,7 +136,7 @@ export class ReminderController {
                   <p style="font-size: 14px; color: #4a5568; margin-bottom: 20px;">Please log in to the Mobilise CRM to view details and update the task status.</p>
                   
                   <div style="text-align: center; margin-top: 30px;">
-                    <a href="https://tendertracker.mobilisepro.com" style="background: #667eea; color: white; padding: 12px 30px; text-decoration: none; border-radius: 6px; font-weight: bold; display: inline-block;">View Task</a>
+                    <a href="${process.env.APP_URL || process.env.CORS_ORIGIN || 'https://tendertracker.mobilisepro.com'}" style="background: #667eea; color: white; padding: 12px 30px; text-decoration: none; border-radius: 6px; font-weight: bold; display: inline-block;">View Task</a>
                   </div>
                   
                   <div style="margin-top: 30px; padding-top: 20px; border-top: 1px solid #e2e8f0; text-align: center;">
@@ -159,7 +159,7 @@ Due Date: ${dueDateStr}
 
 Please log in to the Mobilise CRM to view details and update the task status.
 
-Visit: https://tendertracker.mobilisepro.com
+Visit: ${process.env.APP_URL || process.env.CORS_ORIGIN || 'https://tendertracker.mobilisepro.com'}
 
 ---
 This is an automated notification from Mobilise CRM

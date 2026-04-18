@@ -559,6 +559,65 @@ This is an automated security email from ${companyName}.
       return false;
     }
   }
+
+  /**
+   * Send proposal email with CC and reply-to support
+   */
+  async sendProposalEmail(options: {
+    to: string;
+    cc?: string;
+    subject: string;
+    htmlBody: string;
+    textBody: string;
+    replyTo?: string;
+    attachments?: Array<{ filename: string; content?: Buffer; path?: string; contentType?: string }>;
+  }): Promise<void> {
+    if (!this.isInitialized) {
+      await this.initialize();
+    }
+
+    if (!this.isInitialized) {
+      throw new Error('SMTP email service not available');
+    }
+
+    try {
+      const companyName = await getCompanyName();
+      const companyEmail = await getCompanyEmail();
+      const fromEmail = process.env.SMTP_FROM || companyEmail;
+      const fromName = process.env.SMTP_FROM_NAME || companyName;
+
+      const mailOptions: any = {
+        from: `"${fromName}" <${fromEmail}>`,
+        to: options.to,
+        subject: options.subject,
+        html: options.htmlBody,
+        text: options.textBody,
+      };
+
+      if (options.cc) mailOptions.cc = options.cc;
+      if (options.replyTo) mailOptions.replyTo = options.replyTo;
+      if (options.attachments && options.attachments.length > 0) {
+        mailOptions.attachments = options.attachments;
+      }
+
+      await this.transporter.sendMail(mailOptions);
+
+      logger.info({
+        message: 'Proposal email sent via SMTP',
+        to: options.to,
+        cc: options.cc,
+        subject: options.subject,
+        attachmentCount: options.attachments?.length || 0,
+      });
+    } catch (error: any) {
+      logger.error({
+        message: 'Failed to send proposal email via SMTP',
+        to: options.to,
+        error: error.message,
+      });
+      throw error;
+    }
+  }
 }
 
 export const emailService = new EmailService();

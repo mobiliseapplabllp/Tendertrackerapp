@@ -5,7 +5,10 @@ import * as crypto from 'crypto';
 import logger from '../utils/logger';
 import { AIService } from '../services/aiService';
 
-const ENCRYPTION_KEY = process.env.AI_API_ENCRYPTION_KEY || crypto.randomBytes(32).toString('hex');
+const ENCRYPTION_KEY = process.env.AI_API_ENCRYPTION_KEY || (() => {
+  logger.warn('AI_API_ENCRYPTION_KEY not set — using random key. Encrypted API keys will not survive restarts.');
+  return crypto.randomBytes(32).toString('hex');
+})();
 const ALGORITHM = 'aes-256-gcm';
 
 export class AIController {
