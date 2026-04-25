@@ -763,6 +763,142 @@ export class ReportController {
   }
 
   /**
+   * GET /reports/team-matrix/lead-details/:id
+   * Returns rich detail for a single lead (for the second-level hover card):
+   * lead + company + primary contact + owner + creator + last completed task +
+   * next upcoming task + last activity.
+   */
+  static async getTeamMatrixLeadDetails(req: Request, res: Response, next: NextFunction) {
+    try {
+      const leadId = parseInt(req.params.id, 10);
+      if (!Number.isFinite(leadId) || leadId <= 0) {
+        throw new CustomError('Invalid lead id', 400);
+      }
+
+      // Core lead + company + owner + creator + product line, all in one query
+      const [leadRows] = await db.query(
+        `SELECT
+           t.id, t.title, t.tender_number AS lead_number, t.status, t.priority,
+           t.probability, t.estimated_value, t.currency, t.submission_deadline,
+           t.sub_category, t.created_at, t.updated_at,
+           c.id AS company_id, c.company_name,
+           pl.name AS product_line_name,
+           owner.id AS owner_id, owner.full_name AS owner_name,
+             owner.email AS owner_email,
+           creator.id AS creator_id, creator.full_name AS creator_name,
+             creator.email AS creator_email
+         FROM tenders t
+         LEFT JOIN companies c ON t.company_id = c.id
+         LEFT JOIN product_lines pl ON t.product_line_id = pl.id
+         LEFT JOIN users owner ON t.assigned_to = owner.id
+         LEFT JOIN users creator ON t.created_by = creator.id
+         WHERE t.id = ? AND t.deleted_at IS NULL
+         LIMIT 1`,
+        [leadId]
+      );
+      const leadRow = (leadRows as any[])[0];
+      if (!leadRow) {
+        throw new CustomError('Lead not found', 404);
+      }
+
+      // Primary contact (if any) on that company
+      let primaryContact: any = null;
+      if (leadRow.company_id) {
+        const [contactRows] = await db.query(
+          `SELECT id, first_name, last_name, email, phone, position, is_primary
+             FROM contacts
+             WHERE company_id = ?
+             ORDER BY is_primary DESC, id ASC
+             LIMIT 1`,
+          [leadRow.company_id]
+        );
+        primaryContact = (contactRows as any[])[0] || null;
+      }
+
+      // Last completed task
+      const [lastTaskRows] = await db.query(
+        `SELECT tk.id, tk.title, tk.completed_at, tk.priority,
+                u.full_name AS completed_by_name
+           FROM tasks tk
+           LEFT JOIN users u ON tk.assigned_to = u.id
+           WHERE tk.lead_id = ? AND tk.status = 'Completed'
+             AND tk.completed_at IS NOT NULL
+           ORDER BY tk.completed_at DESC
+           LIMIT 1`,
+        [leadId]
+      );
+      const lastCompletedTask = (lastTaskRows as any[])[0] || null;
+
+      // Next upcoming task (not completed/cancelled, due_date >= today, earliest first)
+      const [nextTaskRows] = await db.query(
+        `SELECT tk.id, tk.title, tk.due_date, tk.priority, tk.status,
+                u.full_name AS assignee_name
+           FROM tasks tk
+           LEFT JOIN users u ON tk.assigned_to = u.id
+           WHERE tk.lead_id = ?
+             AND tk.status NOT IN ('Completed','Cancelled')
+             AND tk.due_date IS NOT NULL
+           ORDER BY tk.due_date ASC
+           LIMIT 1`,
+        [leadId]
+      );
+      const nextUpcomingTask = (nextTaskRows as any[])[0] || null;
+
+      // Last activity (from tender_activities — broader than tasks)
+      const [activityRows] = await db.query(
+        `SELECT ta.id, ta.activity_type, ta.description, ta.created_at,
+                u.full_name AS user_name
+           FROM tender_activities ta
+           LEFT JOIN users u ON ta.user_id = u.id
+           WHERE ta.tender_id = ?
+           ORDER BY ta.created_at DESC
+           LIMIT 1`,
+        [leadId]
+      );
+      const lastActivity = (activityRows as any[])[0] || null;
+
+      res.json({
+        success: true,
+        data: {
+          lead: {
+            id: leadRow.id,
+            title: leadRow.title,
+            leadNumber: leadRow.lead_number,
+            status: leadRow.status,
+            priority: leadRow.priority,
+            probability: leadRow.probability,
+            estimatedValue: leadRow.estimated_value
+              ? parseFloat(leadRow.estimated_value) : null,
+            currency: leadRow.currency || 'INR',
+            submissionDeadline: leadRow.submission_deadline,
+            subCategory: leadRow.sub_category,
+            productLineName: leadRow.product_line_name,
+            createdAt: leadRow.created_at,
+            updatedAt: leadRow.updated_at,
+          },
+          company: leadRow.company_id
+            ? { id: leadRow.company_id, name: leadRow.company_name }
+            : null,
+          primaryContact,
+          owner: leadRow.owner_id
+            ? { id: leadRow.owner_id, name: leadRow.owner_name,
+                email: leadRow.owner_email }
+            : null,
+          creator: leadRow.creator_id
+            ? { id: leadRow.creator_id, name: leadRow.creator_name,
+                email: leadRow.creator_email }
+            : null,
+          lastCompletedTask,
+          nextUpcomingTask,
+          lastActivity,
+        },
+      });
+    } catch (error: any) {
+      next(error);
+    }
+  }
+
+  /**
    * Get AI-generated dashboard summary
    */
   static async aiDashboardSummary(req: Request, res: Response, next: NextFunction) {

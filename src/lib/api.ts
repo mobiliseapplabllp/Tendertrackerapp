@@ -955,6 +955,9 @@ export const dashboardApi = {
   getTeamMatrixLeads: async (userId: number, statuses: string[]) => {
     return apiCall<any>(`/reports/team-matrix/leads?userId=${userId}&status=${statuses.join(',')}`);
   },
+  getTeamMatrixLeadDetails: async (leadId: number) => {
+    return apiCall<any>(`/reports/team-matrix/lead-details/${leadId}`);
+  },
 };
 
 // ============================================

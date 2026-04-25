@@ -37,9 +37,377 @@ const stageToStatuses: Record<string, string[]> = {
   'Lost': ['Lost', 'Cancelled'],
 };
 
+// Shared priority → Tailwind colour
+const priorityColor = (p?: string) =>
+  p === 'Critical' ? 'bg-red-100 text-red-700' :
+  p === 'High' ? 'bg-orange-100 text-orange-700' :
+  p === 'Medium' ? 'bg-amber-50 text-amber-700' :
+  'bg-gray-100 text-gray-600';
+
+// Status → Tailwind colour
+const statusBadge = (s?: string) =>
+  s === 'Won' ? 'bg-emerald-100 text-emerald-700' :
+  s === 'Lost' || s === 'Cancelled' ? 'bg-red-100 text-red-700' :
+  s === 'Shortlisted' ? 'bg-green-100 text-green-700' :
+  s === 'Under Review' ? 'bg-blue-100 text-blue-700' :
+  s === 'Submitted' ? 'bg-purple-100 text-purple-700' :
+  s === 'Draft' ? 'bg-gray-100 text-gray-700' :
+  'bg-gray-100 text-gray-700';
+
+// Days-left helper for submission deadline
+const daysLeft = (iso?: string | null) => {
+  if (!iso) return null;
+  const diffMs = new Date(iso).getTime() - Date.now();
+  const d = Math.ceil(diffMs / 86400000);
+  if (d < 0) return { label: `${Math.abs(d)}d overdue`, tone: 'text-red-600' };
+  if (d === 0) return { label: 'Due today', tone: 'text-orange-600' };
+  if (d <= 7) return { label: `${d}d left`, tone: 'text-amber-600' };
+  return { label: `${d}d left`, tone: 'text-gray-500' };
+};
+
+// Initials for avatar fallback
+const initials = (name?: string) =>
+  (name || '').split(' ').map(n => n[0]).filter(Boolean).slice(0, 2).join('').toUpperCase() || '?';
+
+// Second-level hover card: detailed info for a single lead in the list.
+// Branches to the RIGHT of the parent hover card, flips left if no room.
+// Accessible: keyboard focusable row, ESC to close, focus-triggered, aria-tooltip.
+function LeadDetailHoverCard({ lead, parentRect, onNavigate, onRequestClose }: {
+  lead: any;
+  parentRect: DOMRect | null;
+  onNavigate?: (view: string) => void;
+  onRequestClose: () => void;
+}) {
+  const [data, setData] = useState<any | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    setLoading(true);
+    setError(null);
+    dashboardApi.getTeamMatrixLeadDetails(lead.id)
+      .then(res => {
+        if (cancelled) return;
+        if (res.success && res.data) setData(res.data);
+        else setError(res.error || 'Failed to load details');
+      })
+      .catch((e: any) => { if (!cancelled) setError(e.message || 'Failed to load'); })
+      .finally(() => { if (!cancelled) setLoading(false); });
+    return () => { cancelled = true; };
+  }, [lead.id]);
+
+  // ESC to close (accessibility)
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onRequestClose(); };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [onRequestClose]);
+
+  // Position: branch right of the parent card, flip left if no room.
+  // Clamp vertical so the card always stays fully in the viewport and
+  // internal body scrolls if content exceeds available height.
+  const cardWidth = 360;
+  const gap = 8;
+  const margin = 12;
+  const parentRight = parentRect?.right ?? 0;
+  const parentLeft = parentRect?.left ?? 0;
+  const parentTop = parentRect?.top ?? 0;
+  const flipsLeft = parentRight + gap + cardWidth > window.innerWidth - margin;
+  const left = flipsLeft ? Math.max(margin, parentLeft - cardWidth - gap) : parentRight + gap;
+
+  const maxCardHeight = Math.max(320, window.innerHeight - margin * 2);
+  const idealTop = parentTop;
+  const maxTop = window.innerHeight - maxCardHeight - margin;
+  const top = Math.max(margin, Math.min(idealTop, maxTop));
+
+  const openLead = () => {
+    if (onNavigate) onNavigate(`lead-details:${lead.id}`);
+  };
+
+  const dl = daysLeft(data?.lead?.submissionDeadline);
+  const fmtCurrency = (n?: number | null, c?: string) =>
+    typeof n === 'number' ? `${c || 'INR'} ${n.toLocaleString('en-IN')}` : null;
+  const fmtDate = (iso?: string | null) =>
+    iso ? new Date(iso).toLocaleDateString(undefined, { day: '2-digit', month: 'short', year: 'numeric' }) : '—';
+  const fmtDateTime = (iso?: string | null) =>
+    iso ? new Date(iso).toLocaleString(undefined, { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' }) : '—';
+
+  return (
+    <div
+      role="dialog"
+      aria-label={`Details for lead ${lead.title}`}
+      className="fixed z-[120] bg-white rounded-xl shadow-2xl border border-gray-200 overflow-hidden motion-safe:animate-in motion-safe:fade-in motion-safe:duration-150 flex flex-col"
+      style={{ top, left, width: cardWidth, maxHeight: maxCardHeight }}
+      onMouseEnter={() => { /* keep open when pointer is on detail */ }}
+    >
+      {loading ? (
+        <div className="flex items-center gap-2 px-4 py-8 text-gray-400 justify-center">
+          <Loader2 className="h-4 w-4 animate-spin" />
+          <span className="text-xs">Loading details…</span>
+        </div>
+      ) : error ? (
+        <div className="px-4 py-6 text-center">
+          <XCircle className="h-5 w-5 text-red-500 mx-auto mb-1" aria-hidden="true" />
+          <p className="text-xs text-red-600">{error}</p>
+        </div>
+      ) : data ? (
+        <>
+          {/* Header */}
+          <div className="flex-shrink-0 px-4 py-3 border-b border-gray-100 bg-gradient-to-r from-indigo-50 to-white">
+            <div className="flex items-start justify-between gap-2">
+              <div className="min-w-0 flex-1">
+                <p className="text-[11px] font-medium text-indigo-600 tracking-wide">
+                  {data.lead.leadNumber || '—'}
+                </p>
+                <h4 className="text-sm font-semibold text-gray-900 leading-snug mt-0.5 text-left">
+                  {data.lead.title}
+                </h4>
+              </div>
+              <button
+                onClick={openLead}
+                aria-label="Open full lead"
+                className="p-1 rounded hover:bg-indigo-100 text-indigo-600 flex-shrink-0"
+              >
+                <FileText className="h-4 w-4" />
+              </button>
+            </div>
+            <div className="flex items-center gap-1.5 mt-2 flex-wrap">
+              <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-medium ${statusBadge(data.lead.status)}`}>
+                {data.lead.status}
+              </span>
+              {data.lead.priority && (
+                <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-medium ${priorityColor(data.lead.priority)}`}>
+                  {data.lead.priority}
+                </span>
+              )}
+              {typeof data.lead.probability === 'number' && (
+                <span className="text-[10px] px-1.5 py-0.5 rounded-full font-medium bg-indigo-50 text-indigo-700">
+                  {data.lead.probability}% likely
+                </span>
+              )}
+            </div>
+          </div>
+
+          {/* Body */}
+          <div className="flex-1 min-h-0 px-4 py-3 space-y-2.5 overflow-y-auto">
+            {/* Client */}
+            {(data.company || data.primaryContact) && (
+              <div>
+                <p className="text-[10px] uppercase tracking-wide text-gray-400 font-semibold mb-1">Client</p>
+                {data.company && (
+                  <p className="text-xs font-medium text-gray-900 text-left">{data.company.name}</p>
+                )}
+                {data.primaryContact && (
+                  <p className="text-[11px] text-gray-500 text-left">
+                    {[data.primaryContact.first_name, data.primaryContact.last_name].filter(Boolean).join(' ')}
+                    {data.primaryContact.position ? ` · ${data.primaryContact.position}` : ''}
+                  </p>
+                )}
+              </div>
+            )}
+
+            {/* Owner + Creator */}
+            <div className="grid grid-cols-2 gap-2">
+              <div>
+                <p className="text-[10px] uppercase tracking-wide text-gray-400 font-semibold mb-1">Owner</p>
+                {data.owner ? (
+                  <div className="flex items-center gap-1.5 text-left">
+                    <span className="w-6 h-6 rounded-full bg-indigo-100 text-indigo-700 text-[10px] font-bold flex items-center justify-center flex-shrink-0" aria-hidden="true">
+                      {initials(data.owner.name)}
+                    </span>
+                    <div className="min-w-0">
+                      <p className="text-[11px] font-medium text-gray-900 truncate">{data.owner.name}</p>
+                      <p className="text-[10px] text-gray-500 truncate">{data.owner.email}</p>
+                    </div>
+                  </div>
+                ) : (
+                  <p className="text-[11px] text-gray-400 italic">Unassigned</p>
+                )}
+              </div>
+              <div>
+                <p className="text-[10px] uppercase tracking-wide text-gray-400 font-semibold mb-1">Created by</p>
+                {data.creator ? (
+                  <p className="text-[11px] text-gray-700 text-left">{data.creator.name}</p>
+                ) : (
+                  <p className="text-[11px] text-gray-400 italic">—</p>
+                )}
+              </div>
+            </div>
+
+            {/* Product line + Value + Deadline */}
+            <div className="grid grid-cols-2 gap-2">
+              <div>
+                <p className="text-[10px] uppercase tracking-wide text-gray-400 font-semibold mb-1">Product line</p>
+                <p className="text-[11px] text-gray-700 text-left">
+                  {data.lead.productLineName || '—'}
+                  {data.lead.subCategory ? ` · ${data.lead.subCategory}` : ''}
+                </p>
+              </div>
+              <div>
+                <p className="text-[10px] uppercase tracking-wide text-gray-400 font-semibold mb-1">Value</p>
+                <p className="text-[11px] font-medium text-gray-900 text-left">
+                  {fmtCurrency(data.lead.estimatedValue, data.lead.currency) || '—'}
+                </p>
+              </div>
+            </div>
+
+            <div>
+              <p className="text-[10px] uppercase tracking-wide text-gray-400 font-semibold mb-1">Submission deadline</p>
+              <div className="flex items-center gap-1.5">
+                <span className="text-[11px] text-gray-700">{fmtDate(data.lead.submissionDeadline)}</span>
+                {dl && <span className={`text-[10px] font-medium ${dl.tone}`}>· {dl.label}</span>}
+              </div>
+            </div>
+
+            {/* Last completed task */}
+            <div className="border-t border-gray-100 pt-2">
+              <p className="text-[10px] uppercase tracking-wide text-gray-400 font-semibold mb-1 flex items-center gap-1">
+                <CheckCircle2 className="h-3 w-3 text-emerald-500" aria-hidden="true" /> Last task completed
+              </p>
+              {data.lastCompletedTask ? (
+                <div className="text-left">
+                  <p className="text-[11px] font-medium text-gray-900">{data.lastCompletedTask.title}</p>
+                  <p className="text-[10px] text-gray-500">
+                    {fmtDateTime(data.lastCompletedTask.completed_at)}
+                    {data.lastCompletedTask.completed_by_name ? ` · ${data.lastCompletedTask.completed_by_name}` : ''}
+                  </p>
+                </div>
+              ) : (
+                <p className="text-[11px] text-gray-400 italic">No completed tasks yet</p>
+              )}
+            </div>
+
+            {/* Next upcoming task */}
+            <div>
+              <p className="text-[10px] uppercase tracking-wide text-gray-400 font-semibold mb-1 flex items-center gap-1">
+                <Clock className="h-3 w-3 text-amber-500" aria-hidden="true" /> Next upcoming task
+              </p>
+              {data.nextUpcomingTask ? (
+                <div className="text-left">
+                  <p className="text-[11px] font-medium text-gray-900">{data.nextUpcomingTask.title}</p>
+                  <p className="text-[10px] text-gray-500">
+                    Due {fmtDate(data.nextUpcomingTask.due_date)}
+                    {data.nextUpcomingTask.assignee_name ? ` · ${data.nextUpcomingTask.assignee_name}` : ''}
+                  </p>
+                </div>
+              ) : (
+                <p className="text-[11px] text-gray-400 italic">No upcoming tasks</p>
+              )}
+            </div>
+
+            {/* Last activity */}
+            <div>
+              <p className="text-[10px] uppercase tracking-wide text-gray-400 font-semibold mb-1 flex items-center gap-1">
+                <AlertCircle className="h-3 w-3 text-indigo-400" aria-hidden="true" /> Last activity
+              </p>
+              {data.lastActivity ? (
+                <div className="text-left">
+                  <p className="text-[11px] text-gray-700 line-clamp-2">
+                    <span className="font-medium">{data.lastActivity.activity_type}</span>
+                    {data.lastActivity.description ? `: ${data.lastActivity.description}` : ''}
+                  </p>
+                  <p className="text-[10px] text-gray-500">
+                    {fmtDateTime(data.lastActivity.created_at)}
+                    {data.lastActivity.user_name ? ` · ${data.lastActivity.user_name}` : ''}
+                  </p>
+                </div>
+              ) : (
+                <p className="text-[11px] text-gray-400 italic">No activity recorded</p>
+              )}
+            </div>
+          </div>
+
+          {/* Footer */}
+          {onNavigate && (
+            <button
+              onClick={openLead}
+              className="flex-shrink-0 w-full px-4 py-2 border-t border-gray-100 bg-gray-50/70 hover:bg-indigo-50 text-indigo-600 text-xs font-medium text-center transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:ring-inset"
+            >
+              Open full lead →
+            </button>
+          )}
+        </>
+      ) : null}
+    </div>
+  );
+}
+
+// A single lead row inside the first-level hover card.
+// Hovering/focusing it opens the second-level detail card branching right.
+function MatrixLeadRow({ lead, onNavigate }: { lead: any; onNavigate?: (view: string) => void; }) {
+  const [detailOpen, setDetailOpen] = useState(false);
+  const rowRef = useRef<HTMLButtonElement>(null);
+  const openTimer = useRef<NodeJS.Timeout | null>(null);
+  const closeTimer = useRef<NodeJS.Timeout | null>(null);
+
+  const scheduleOpen = () => {
+    if (closeTimer.current) clearTimeout(closeTimer.current);
+    if (detailOpen) return;
+    openTimer.current = setTimeout(() => setDetailOpen(true), 250);
+  };
+  const scheduleClose = () => {
+    if (openTimer.current) clearTimeout(openTimer.current);
+    closeTimer.current = setTimeout(() => setDetailOpen(false), 180);
+  };
+
+  // Keyboard: open on Enter/Space, close on Escape (also handled inside card)
+  const onKey = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault();
+      if (onNavigate) onNavigate(`lead-details:${lead.id}`);
+    }
+  };
+
+  return (
+    <>
+      <button
+        ref={rowRef}
+        type="button"
+        onMouseEnter={scheduleOpen}
+        onMouseLeave={scheduleClose}
+        onFocus={() => setDetailOpen(true)}
+        onBlur={scheduleClose}
+        onClick={() => onNavigate && onNavigate(`lead-details:${lead.id}`)}
+        onKeyDown={onKey}
+        aria-haspopup="dialog"
+        aria-expanded={detailOpen}
+        className="w-full px-4 py-2.5 hover:bg-gray-50 transition-colors text-left focus:outline-none focus-visible:bg-indigo-50 focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-indigo-400"
+      >
+        <p className="text-sm font-medium text-gray-900 leading-snug text-left">{lead.title}</p>
+        <div className="flex items-center gap-1.5 mt-1 flex-wrap justify-start">
+          {lead.company_name && (
+            <span className="text-[11px] text-gray-500">{lead.company_name}</span>
+          )}
+          {lead.product_line_name && (
+            <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-indigo-50 text-indigo-600 font-medium">{lead.product_line_name}</span>
+          )}
+          {lead.priority && (
+            <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-medium ${priorityColor(lead.priority)}`}>{lead.priority}</span>
+          )}
+        </div>
+      </button>
+      {detailOpen && (
+        <div
+          onMouseEnter={() => { if (closeTimer.current) clearTimeout(closeTimer.current); }}
+          onMouseLeave={scheduleClose}
+        >
+          <LeadDetailHoverCard
+            lead={lead}
+            parentRect={rowRef.current?.closest('[role="dialog"]')?.getBoundingClientRect() || rowRef.current?.getBoundingClientRect() || null}
+            onNavigate={onNavigate}
+            onRequestClose={() => setDetailOpen(false)}
+          />
+        </div>
+      )}
+    </>
+  );
+}
+
 // Hover popup for lead list on matrix cells (Teams-style hover card)
-function LeadHoverCard({ userId, stageName, stageColor, count, children }: {
+function LeadHoverCard({ userId, stageName, stageColor, count, children, onNavigate }: {
   userId: number; stageName: string; stageColor: string; count: number; children: React.ReactNode;
+  onNavigate?: (view: string) => void;
 }) {
   const [leads, setLeads] = useState<any[] | null>(null);
   const [loading, setLoading] = useState(false);
@@ -67,9 +435,6 @@ function LeadHoverCard({ userId, stageName, stageColor, count, children }: {
     timeoutRef.current = setTimeout(() => setVisible(false), 150);
   };
   const keep = () => { if (timeoutRef.current) clearTimeout(timeoutRef.current); };
-
-  const priorityColor = (p: string) =>
-    p === 'Critical' ? 'bg-red-100 text-red-700' : p === 'High' ? 'bg-orange-100 text-orange-700' : p === 'Medium' ? 'bg-amber-50 text-amber-700' : 'bg-gray-100 text-gray-600';
 
   return (
     <div ref={wrapperRef} className="relative inline-block" onMouseEnter={show} onMouseLeave={hide}>
@@ -108,20 +473,7 @@ function LeadHoverCard({ userId, stageName, stageColor, count, children }: {
             ) : leads && leads.length > 0 ? (
               <div className="divide-y divide-gray-50">
                 {leads.map((lead: any) => (
-                  <div key={lead.id} className="px-4 py-2.5 hover:bg-gray-50 transition-colors text-left">
-                    <p className="text-sm font-medium text-gray-900 leading-snug text-left">{lead.title}</p>
-                    <div className="flex items-center gap-1.5 mt-1 flex-wrap justify-start">
-                      {lead.company_name && (
-                        <span className="text-[11px] text-gray-500">{lead.company_name}</span>
-                      )}
-                      {lead.product_line_name && (
-                        <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-indigo-50 text-indigo-600 font-medium">{lead.product_line_name}</span>
-                      )}
-                      {lead.priority && (
-                        <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-medium ${priorityColor(lead.priority)}`}>{lead.priority}</span>
-                      )}
-                    </div>
-                  </div>
+                  <MatrixLeadRow key={lead.id} lead={lead} onNavigate={onNavigate} />
                 ))}
               </div>
             ) : (
@@ -141,7 +493,7 @@ function LeadHoverCard({ userId, stageName, stageColor, count, children }: {
   );
 }
 
-export function Dashboard() {
+export function Dashboard({ onNavigate }: { onNavigate?: (view: string) => void } = {}) {
   const [stats, setStats] = useState<DashboardStats | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -565,7 +917,7 @@ export function Dashboard() {
                               return (
                                 <td key={stage.id} className="text-center px-3 py-3">
                                   {count > 0 ? (
-                                    <LeadHoverCard userId={user.userId} stageName={stage.name} stageColor={stage.color || '#9CA3AF'} count={count}>
+                                    <LeadHoverCard userId={user.userId} stageName={stage.name} stageColor={stage.color || '#9CA3AF'} count={count} onNavigate={onNavigate}>
                                       <span className="inline-flex items-center justify-center min-w-[28px] h-7 px-2 rounded-full text-sm font-semibold cursor-pointer hover:scale-110 transition-transform"
                                         style={{ backgroundColor: (stage.color || '#9CA3AF') + '20', color: stage.color || '#6B7280' }}>
                                         {count}

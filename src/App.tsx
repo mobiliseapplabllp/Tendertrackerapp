@@ -192,7 +192,7 @@ export default function App() {
   const renderContent = () => {
     switch (currentView) {
       case 'dashboard':
-        return <Dashboard />;
+        return <Dashboard onNavigate={handleNavigate} />;
       case 'tenders':
         return <TenderDashboard onLogout={handleLogout} onNavigate={handleNavigate} />;
       case 'leads':
@@ -262,7 +262,7 @@ export default function App() {
             }}
           />
         ) : (
-          <Dashboard />
+          <Dashboard onNavigate={handleNavigate} />
         );
       case 'lead-details':
         return tenderDetailsId ? (
@@ -277,10 +277,10 @@ export default function App() {
             }}
           />
         ) : (
-          <Dashboard />
+          <Dashboard onNavigate={handleNavigate} />
         );
       default:
-        return <Dashboard />;
+        return <Dashboard onNavigate={handleNavigate} />;
     }
   };
 
