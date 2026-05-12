@@ -1,5 +1,6 @@
 import { Request, Response, NextFunction } from 'express';
 import logger from '../utils/logger';
+import { normalizeErrorMessage } from '../utils/normalizeError';
 
 export interface AppError extends Error {
   statusCode?: number;
@@ -25,17 +26,18 @@ export const errorHandler = (
   _next: NextFunction
 ) => {
   const statusCode = err.statusCode || 500;
-  const message = err.message || 'Internal Server Error';
+  const message = normalizeErrorMessage(err) || 'Internal Server Error';
 
   // Log error
   logger.error({
-    message: err.message,
+    message,
     stack: err.stack,
     statusCode,
     path: req.path,
     method: req.method,
     ip: req.ip,
     userAgent: req.get('user-agent'),
+    errors: (err as any).errors,
   });
 
   // Don't expose internal errors in production

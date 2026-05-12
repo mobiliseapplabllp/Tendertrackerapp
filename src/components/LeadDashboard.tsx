@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
 import { Badge } from './ui/badge';
@@ -59,6 +59,7 @@ export function LeadDashboard({ onLogout, onNavigate }: LeadDashboardProps) {
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [showDeleted, setShowDeleted] = useState(false);
+  const [activeTotal, setActiveTotal] = useState(0);
   const [deletedCount, setDeletedCount] = useState(0);
   const [statusCounts, setStatusCounts] = useState<Record<string, number>>({});
   const [currentUser, setCurrentUser] = useState<UserType | null>(null);
@@ -73,56 +74,26 @@ export function LeadDashboard({ onLogout, onNavigate }: LeadDashboardProps) {
     }
   };
 
-  // Fetch deleted leads count separately
-  const fetchDeletedCount = async () => {
+  // Fetch KPI counts + deleted tab count in parallel on mount.
+  // pageSize=1 — only the total field is used, not the data rows.
+  const fetchCounts = async () => {
     try {
-      const response = await leadApi.getAll({
-        page: 1,
-        pageSize: 1,
-        includeDeleted: 'true'
+      const [draftRes, reviewRes, wonRes, deletedRes] = await Promise.all([
+        leadApi.getAll({ page: 1, pageSize: 1, leadTypeId: 2, status: ['Draft'] }),
+        leadApi.getAll({ page: 1, pageSize: 1, leadTypeId: 2, status: ['Under Review'] }),
+        leadApi.getAll({ page: 1, pageSize: 1, leadTypeId: 2, status: ['Won'] }),
+        leadApi.getAll({ page: 1, pageSize: 1, leadTypeId: 2, includeDeleted: 'true' }),
+      ]);
+      setStatusCounts({
+        Draft:          draftRes.success  ? (draftRes.data?.total  || 0) : 0,
+        'Under Review': reviewRes.success ? (reviewRes.data?.total || 0) : 0,
+        Won:            wonRes.success    ? (wonRes.data?.total    || 0) : 0,
       });
-      if (response.success && response.data) {
-        setDeletedCount(response.data.total || 0);
+      if (deletedRes.success) {
+        setDeletedCount(deletedRes.data?.total || 0);
       }
     } catch (err) {
-      console.error('Error fetching deleted count:', err);
-    }
-  };
-
-  // Fetch true lead counts by status from backend (all leads, not just current page)
-  const fetchStatusCounts = async () => {
-    try {
-      const statuses = ['Draft', 'Submitted', 'Under Review', 'Shortlisted', 'Won', 'Lost', 'Cancelled'];
-      const counts: Record<string, number> = {};
-
-      // Total (all statuses, leadTypeId=2)
-      const totalResp = await leadApi.getAll({
-        page: 1,
-        pageSize: 1,
-        leadTypeId: 2,
-      });
-      if (totalResp.success && totalResp.data) {
-        counts['total'] = totalResp.data.total || 0;
-      }
-
-      // Per-status counts
-      for (const status of statuses) {
-        try {
-          const resp = await leadApi.getAll({
-            page: 1,
-            pageSize: 1,
-            leadTypeId: 2,
-            status: [status],
-          });
-          counts[status] = resp.success && resp.data ? (resp.data.total || 0) : 0;
-        } catch {
-          counts[status] = 0;
-        }
-      }
-
-      setStatusCounts(counts);
-    } catch (err) {
-      console.error('Error fetching lead status counts:', err);
+      console.error('fetchCounts error:', err instanceof Error ? err.message : err);
     }
   };
 
@@ -153,16 +124,26 @@ export function LeadDashboard({ onLogout, onNavigate }: LeadDashboardProps) {
     }
   };
 
-  // Fetch leads from API
+  // Debounced search: only fires fetchLeads after 300ms of inactivity
+  const searchDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(() => {
+    if (searchDebounceRef.current) clearTimeout(searchDebounceRef.current);
+    searchDebounceRef.current = setTimeout(() => {
+      setPage(1);
+      fetchLeads();
+    }, 300);
+    return () => { if (searchDebounceRef.current) clearTimeout(searchDebounceRef.current); };
+  }, [searchQuery]);
+
+  // Fetch leads when filters/page/tab change (not search — handled above)
   useEffect(() => {
     fetchLeads();
-    // Fetch deleted count when not viewing deleted tab
-    if (!showDeleted) {
-      fetchDeletedCount();
-    }
-    // Fetch true status counts (independent of current page/filters)
-    fetchStatusCounts();
-  }, [searchQuery, statusFilter, priorityFilter, page, showDeleted]);
+  }, [statusFilter, priorityFilter, page, showDeleted]);
+
+  // KPI counts are filter-independent — fetch once on mount
+  useEffect(() => {
+    fetchCounts();
+  }, []);
 
   const fetchLeads = async () => {
     try {
@@ -177,12 +158,15 @@ export function LeadDashboard({ onLogout, onNavigate }: LeadDashboardProps) {
         filters.search = searchQuery;
       }
 
-      if (statusFilter !== 'all') {
-        filters.status = [statusFilter];
-      }
+      // Status and priority filters only apply to active leads tab
+      if (!showDeleted) {
+        if (statusFilter !== 'all') {
+          filters.status = [statusFilter];
+        }
 
-      if (priorityFilter !== 'all') {
-        filters.priority = [priorityFilter];
+        if (priorityFilter !== 'all') {
+          filters.priority = [priorityFilter];
+        }
       }
 
       // Include deleted leads if viewing deleted tab
@@ -195,9 +179,11 @@ export function LeadDashboard({ onLogout, onNavigate }: LeadDashboardProps) {
         const leadsData = response.data.data || [];
         setLeads(leadsData);
         setTotalPages(response.data.totalPages || 1);
-        // Update deleted count when viewing deleted tab
-        if (showDeleted && response.data.total !== undefined) {
-          setDeletedCount(response.data.total);
+        const total = response.data.total ?? 0;
+        if (showDeleted) {
+          setDeletedCount(total);
+        } else {
+          setActiveTotal(total);
         }
       } else {
         setError(response.error || 'Failed to load leads');
@@ -242,8 +228,7 @@ export function LeadDashboard({ onLogout, onNavigate }: LeadDashboardProps) {
           );
         }
 
-        await fetchLeads(); // Refresh list
-        await fetchDeletedCount(); // Update deleted count
+        await Promise.all([fetchLeads(), fetchCounts()]);
         setIsCreateDialogOpen(false);
         // Show success message
         setError(null);
@@ -269,8 +254,7 @@ export function LeadDashboard({ onLogout, onNavigate }: LeadDashboardProps) {
     try {
       const response = await leadApi.delete(leadId);
       if (response.success) {
-        await fetchLeads(); // Refresh list
-        await fetchDeletedCount(); // Update deleted count
+        await Promise.all([fetchLeads(), fetchCounts()]);
       } else {
         setError(response.error || 'Failed to delete lead');
       }
@@ -283,8 +267,7 @@ export function LeadDashboard({ onLogout, onNavigate }: LeadDashboardProps) {
     try {
       const response = await leadApi.restore(leadId);
       if (response.success) {
-        await fetchLeads(); // Refresh list
-        await fetchDeletedCount(); // Update deleted count
+        await Promise.all([fetchLeads(), fetchCounts()]);
       } else {
         setError(response.error || 'Failed to restore lead');
       }
@@ -319,8 +302,7 @@ export function LeadDashboard({ onLogout, onNavigate }: LeadDashboardProps) {
       setError(null);
       const response = await leadApi.permanentDelete(leadId);
       if (response.success) {
-        await fetchLeads(); // Refresh list
-        await fetchDeletedCount(); // Update deleted count
+        await Promise.all([fetchLeads(), fetchCounts()]);
       } else {
         setError(response.error || 'Failed to permanently delete lead');
       }
@@ -425,7 +407,7 @@ export function LeadDashboard({ onLogout, onNavigate }: LeadDashboardProps) {
   return (
     <div className="h-full bg-gray-50 flex flex-col">
       {/* Header */}
-      <header className="bg-white border-b border-gray-200 flex-shrink-0 z-10">
+      <header className="border-gray-200 flex-shrink-0 z-10">
         <div className="px-6 py-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
@@ -439,58 +421,7 @@ export function LeadDashboard({ onLogout, onNavigate }: LeadDashboardProps) {
                 </p>
               </div>
             </div>
-            <div className="flex items-center gap-2">
-              {/* Profile Dropdown */}
-              <div className="relative">
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => setIsProfileDropdownOpen(!isProfileDropdownOpen)}
-                  className="flex items-center gap-3 px-3 py-2"
-                >
-                  <div className="w-10 h-10 bg-indigo-600 rounded-full flex items-center justify-center flex-shrink-0">
-                    <User className="w-5 h-5 text-white" />
-                  </div>
-                  <div className="flex flex-col items-start min-w-0">
-                    <span className="text-sm font-semibold text-gray-900 truncate max-w-[150px]">
-                      {currentUser?.fullName || 'User'}
-                    </span>
-                  </div>
-                  <ChevronDown className="w-4 h-4 text-gray-500 flex-shrink-0" />
-                </Button>
-
-                {isProfileDropdownOpen && (
-                  <>
-                    <div
-                      className="fixed inset-0 z-10"
-                      onClick={() => setIsProfileDropdownOpen(false)}
-                    />
-                    <div className="absolute right-0 mt-2 w-48 bg-white rounded-md shadow-lg border border-gray-200 z-20">
-                      <div className="px-4 py-3 border-b border-gray-200">
-                        <p className="text-sm font-medium text-gray-900">
-                          {currentUser?.fullName || 'User'}
-                        </p>
-                        <p className="text-xs text-gray-500 truncate">
-                          {currentUser?.email || ''}
-                        </p>
-                      </div>
-                      <div className="py-1">
-                        <button
-                          onClick={() => {
-                            setIsProfileDropdownOpen(false);
-                            onLogout();
-                          }}
-                          className="w-full flex items-center gap-2 px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 transition-colors"
-                        >
-                          <LogOut className="w-4 h-4" />
-                          Logout
-                        </button>
-                      </div>
-                    </div>
-                  </>
-                )}
-              </div>
-            </div>
+            
           </div>
         </div>
       </header>
@@ -503,7 +434,7 @@ export function LeadDashboard({ onLogout, onNavigate }: LeadDashboardProps) {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-muted-foreground">Total Leads</p>
-                <p className="text-2xl mt-1">{statusCounts.total ?? 0}</p>
+                <p className="text-2xl mt-1">{activeTotal}</p>
               </div>
               <FileText className="w-8 h-8 text-indigo-600" />
             </div>
@@ -611,12 +542,12 @@ export function LeadDashboard({ onLogout, onNavigate }: LeadDashboardProps) {
 
         {/* Leads Table with Tabs */}
         <div className="bg-white rounded-lg border border-gray-200 flex flex-col min-h-0">
-          <Tabs defaultValue="active" className="w-full flex flex-col min-h-0" onValueChange={(value) => setShowDeleted(value === 'deleted')}>
+          <Tabs defaultValue="active" className="w-full flex flex-col min-h-0" onValueChange={(value) => { setShowDeleted(value === 'deleted'); setPage(1); }}>
             <div className="px-6 pt-4 border-b border-gray-200 flex-shrink-0">
               <TabsList>
                 <TabsTrigger value="active">
                   <FileText className="w-4 h-4" />
-                  Active Leads ({leads.filter(l => !l.deletedAt).length})
+                  Active Leads ({activeTotal})
                 </TabsTrigger>
                 <TabsTrigger value="deleted">
                   <Trash2 className="w-4 h-4" />
@@ -659,7 +590,7 @@ export function LeadDashboard({ onLogout, onNavigate }: LeadDashboardProps) {
                           onClick={() => handleLeadClick(lead)}
                         >
                           <TableCell>
-                            {(page - 1) * 10 + index + 1}
+                            {(page - 1) * 25 + index + 1}
                           </TableCell>
                           <TableCell>
                             <span className="text-indigo-600 hover:underline">
@@ -729,6 +660,47 @@ export function LeadDashboard({ onLogout, onNavigate }: LeadDashboardProps) {
                   </TableBody>
                 </Table>
               </div>
+              {/* Active leads footer: data summary + pagination + export */}
+              <div className="flex items-center justify-between px-4 py-3 border-t bg-white text-sm text-gray-500">
+                <span>
+                  {activeTotal === 0
+                    ? 'No leads found'
+                    : `Showing ${(page - 1) * 25 + 1}–${Math.min(page * 25, activeTotal)} of ${activeTotal} leads`}
+                </span>
+                <div className="flex items-center gap-2">
+                  <Button
+                    variant="outline" size="sm"
+                    disabled={page <= 1}
+                    onClick={() => setPage((p: number) => Math.max(1, p - 1))}
+                  >
+                    <ChevronLeft className="w-4 h-4 mr-1" />Previous
+                  </Button>
+                  <span className="px-2">Page {page} of {totalPages}</span>
+                  <Button
+                    variant="outline" size="sm"
+                    disabled={page >= totalPages}
+                    onClick={() => setPage((p: number) => p + 1)}
+                  >
+                    Next<ChevronRight className="w-4 h-4 ml-1" />
+                  </Button>
+                </div>
+                <Button variant="outline" size="sm" onClick={() => {
+                  const headers = ['Lead ID', 'Title', 'Client', 'Status', 'Priority', 'Product Line', 'Value', 'Created By', 'Created At'];
+                  const rows = leads.map((l: Lead) => [
+                    l.leadNumber || l.tenderNumber || '', l.title || '', l.client || '',
+                    l.status || '', l.priority || '', (l as Lead & { productLineName?: string }).productLineName || '',
+                    l.estimatedValue ?? '', (l as Lead & { createdByName?: string }).createdByName || '', l.createdAt || ''
+                  ]);
+                  const csv = [headers.join(','), ...rows.map((r: (string | number)[]) => r.map((v: string | number) => `"${v}"`).join(','))].join('\n');
+                  const blob = new Blob([csv], { type: 'text/csv' });
+                  const url = URL.createObjectURL(blob);
+                  const a = document.createElement('a');
+                  a.href = url; a.download = `leads-export-${new Date().toISOString().split('T')[0]}.csv`;
+                  a.click(); URL.revokeObjectURL(url);
+                }}>
+                  <Download className="w-4 h-4 mr-1" />Export CSV
+                </Button>
+              </div>
             </TabsContent>
 
             {/* Deleted Leads Tab */}
@@ -761,7 +733,7 @@ export function LeadDashboard({ onLogout, onNavigate }: LeadDashboardProps) {
                           className="opacity-60 hover:opacity-100"
                         >
                           <TableCell>
-                            {(page - 1) * 10 + index + 1}
+                            {(page - 1) * 25 + index + 1}
                           </TableCell>
                           <TableCell>
                             <span className="text-indigo-600">
@@ -812,74 +784,36 @@ export function LeadDashboard({ onLogout, onNavigate }: LeadDashboardProps) {
                   </TableBody>
                 </Table>
               </div>
+              {/* Deleted leads footer: data summary + pagination */}
+              <div className="flex items-center justify-between px-4 py-3 border-t bg-white text-sm text-gray-500">
+                <span>
+                  {deletedCount === 0
+                    ? 'No deleted leads'
+                    : `Showing ${(page - 1) * 25 + 1}–${Math.min(page * 25, deletedCount)} of ${deletedCount} deleted leads`}
+                </span>
+                <div className="flex items-center gap-2">
+                  <Button
+                    variant="outline" size="sm"
+                    disabled={page <= 1}
+                    onClick={() => setPage((p: number) => Math.max(1, p - 1))}
+                  >
+                    <ChevronLeft className="w-4 h-4 mr-1" />Previous
+                  </Button>
+                  <span className="px-2">Page {page} of {totalPages}</span>
+                  <Button
+                    variant="outline" size="sm"
+                    disabled={page >= totalPages}
+                    onClick={() => setPage((p: number) => p + 1)}
+                  >
+                    Next<ChevronRight className="w-4 h-4 ml-1" />
+                  </Button>
+                </div>
+                <div className="w-[110px]" />
+              </div>
             </TabsContent>
           </Tabs>
         </div>
       </main>
-
-
-      {/* Pagination */}
-      {totalPages > 1 && (
-        <div className="flex items-center justify-between px-6 py-3 border-t bg-white">
-          <span className="text-sm text-gray-500">
-            Page {page} of {totalPages}
-          </span>
-          <div className="flex items-center gap-2">
-            <Button
-              variant="outline" size="sm"
-              disabled={page <= 1}
-              onClick={() => setPage(p => Math.max(1, p - 1))}
-            >
-              <ChevronLeft className="w-4 h-4 mr-1" />Previous
-            </Button>
-            <Button
-              variant="outline" size="sm"
-              disabled={page >= totalPages}
-              onClick={() => setPage(p => p + 1)}
-            >
-              Next<ChevronRight className="w-4 h-4 ml-1" />
-            </Button>
-          </div>
-          <Button variant="outline" size="sm" onClick={() => {
-            // Export leads to CSV
-            const headers = ['Lead ID', 'Title', 'Client', 'Status', 'Priority', 'Product Line', 'Value', 'Created By', 'Created At'];
-            const rows = leads.map(l => [
-              l.leadNumber || l.tenderNumber || '', l.title || '', l.client || '',
-              l.status || '', l.priority || '', (l as any).productLineName || '',
-              l.estimatedValue || '', (l as any).createdByName || '', l.createdAt || ''
-            ]);
-            const csv = [headers.join(','), ...rows.map(r => r.map(v => `"${v}"`).join(','))].join('\n');
-            const blob = new Blob([csv], { type: 'text/csv' });
-            const url = URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url; a.download = `leads-export-${new Date().toISOString().split('T')[0]}.csv`;
-            a.click(); URL.revokeObjectURL(url);
-          }}>
-            <Download className="w-4 h-4 mr-1" />Export CSV
-          </Button>
-        </div>
-      )}
-
-      {/* Single page export (when no pagination) */}
-      {totalPages <= 1 && leads.length > 0 && (
-        <div className="flex justify-end px-6 py-3 border-t bg-white">
-          <Button variant="outline" size="sm" onClick={() => {
-            const headers = ['Lead ID', 'Title', 'Client', 'Status', 'Priority', 'Value', 'Created By'];
-            const rows = leads.map(l => [
-              l.leadNumber || l.tenderNumber || '', l.title || '', l.client || '',
-              l.status || '', l.priority || '', l.estimatedValue || '', (l as any).createdByName || ''
-            ]);
-            const csv = [headers.join(','), ...rows.map(r => r.map(v => `"${v}"`).join(','))].join('\n');
-            const blob = new Blob([csv], { type: 'text/csv' });
-            const url = URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url; a.download = `leads-export-${new Date().toISOString().split('T')[0]}.csv`;
-            a.click(); URL.revokeObjectURL(url);
-          }}>
-            <Download className="w-4 h-4 mr-1" />Export CSV
-          </Button>
-        </div>
-      )}
 
       {/* Create Lead Dialog */}
       <CreateLeadDialog

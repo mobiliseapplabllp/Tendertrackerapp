@@ -2,6 +2,7 @@ import db from '../config/database';
 import logger from '../utils/logger';
 import { emailService } from './emailService';
 import { smsService } from './smsService';
+import { normalizeErrorMessage } from '../utils/normalizeError';
 
 export class ReminderService {
   /**
@@ -132,7 +133,8 @@ export class ReminderService {
           logger.error({
             message: 'Error processing reminder',
             reminderId: reminder.id,
-            error: reminderError.message,
+            error: normalizeErrorMessage(reminderError),
+            stack: reminderError?.stack,
           });
         }
       }
@@ -144,8 +146,8 @@ export class ReminderService {
     } catch (error: any) {
       logger.error({
         message: 'Error in sendReminders',
-        error: error.message,
-        stack: error.stack,
+        error: normalizeErrorMessage(error),
+        stack: error?.stack,
       });
     }
   }

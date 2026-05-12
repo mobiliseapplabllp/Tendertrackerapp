@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import { LeadController } from '../controllers/leadController';
+import { TenderController } from '../controllers/tenderController';
 import { authenticate, authorize } from '../middleware/auth';
 import { validate, schemas } from '../middleware/validation';
 import Joi from 'joi';
@@ -13,6 +14,18 @@ router.use(authenticate);
 router.get(
   '/',
   LeadController.getAll
+);
+
+// Get all status + deleted counts in a single query (must be before /:id)
+router.get(
+  '/counts',
+  LeadController.getCounts
+);
+
+// Get pipeline view (must be before /:id)
+router.get(
+  '/pipeline/view',
+  LeadController.getPipeline
 );
 
 // Get lead by ID
@@ -136,6 +149,17 @@ router.delete(
   LeadController.delete
 );
 
+// Get all task reminders for a lead
+router.get(
+  '/:id/reminders',
+  validate({
+    params: Joi.object({
+      id: schemas.id,
+    }),
+  }),
+  TenderController.getReminders
+);
+
 // Get lead activities
 router.get(
   '/:id/activities',
@@ -209,7 +233,7 @@ router.post(
       id: schemas.id,
     }),
     body: Joi.object({
-      activityType: Joi.string().valid('Created', 'Updated', 'Commented', 'Status Changed', 'Document Added', 'Assigned', 'Deadline Changed').required(),
+      activityType: Joi.string().valid('Created', 'Updated', 'Commented', 'Status Changed', 'Document Added', 'Assigned', 'Deadline Changed', 'Task').required(),
       description: Joi.string().required(),
       oldValue: Joi.string().allow(null, ''),
       newValue: Joi.string().allow(null, ''),
@@ -267,12 +291,6 @@ router.put(
     }),
   }),
   LeadController.updateStage
-);
-
-// Get pipeline view
-router.get(
-  '/pipeline/view',
-  LeadController.getPipeline
 );
 
 export default router;

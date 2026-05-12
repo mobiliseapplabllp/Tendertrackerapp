@@ -4,8 +4,13 @@ import { configurationController } from '../controllers/configurationController'
 
 const router = Router();
 
-// All configuration routes require authentication and admin role
+// All routes require authentication
 router.use(authenticate);
+
+// Read-only dropdown fetch — available to all authenticated roles
+router.get('/dropdown/:type', configurationController.getDropdownOptions.bind(configurationController));
+
+// Everything below requires Admin / SuperAdmin
 router.use(authorize('Admin', 'SuperAdmin'));
 
 // System Settings Routes
@@ -13,8 +18,7 @@ router.get('/settings', configurationController.getAllSettings.bind(configuratio
 router.get('/settings/:key', configurationController.getSetting.bind(configurationController));
 router.put('/settings/:key', configurationController.updateSetting.bind(configurationController));
 
-// Dropdown Options Routes
-router.get('/dropdown/:type', configurationController.getDropdownOptions.bind(configurationController));
+// Dropdown write operations (Admin only)
 router.post('/dropdown', configurationController.createDropdownOption.bind(configurationController));
 router.put('/dropdown/:id', configurationController.updateDropdownOption.bind(configurationController));
 router.delete('/dropdown/:id', configurationController.deleteDropdownOption.bind(configurationController));

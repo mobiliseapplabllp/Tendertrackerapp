@@ -16,7 +16,7 @@ export class LeadController {
   static async getAll(req: Request, res: Response, next: NextFunction) {
     try {
       const page = parseInt(req.query.page as string) || 1;
-      const pageSize = parseInt(req.query.pageSize as string) || 10;
+      const pageSize = parseInt(req.query.pageSize as string) || 25;
       const search = req.query.search as string;
       const status = req.query.status as string | string[];
       const priority = req.query.priority as string | string[];
@@ -146,29 +146,16 @@ export class LeadController {
         params.push(subCategory);
       }
 
-      // RBAC visibility filtering
-      const userProductLineIds = req.user?.productLineIds || [];
+      // RBAC visibility filtering — simple role-based rules
       const isAdmin = req.user?.role === 'Admin';
-      const isSalesHead = req.user?.isSalesHead;
+      const isManager = req.user?.role === 'Manager';
 
-      if (!isAdmin) {
-        if (isSalesHead && req.user?.salesHeadProductLineIds?.length) {
-          // Sales Head: sees all leads in their product lines
-          const plPH = req.user.salesHeadProductLineIds.map(() => '?').join(',');
-          whereClause += ` AND (t.product_line_id IN (${plPH}) OR t.product_line_id IS NULL)`;
-          params.push(...req.user.salesHeadProductLineIds);
-        } else if (userProductLineIds.length > 0) {
-          // Team Member: sees only their own created/assigned within product lines
-          const plPH = userProductLineIds.map(() => '?').join(',');
-          whereClause += ` AND (t.product_line_id IN (${plPH}) OR t.product_line_id IS NULL)`;
-          whereClause += ` AND (t.created_by = ? OR t.assigned_to = ?)`;
-          params.push(...userProductLineIds, req.user!.userId, req.user!.userId);
-        } else {
-          // No product lines: see only own
-          whereClause += ` AND (t.created_by = ? OR t.assigned_to = ?)`;
-          params.push(req.user!.userId, req.user!.userId);
-        }
+      if (!isAdmin && !isManager) {
+        // User / Viewer: see only leads they created or are assigned to
+        whereClause += ` AND (t.created_by = ? OR t.assigned_to = ?)`;
+        params.push(req.user!.userId, req.user!.userId);
       }
+      console.log('[RBAC-WHERE]', whereClause);
 
       // Get total count - use tenders table (will be leads after migration)
       const [countResult] = await db.query(
@@ -2426,6 +2413,80 @@ Generated on ${new Date().toLocaleString()}
   }
 
   /**
+   * Get all lead counts (active by status + deleted total) in a single query.
+   * Replaces 8 sequential frontend API calls with 1.
+   */
+  static async getCounts(req: Request, res: Response, next: NextFunction) {
+    try {
+      const isAdmin = req.user?.role === 'Admin';
+      const isManager = req.user?.role === 'Manager';
+
+      // Check which optional columns exist (same pattern as getAll)
+      const [colCheck] = await db.query(
+        `SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS
+         WHERE TABLE_SCHEMA = DATABASE()
+           AND TABLE_NAME = 'tenders'
+           AND COLUMN_NAME IN ('deleted_at', 'lead_type_id')`
+      );
+      const existingCols = new Set((colCheck as { COLUMN_NAME: string }[]).map(r => r.COLUMN_NAME));
+      const hasDeletedAt = existingCols.has('deleted_at');
+      const hasLeadTypeId = existingCols.has('lead_type_id');
+
+      let whereClause = '1=1';
+      const params: any[] = [];
+
+      if (hasLeadTypeId) {
+        whereClause += ' AND lead_type_id = 2';
+      }
+
+      // RBAC visibility filtering — simple role-based rules
+      if (!isAdmin && !isManager) {
+        whereClause += ` AND (created_by = ? OR assigned_to = ?)`;
+        params.push(req.user!.userId, req.user!.userId);
+      }
+
+      // Build SELECT using deleted_at only if the column exists
+      const totalExpr   = hasDeletedAt ? `SUM(CASE WHEN deleted_at IS NULL THEN 1 ELSE 0 END)`     : 'COUNT(*)';
+      const deletedExpr = hasDeletedAt ? `SUM(CASE WHEN deleted_at IS NOT NULL THEN 1 ELSE 0 END)` : '0';
+      const activeAnd   = hasDeletedAt ? `deleted_at IS NULL AND ` : '';
+
+      const [rows] = await db.query(
+        `SELECT
+          ${totalExpr} AS total,
+          ${deletedExpr} AS deleted,
+          SUM(CASE WHEN ${activeAnd}status = 'Draft'        THEN 1 ELSE 0 END) AS \`Draft\`,
+          SUM(CASE WHEN ${activeAnd}status = 'Submitted'    THEN 1 ELSE 0 END) AS \`Submitted\`,
+          SUM(CASE WHEN ${activeAnd}status = 'Under Review' THEN 1 ELSE 0 END) AS \`Under Review\`,
+          SUM(CASE WHEN ${activeAnd}status = 'Shortlisted'  THEN 1 ELSE 0 END) AS \`Shortlisted\`,
+          SUM(CASE WHEN ${activeAnd}status = 'Won'          THEN 1 ELSE 0 END) AS \`Won\`,
+          SUM(CASE WHEN ${activeAnd}status = 'Lost'         THEN 1 ELSE 0 END) AS \`Lost\`,
+          SUM(CASE WHEN ${activeAnd}status = 'Cancelled'    THEN 1 ELSE 0 END) AS \`Cancelled\`
+         FROM tenders
+         WHERE ${whereClause}`,
+        params
+      );
+
+      const row = (rows as any[])[0] || {};
+      res.json({
+        success: true,
+        data: {
+          total:          Number(row.total)            || 0,
+          deleted:        Number(row.deleted)          || 0,
+          Draft:          Number(row.Draft)            || 0,
+          Submitted:      Number(row.Submitted)        || 0,
+          'Under Review': Number(row['Under Review'])  || 0,
+          Shortlisted:    Number(row.Shortlisted)      || 0,
+          Won:            Number(row.Won)              || 0,
+          Lost:           Number(row.Lost)             || 0,
+          Cancelled:      Number(row.Cancelled)        || 0,
+        },
+      });
+    } catch (error: any) {
+      next(error);
+    }
+  }
+
+  /**
    * Get pipeline view
    */
   static async getPipeline(req: Request, res: Response, next: NextFunction) {
@@ -2436,6 +2497,9 @@ Generated on ${new Date().toLocaleString()}
       const [stages] = await db.query(
         'SELECT * FROM sales_stages WHERE is_active = TRUE ORDER BY display_order ASC'
       );
+
+      const isAdmin = req.user?.role === 'Admin';
+      const isManager = req.user?.role === 'Manager';
 
       // Get leads grouped by stage
       const pipeline: any = {};
@@ -2453,6 +2517,12 @@ Generated on ${new Date().toLocaleString()}
         if (leadTypeId) {
           query += ' AND l.lead_type_id = ?';
           params.push(leadTypeId);
+        }
+
+        // RBAC visibility filtering — simple role-based rules
+        if (!isAdmin && !isManager) {
+          query += ` AND (l.created_by = ? OR l.assigned_to = ?)`;
+          params.push(req.user!.userId, req.user!.userId);
         }
 
         query += ' ORDER BY l.created_at DESC';

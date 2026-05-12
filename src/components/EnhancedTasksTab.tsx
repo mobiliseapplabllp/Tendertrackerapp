@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
 import { Label } from './ui/label';
@@ -9,20 +9,56 @@ import {
     Filter, Mail, MessageSquare, AlertCircle, TrendingUp, CheckSquare, X, Edit2
 } from 'lucide-react';
 import type { WorkLogReminder, User as UserType } from '../lib/types';
-import { reminderApi, tenderApi } from '../lib/api';
+import { reminderApi, tenderApi, leadApi, userApi } from '../lib/api';
 
 interface EnhancedTasksTabProps {
     tender: any;
-    users: UserType[];
-    reminders: WorkLogReminder[];
-    onRefresh: () => void;
+    users?: UserType[];
+    reminders?: WorkLogReminder[];
+    onRefresh?: () => void;
 }
 
 type TaskPriority = 'Low' | 'Medium' | 'High' | 'Urgent';
 type TaskStatus = 'Pending' | 'In Progress' | 'Completed';
 type TaskFilter = 'all' | 'active' | 'completed' | 'overdue';
 
-const EnhancedTasksTab: React.FC<EnhancedTasksTabProps> = ({ tender, users, reminders, onRefresh }) => {
+const EnhancedTasksTab: React.FC<EnhancedTasksTabProps> = ({ tender, onRefresh }) => {
+    // Self-managed data — does not depend on parent passing reminders/users
+    const [reminders, setReminders] = useState<WorkLogReminder[]>([]);
+    const [users, setUsers] = useState<UserType[]>([]);
+    const [loadingTasks, setLoadingTasks] = useState(false);
+
+    const fetchTasks = useCallback(async () => {
+        if (!tender?.id) return;
+        setLoadingTasks(true);
+        try {
+            // Use /tenders/:id/reminders — already compiled and live in the running backend
+            const res = await tenderApi.getReminders(tender.id);
+            if (res.success && res.data) {
+                setReminders(res.data);
+            }
+        } catch {
+            // silent — tasks list stays empty
+        } finally {
+            setLoadingTasks(false);
+        }
+    }, [tender?.id]);
+
+    const fetchUsers = useCallback(async () => {
+        try {
+            const res = await userApi.getAll({ pageSize: 200 } as any);
+            if (res.success && res.data) {
+                setUsers((res.data as any).data || []);
+            }
+        } catch {
+            // non-critical
+        }
+    }, []);
+
+    useEffect(() => {
+        fetchTasks();
+        fetchUsers();
+    }, [fetchTasks, fetchUsers]);
     // Task Form State
     const [newTaskForm, setNewTaskForm] = useState({
         title: '',
@@ -174,47 +210,55 @@ const EnhancedTasksTab: React.FC<EnhancedTasksTabProps> = ({ tender, users, remi
 
     // Create Task Handler
     const handleCreateTask = async () => {
-        if (!tender || !newTaskForm.title || !newTaskForm.description) return;
+        if (!tender?.id || !newTaskForm.title || !newTaskForm.description) return;
 
         try {
             const taskDesc = `[${newTaskForm.priority}] ${newTaskForm.title}: ${newTaskForm.description}`;
 
-            // Create activity
-            const activityRes = await tenderApi.addActivity(tender.id, {
-                activityType: 'Task',
+            // Step 1: Create an activity on this lead (activityType 'Commented' is valid in current backend)
+            const activityRes = await leadApi.addActivity(tender.id, {
+                activityType: 'Commented',
                 description: taskDesc,
-                hoursSpent: parseFloat(newTaskForm.estimatedHours) || 0,
-                workDate: new Date().toISOString()
             });
 
-            if (activityRes.success && activityRes.data) {
-                // Create reminder with notification preferences
-                await reminderApi.create(activityRes.data.id, {
-                    actionRequired: newTaskForm.title,
-                    dueDate: newTaskForm.dueDate,
-                    recipients: newTaskForm.assignedTo ? [{ userId: newTaskForm.assignedTo }] : [],
-                    sendEmail: newTaskForm.sendEmail,
-                    sendSMS: newTaskForm.sendSMS,
-                });
-
-                // Reset form
-                setNewTaskForm({
-                    title: '',
-                    description: '',
-                    priority: 'Medium',
-                    status: 'Pending',
-                    dueDate: '',
-                    assignedTo: undefined,
-                    estimatedHours: '',
-                    sendEmail: false,
-                    sendSMS: false,
-                });
-
-                onRefresh();
+            if (!activityRes.success || !activityRes.data) {
+                alert(`Failed to create task activity: ${activityRes.error || 'Unknown error'}`);
+                return;
             }
-        } catch (err) {
+
+            // Step 2: Attach a reminder (the actual "task") to that activity
+            const reminderRes = await reminderApi.create(activityRes.data.id, {
+                actionRequired: newTaskForm.title,
+                dueDate: newTaskForm.dueDate || undefined,
+                recipients: newTaskForm.assignedTo ? [{ userId: newTaskForm.assignedTo }] : [],
+                sendEmail: newTaskForm.sendEmail,
+                sendSMS: newTaskForm.sendSMS,
+            });
+
+            if (!reminderRes.success) {
+                alert(`Task activity created but reminder failed: ${reminderRes.error || 'Unknown error'}`);
+            }
+
+            // Reset form
+            setNewTaskForm({
+                title: '',
+                description: '',
+                priority: 'Medium',
+                status: 'Pending',
+                dueDate: '',
+                assignedTo: undefined,
+                estimatedHours: '',
+                sendEmail: false,
+                sendSMS: false,
+            });
+            setIsFormExpanded(false);
+
+            // Refresh task list from server
+            await fetchTasks();
+            if (onRefresh) onRefresh();
+        } catch (err: any) {
             console.error('Failed to create task:', err);
-            alert('Failed to create task');
+            alert(`Failed to create task: ${err?.message || 'Unknown error'}`);
         }
     };
 
@@ -222,7 +266,7 @@ const EnhancedTasksTab: React.FC<EnhancedTasksTabProps> = ({ tender, users, remi
     const handleToggleComplete = async (reminderId: number, currentStatus: boolean) => {
         try {
             await reminderApi.markComplete(reminderId);
-            onRefresh();
+            await fetchTasks();
         } catch (err) {
             console.error('Failed to update task:', err);
         }
@@ -234,7 +278,7 @@ const EnhancedTasksTab: React.FC<EnhancedTasksTabProps> = ({ tender, users, remi
 
         try {
             await reminderApi.delete(reminderId);
-            onRefresh();
+            await fetchTasks();
         } catch (err) {
             console.error('Failed to delete task:', err);
         }
@@ -258,8 +302,17 @@ const EnhancedTasksTab: React.FC<EnhancedTasksTabProps> = ({ tender, users, remi
         }
     };
 
+    if (loadingTasks && reminders.length === 0) {
+        return (
+            <div className="flex items-center justify-center py-16 text-slate-400">
+                <Clock className="w-5 h-5 animate-spin mr-2" />
+                <span className="text-sm">Loading tasks...</span>
+            </div>
+        );
+    }
+
     return (
-        <div className="space-y-4">
+        <div className="space-y-4 p-4">
             {/* Task Statistics */}
             <div className="grid grid-cols-4 gap-3">
                 <div className="bg-gradient-to-br from-blue-50 to-blue-100 p-3 rounded-lg border border-blue-200">

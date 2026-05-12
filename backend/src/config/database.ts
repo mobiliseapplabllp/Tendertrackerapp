@@ -1,6 +1,7 @@
 import mysql from 'mysql2/promise';
 import dotenv from 'dotenv';
 import logger from '../utils/logger';
+import { normalizeErrorMessage } from '../utils/normalizeError';
 
 dotenv.config();
 
@@ -34,7 +35,7 @@ pool.getConnection()
     connection.release();
   })
   .catch(err => {
-    logger.error({ message: '❌ Database connection failed', error: err.message });
+    logger.error({ message: '❌ Database connection failed', error: normalizeErrorMessage(err), code: err.code });
     if (err.code === 'ECONNREFUSED') {
       logger.error('   Check if Azure MySQL server is accessible and firewall rules allow connections');
     } else if (err.code === 'ER_ACCESS_DENIED_ERROR') {

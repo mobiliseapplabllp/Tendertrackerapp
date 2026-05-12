@@ -306,7 +306,18 @@ export const tenderApi = {
 
 export const leadApi = {
   getAll: async (filters?: FilterOptions) => {
-    const params = new URLSearchParams(filters as any);
+    const params = new URLSearchParams();
+    if (filters) {
+      Object.entries(filters).forEach(([key, value]) => {
+        if (value !== undefined && value !== null) {
+          if (Array.isArray(value)) {
+            value.forEach(item => params.append(key, String(item)));
+          } else {
+            params.append(key, String(value));
+          }
+        }
+      });
+    }
     return apiCall<PaginatedResponse<Lead>>(`/leads?${params}`);
   },
 
@@ -338,6 +349,18 @@ export const leadApi = {
 
   permanentDelete: async (id: number) => {
     return apiCall(`/leads/${id}/permanent`, { method: 'DELETE' });
+  },
+
+  getCounts: async () => {
+    return apiCall<{
+      total: number; deleted: number;
+      Draft: number; Submitted: number; 'Under Review': number;
+      Shortlisted: number; Won: number; Lost: number; Cancelled: number;
+    }>('/leads/counts');
+  },
+
+  getReminders: async (id: number) => {
+    return apiCall<WorkLogReminder[]>(`/leads/${id}/reminders`);
   },
 
   getActivities: async (id: number) => {

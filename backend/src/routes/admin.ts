@@ -6,11 +6,13 @@ import Joi from 'joi';
 
 const router = Router();
 
-// All routes require Admin authentication
 router.use(authenticate);
-router.use(authorize('Admin'));
 
+// System config is read-only for all authenticated users (needed for date/currency formatting)
 router.get('/config', AdminController.getConfig);
+
+// Everything below is Admin-only
+router.use(authorize('Admin'));
 router.put(
   '/config',
   validate({

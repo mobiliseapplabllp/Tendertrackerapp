@@ -1,17 +1,22 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Button } from '../ui/button';
 import { Input } from '../ui/input';
 import { Textarea } from '../ui/textarea';
 import { Badge } from '../ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select';
 import { Loader2, Clock, Plus, User } from 'lucide-react';
-import { tenderApi } from '../../lib/api';
+import { leadApi } from '../../lib/api';
 import { useSettings } from '../../hooks/useSettings';
 import type { LeadActivity } from '../../lib/types';
 
 interface WorkLogTabProps {
   leadId: number;
 }
+
+// Task entries (from the Tasks tab) have descriptions prefixed with [Urgent]/[High]/[Medium]/[Low]
+// Exclude them from the Work Log so they don't appear in two places.
+const isTaskEntry = (description: string) =>
+  /^\[(Urgent|High|Medium|Low)\]/.test(description || '');
 
 export function WorkLogTab({ leadId }: WorkLogTabProps) {
   const [workLogs, setWorkLogs] = useState<LeadActivity[]>([]);
@@ -25,73 +30,62 @@ export function WorkLogTab({ leadId }: WorkLogTabProps) {
   });
   const { formatDate } = useSettings();
 
-  useEffect(() => {
-    let isMounted = true;
-    const load = async () => {
-      try {
-        setLoading(true);
-        const response = await tenderApi.getActivities(leadId);
-        if (isMounted && response.success && response.data) {
-          const acts = (response.data || []).map((a: any) => ({
-            id: a.id,
-            leadId: a.tender_id || a.lead_id || a.leadId,
-            userId: a.user_id || a.userId,
-            performedByName: a.user_name || a.full_name,
-            activityType: a.activity_type || a.activityType,
-            description: a.description,
-            createdAt: a.created_at || a.createdAt,
-          }));
-          setWorkLogs(acts.filter((a: any) => a.activityType === 'Commented'));
-        }
-      } catch (err) {
-        if (isMounted) console.error('Error fetching work logs:', err);
-      } finally {
-        if (isMounted) setLoading(false);
-      }
-    };
-    load();
-    return () => { isMounted = false; };
-  }, [leadId]);
-
-  const fetchWorkLogs = async () => {
+  const fetchWorkLogs = useCallback(async () => {
     try {
       setLoading(true);
-      const response = await tenderApi.getActivities(leadId);
+      // Use leadApi — the canonical API for leads
+      const response = await leadApi.getActivities(leadId);
       if (response.success && response.data) {
-        const acts = (response.data || []).map((a: any) => ({
+        const acts = (response.data as any[]).map((a: any) => ({
           id: a.id,
           leadId: a.tender_id || a.lead_id || a.leadId,
           userId: a.user_id || a.userId,
-          performedByName: a.user_name || a.full_name,
+          performedByName: a.user_name || a.performedByName || a.full_name,
           activityType: a.activity_type || a.activityType,
           description: a.description,
           createdAt: a.created_at || a.createdAt,
         }));
-        setWorkLogs(acts.filter((a: any) => a.activityType === 'Commented'));
+        // Work Log = 'Commented' type activities that are NOT task entries
+        setWorkLogs(
+          acts.filter(
+            (a) => a.activityType === 'Commented' && !isTaskEntry(a.description)
+          )
+        );
       }
     } catch (err) {
       console.error('Error fetching work logs:', err);
     } finally {
       setLoading(false);
     }
-  };
+  }, [leadId]);
+
+  useEffect(() => {
+    fetchWorkLogs();
+  }, [fetchWorkLogs]);
 
   const handleAdd = async () => {
     if (!form.description.trim()) return;
     setIsAdding(true);
     try {
-      let desc = form.description;
+      let desc = form.description.trim();
       if (form.workType !== 'General') desc = `[${form.workType}] ${desc}`;
       if (form.hoursSpent) desc += ` (${form.hoursSpent} hrs)`;
 
-      const response = await tenderApi.addActivity(leadId, {
+      const response = await leadApi.addActivity(leadId, {
         activityType: 'Commented',
         description: desc,
-      } as any);
+      });
 
       if (response.success) {
-        setForm({ description: '', workType: 'General', hoursSpent: '', workDate: new Date().toISOString().split('T')[0] });
+        setForm({
+          description: '',
+          workType: 'General',
+          hoursSpent: '',
+          workDate: new Date().toISOString().split('T')[0],
+        });
         await fetchWorkLogs();
+      } else {
+        console.error('Failed to add work log:', response.error);
       }
     } catch (err) {
       console.error('Error adding work log:', err);

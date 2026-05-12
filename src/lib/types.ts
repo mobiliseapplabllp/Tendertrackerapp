@@ -339,6 +339,8 @@ export interface FilterOptions {
   sortBy?: string;
   sortOrder?: 'asc' | 'desc';
   offset?: number;
+  leadTypeId?: number;
+  includeDeleted?: string;
 }
 
 // Tender Scout Types

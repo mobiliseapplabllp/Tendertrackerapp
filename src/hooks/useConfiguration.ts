@@ -137,10 +137,17 @@ export function useConfiguration() {
                 lead_status: [
                     { id: 1, optionType: 'lead_status', optionValue: 'Draft', optionLabel: 'Draft', displayOrder: 1, colorClass: 'bg-gray-100 text-gray-800', isActive: true, isSystem: true, createdAt: '', updatedAt: '' },
                     { id: 2, optionType: 'lead_status', optionValue: 'Submitted', optionLabel: 'Submitted', displayOrder: 2, colorClass: 'bg-blue-100 text-blue-800', isActive: true, isSystem: true, createdAt: '', updatedAt: '' },
+                    { id: 3, optionType: 'lead_status', optionValue: 'Under Review', optionLabel: 'Under Review', displayOrder: 3, colorClass: 'bg-yellow-100 text-yellow-800', isActive: true, isSystem: true, createdAt: '', updatedAt: '' },
+                    { id: 4, optionType: 'lead_status', optionValue: 'Shortlisted', optionLabel: 'Shortlisted', displayOrder: 4, colorClass: 'bg-purple-100 text-purple-800', isActive: true, isSystem: true, createdAt: '', updatedAt: '' },
+                    { id: 5, optionType: 'lead_status', optionValue: 'Won', optionLabel: 'Won', displayOrder: 5, colorClass: 'bg-green-100 text-green-800', isActive: true, isSystem: true, createdAt: '', updatedAt: '' },
+                    { id: 6, optionType: 'lead_status', optionValue: 'Lost', optionLabel: 'Lost', displayOrder: 6, colorClass: 'bg-red-100 text-red-800', isActive: true, isSystem: true, createdAt: '', updatedAt: '' },
+                    { id: 7, optionType: 'lead_status', optionValue: 'Cancelled', optionLabel: 'Cancelled', displayOrder: 7, colorClass: 'bg-gray-100 text-gray-600', isActive: true, isSystem: true, createdAt: '', updatedAt: '' },
                 ],
                 lead_priority: [
                     { id: 1, optionType: 'lead_priority', optionValue: 'Low', optionLabel: 'Low', displayOrder: 1, colorClass: 'bg-gray-100 text-gray-700', isActive: true, isSystem: true, createdAt: '', updatedAt: '' },
                     { id: 2, optionType: 'lead_priority', optionValue: 'Medium', optionLabel: 'Medium', displayOrder: 2, colorClass: 'bg-blue-100 text-blue-700', isActive: true, isSystem: true, createdAt: '', updatedAt: '' },
+                    { id: 3, optionType: 'lead_priority', optionValue: 'High', optionLabel: 'High', displayOrder: 3, colorClass: 'bg-orange-100 text-orange-700', isActive: true, isSystem: true, createdAt: '', updatedAt: '' },
+                    { id: 4, optionType: 'lead_priority', optionValue: 'Critical', optionLabel: 'Critical', displayOrder: 4, colorClass: 'bg-red-100 text-red-700', isActive: true, isSystem: true, createdAt: '', updatedAt: '' },
                 ],
                 currency: [
                     { id: 1, optionType: 'currency', optionValue: 'INR', optionLabel: 'INR (₹)', displayOrder: 1, isActive: true, isSystem: true, createdAt: '', updatedAt: '' },

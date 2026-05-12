@@ -35,7 +35,6 @@ export function LeadDetailDrawer({
         if (isOpen && leadId) {
             fetchLeadDetails();
         } else if (!isOpen) {
-            // Reset state when drawer closes
             setActiveTab('overview');
             setError(null);
         }
@@ -43,12 +42,10 @@ export function LeadDetailDrawer({
 
     const fetchLeadDetails = async () => {
         if (!leadId) return;
-
         try {
             setLoading(true);
             setError(null);
             const response = await leadApi.getById(leadId);
-
             if (response.success && response.data) {
                 setLead(response.data);
             } else {
@@ -171,8 +168,6 @@ export function LeadDetailDrawer({
                                 <TabsContent value="tasks" className="mt-0 h-full">
                                     <EnhancedTasksTab
                                         tender={lead}
-                                        users={[]}
-                                        reminders={[]}
                                         onRefresh={fetchLeadDetails}
                                     />
                                 </TabsContent>

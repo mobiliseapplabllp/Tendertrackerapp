@@ -77,18 +77,20 @@ export const authenticate = async (
       throw new CustomError('Invalid or expired session', 401);
     }
 
-    // Attach user to request
+    // Fetch current role + name from DB — never trust the JWT role, it may be stale
+    const [userRows] = await db.query('SELECT full_name, role FROM users WHERE id = ?', [decoded.userId]);
+    const userRecord = (userRows as any[])[0];
+    if (!userRecord) {
+      throw new CustomError('User not found', 401);
+    }
+
+    // Attach user to request — role comes from DB, not JWT
     req.user = {
       userId: decoded.userId,
       email: decoded.email,
-      role: decoded.role,
+      role: userRecord.role,
+      fullName: userRecord.full_name,
     };
-
-    // Fetch user's full name
-    try {
-      const [userRows] = await db.query('SELECT full_name FROM users WHERE id = ?', [decoded.userId]);
-      if ((userRows as any[]).length > 0) req.user.fullName = (userRows as any[])[0].full_name;
-    } catch { /* skip */ }
 
     // Fetch user's assigned product line IDs for visibility filtering
     try {
