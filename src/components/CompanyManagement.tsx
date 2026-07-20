@@ -414,7 +414,7 @@ export function CompanyManagement() {
   }
 
   return (
-    <div className="h-full flex flex-col bg-gray-50">
+    <div className="h-full flex flex-col bg-gray-50 min-w-0 overflow-hidden">
       {/* Header */}
       <div className="bg-white border-b px-6 py-4">
         <div className="flex items-center justify-between">
@@ -430,7 +430,7 @@ export function CompanyManagement() {
         </div>
       </div>
 
-      <ScrollArea className="flex-1">
+      <div className="flex-1 overflow-y-auto min-w-0">
         <div className="p-6">
           {/* Error Message */}
           {error && (
@@ -455,8 +455,8 @@ export function CompanyManagement() {
             <TabsContent value="companies" className="space-y-4 mt-4">
 
               <Card className="p-4">
-                <div className="flex items-center justify-between mb-4">
-                  <div className="relative flex-1 max-w-md">
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4">
+                  <div className="relative min-w-0 w-full sm:flex-1 sm:max-w-md">
                     <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                     <Input
                       placeholder="Search companies..."
@@ -465,21 +465,21 @@ export function CompanyManagement() {
                       className="pl-10"
                     />
                   </div>
-                  <Button onClick={() => setIsAddCompanyOpen(!isAddCompanyOpen)} data-testid="btn-add-company">
+                  <Button onClick={() => setIsAddCompanyOpen(!isAddCompanyOpen)} data-testid="btn-add-company" className="flex-shrink-0 w-full sm:w-auto">
                     <Plus className="w-4 h-4 mr-2" />
                     Add Company
                   </Button>
                 </div>
 
-                <div className="overflow-x-auto">
+                <div className="overflow-x-auto w-full">
                   <Table>
                     <TableHeader>
                       <TableRow>
                         <TableHead>Company Name</TableHead>
-                        <TableHead>Industry</TableHead>
-                        <TableHead>Contact Info</TableHead>
-                        <TableHead>Status</TableHead>
-                        <TableHead className="text-right">Actions</TableHead>
+                        <TableHead className="hidden sm:table-cell">Industry</TableHead>
+                        <TableHead className="hidden md:table-cell">Contact Info</TableHead>
+                        <TableHead className="hidden sm:table-cell">Status</TableHead>
+                        <TableHead className="text-right w-px whitespace-nowrap">Actions</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -503,8 +503,8 @@ export function CompanyManagement() {
                                 )}
                               </div>
                             </TableCell>
-                            <TableCell>{company.industry || 'N/A'}</TableCell>
-                            <TableCell>
+                            <TableCell className="hidden sm:table-cell">{company.industry || 'N/A'}</TableCell>
+                            <TableCell className="hidden md:table-cell">
                               <div className="space-y-1">
                                 {company.email && (
                                   <p className="text-sm flex items-center gap-1">
@@ -523,7 +523,7 @@ export function CompanyManagement() {
                                 )}
                               </div>
                             </TableCell>
-                            <TableCell>
+                            <TableCell className="hidden sm:table-cell">
                               <Badge
                                 className={
                                   company.status === 'Active'
@@ -534,7 +534,7 @@ export function CompanyManagement() {
                                 {company.status || 'Active'}
                               </Badge>
                             </TableCell>
-                            <TableCell className="text-right">
+                            <TableCell className="text-right w-px whitespace-nowrap">
                               <div className="flex justify-end gap-2">
                                 <Button
                                   variant="ghost"
@@ -579,17 +579,17 @@ export function CompanyManagement() {
                   </Button>
                 </div>
 
-                <div className="overflow-x-auto">
+                <div className="overflow-x-auto w-full">
                   <Table>
                     <TableHeader>
                       <TableRow>
                         <TableHead>Name</TableHead>
-                        <TableHead>Company</TableHead>
-                        <TableHead>Position</TableHead>
-                        <TableHead>Email</TableHead>
-                        <TableHead>Phone</TableHead>
-                        <TableHead>Type</TableHead>
-                        <TableHead className="text-right">Actions</TableHead>
+                        <TableHead className="hidden sm:table-cell">Company</TableHead>
+                        <TableHead className="hidden md:table-cell">Position</TableHead>
+                        <TableHead className="hidden sm:table-cell">Email</TableHead>
+                        <TableHead className="hidden md:table-cell">Phone</TableHead>
+                        <TableHead className="hidden md:table-cell">Type</TableHead>
+                        <TableHead className="text-right w-px whitespace-nowrap">Actions</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -604,18 +604,18 @@ export function CompanyManagement() {
                         contacts.map((contact: any) => (
                           <TableRow key={contact.id}>
                             <TableCell>{contact.firstName} {contact.lastName}</TableCell>
-                            <TableCell>{contact.companyName || 'N/A'}</TableCell>
-                            <TableCell>{contact.position || 'N/A'}</TableCell>
-                            <TableCell>{contact.email}</TableCell>
-                            <TableCell>{contact.phone || 'N/A'}</TableCell>
-                            <TableCell>
+                            <TableCell className="hidden sm:table-cell">{contact.companyName || 'N/A'}</TableCell>
+                            <TableCell className="hidden md:table-cell">{contact.position || 'N/A'}</TableCell>
+                            <TableCell className="hidden sm:table-cell">{contact.email}</TableCell>
+                            <TableCell className="hidden md:table-cell">{contact.phone || 'N/A'}</TableCell>
+                            <TableCell className="hidden md:table-cell">
                               {contact.isPrimary && (
                                 <Badge className="bg-purple-100 text-purple-800">
                                   Primary
                                 </Badge>
                               )}
                             </TableCell>
-                            <TableCell className="text-right">
+                            <TableCell className="text-right w-px whitespace-nowrap">
                               <div className="flex justify-end gap-2">
                                 <Button
                                   variant="ghost"
@@ -643,7 +643,7 @@ export function CompanyManagement() {
             </TabsContent>
           </Tabs>
         </div>
-      </ScrollArea>
+      </div>
 
       {/* Company Form Drawer */}
       {isAddCompanyOpen && (

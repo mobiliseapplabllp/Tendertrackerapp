@@ -49,7 +49,6 @@ export function UserManagement() {
   const [error, setError] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [filterRole, setFilterRole] = useState('all');
-  const [filterStatus, setFilterStatus] = useState('all');
   const [isCreateUserOpen, setIsCreateUserOpen] = useState(false);
   const [editingUser, setEditingUser] = useState<User | null>(null);
 
@@ -91,7 +90,7 @@ export function UserManagement() {
     try {
       setLoading(true);
       setError(null);
-      const response = await userApi.getAll();
+      const response = await userApi.getAll({ pageSize: 100 } as any);
       if (response.success && response.data) {
         setUsers(response.data.data || []);
       } else {
@@ -104,14 +103,15 @@ export function UserManagement() {
     }
   };
 
-  const filteredUsers = users.filter((user) => {
-    const matchesSearch =
-      (user.fullName || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
-      (user.email || '').toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesRole = filterRole === 'all' || user.role === filterRole;
-    const matchesStatus = filterStatus === 'all' || user.status === filterStatus;
-    return matchesSearch && matchesRole && matchesStatus;
-  });
+  const matchesSearch = (user: User) =>
+    (user.fullName || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+    (user.email || '').toLowerCase().includes(searchTerm.toLowerCase());
+
+  const matchesRole = (user: User) => filterRole === 'all' || user.role === filterRole;
+
+  const allUsers     = users.filter(u => matchesSearch(u) && matchesRole(u));
+  const activeUsers  = users.filter(u => u.status === 'Active'   && matchesSearch(u) && matchesRole(u));
+  const inactiveUsers = users.filter(u => u.status === 'Inactive' && matchesSearch(u) && matchesRole(u));
 
   const getRoleBadgeColor = (role: string) => {
     const colors: Record<string, string> = {
@@ -297,15 +297,15 @@ export function UserManagement() {
             <TabsList>
               <TabsTrigger value="all">
                 <Users className="w-4 h-4" />
-                All Users
+                All Users ({users.length})
               </TabsTrigger>
               <TabsTrigger value="active">
                 <UserCheck className="w-4 h-4" />
-                Active ({users.filter(u => u.status === 'Active').length})
+                Active ({users.filter((u: User) => u.status === 'Active').length})
               </TabsTrigger>
               <TabsTrigger value="inactive">
                 <UserX className="w-4 h-4" />
-                Inactive ({users.filter(u => u.status === 'Inactive').length})
+                Inactive ({users.filter((u: User) => u.status === 'Inactive').length})
               </TabsTrigger>
               <TabsTrigger value="roles">
                 <Shield className="w-4 h-4" />
@@ -317,7 +317,7 @@ export function UserManagement() {
             <TabsContent value="all" className="space-y-4 mt-6">
               {/* Filters */}
               <Card className="p-4">
-                <div className="grid grid-cols-4 gap-4">
+                <div className="grid grid-cols-3 gap-4">
                   <div className="col-span-2 space-y-2">
                     <Label>Search Users</Label>
                     <div className="relative">
@@ -345,19 +345,6 @@ export function UserManagement() {
                       </SelectContent>
                     </Select>
                   </div>
-                  <div className="space-y-2">
-                    <Label>Filter by Status</Label>
-                    <Select value={filterStatus} onValueChange={setFilterStatus}>
-                      <SelectTrigger>
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="all">All Status</SelectItem>
-                        <SelectItem value="Active">Active</SelectItem>
-                        <SelectItem value="Inactive">Inactive</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
                 </div>
               </Card>
 
@@ -378,7 +365,7 @@ export function UserManagement() {
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {filteredUsers.length === 0 ? (
+                      {allUsers.length === 0 ? (
                         <TableRow>
                           <TableCell colSpan={8} className="text-center py-8">
                             <Users className="w-12 h-12 mx-auto mb-2 opacity-50" />
@@ -386,7 +373,7 @@ export function UserManagement() {
                           </TableCell>
                         </TableRow>
                       ) : (
-                        filteredUsers.map((user) => (
+                        allUsers.map((user) => (
                           <TableRow key={user.id}>
                             <TableCell>
                               <div>
@@ -477,11 +464,7 @@ export function UserManagement() {
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {users.filter(u => u.status === 'Active' &&
-                        (u.fullName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                          u.email?.toLowerCase().includes(searchTerm.toLowerCase())) &&
-                        (filterRole === 'all' || u.role === filterRole)
-                      ).length === 0 ? (
+                      {activeUsers.length === 0 ? (
                         <TableRow>
                           <TableCell colSpan={6} className="text-center py-8">
                             <UserCheck className="w-12 h-12 mx-auto mb-2 opacity-50" />
@@ -489,11 +472,7 @@ export function UserManagement() {
                           </TableCell>
                         </TableRow>
                       ) : (
-                        users.filter(u => u.status === 'Active' &&
-                          (u.fullName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                            u.email?.toLowerCase().includes(searchTerm.toLowerCase())) &&
-                          (filterRole === 'all' || u.role === filterRole)
-                        ).map((user) => (
+                        activeUsers.map((user) => (
                           <TableRow key={user.id}>
                             <TableCell>
                               <div>
@@ -566,11 +545,7 @@ export function UserManagement() {
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {users.filter(u => u.status === 'Inactive' &&
-                        (u.fullName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                          u.email?.toLowerCase().includes(searchTerm.toLowerCase())) &&
-                        (filterRole === 'all' || u.role === filterRole)
-                      ).length === 0 ? (
+                      {inactiveUsers.length === 0 ? (
                         <TableRow>
                           <TableCell colSpan={6} className="text-center py-8">
                             <UserX className="w-12 h-12 mx-auto mb-2 opacity-50" />
@@ -578,11 +553,7 @@ export function UserManagement() {
                           </TableCell>
                         </TableRow>
                       ) : (
-                        users.filter(u => u.status === 'Inactive' &&
-                          (u.fullName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                            u.email?.toLowerCase().includes(searchTerm.toLowerCase())) &&
-                          (filterRole === 'all' || u.role === filterRole)
-                        ).map((user) => (
+                        inactiveUsers.map((user) => (
                           <TableRow key={user.id}>
                             <TableCell>
                               <div>

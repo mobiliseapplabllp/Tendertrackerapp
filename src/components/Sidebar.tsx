@@ -4,7 +4,7 @@ import {
   ChevronRight,
 } from 'lucide-react';
 import { Button } from './ui/button';
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { MODULES, type ModuleConfig } from '../lib/modules';
 
 interface SidebarProps {
@@ -16,7 +16,15 @@ interface SidebarProps {
 }
 
 export function Sidebar({ currentView, onNavigate, onLogout, user, activeModule }: SidebarProps) {
-  const [isCollapsed, setIsCollapsed] = useState(false);
+  const [isCollapsed, setIsCollapsed] = useState(() => window.innerWidth < 768);
+
+  useEffect(() => {
+    const handleResize = () => {
+      if (window.innerWidth < 768) setIsCollapsed(true);
+    };
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
 
   const role = (user?.role || 'User').toLowerCase();
   const isAdmin = role === 'admin';
